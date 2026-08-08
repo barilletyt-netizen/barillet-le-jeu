@@ -1,0 +1,1012 @@
+import { useState, useEffect } from "react";
+
+// ============ DONNÉES ============
+
+const PAYS = {
+  suisse: { nom: "Suisse", flag: "🇨🇭", coutMult: 1.35, credBonus: 2, qualBonus: 2, mktMult: 1.0, savoirBonus: 8,
+    desc: "Savoir-faire et label. Cher, mais crédible dès le départ." },
+  chine: { nom: "Chine", flag: "🇨🇳", coutMult: 0.55, credBonus: -2, qualBonus: 0, mktMult: 1.0, savoirBonus: 0,
+    desc: "Production à bas coût. Crédibilité à construire." },
+  japon: { nom: "Japon", flag: "🇯🇵", coutMult: 1.0, credBonus: 1, qualBonus: 2, mktMult: 0.85, savoirBonus: 8,
+    desc: "Excellence technique. Export plus difficile au début." },
+  france: { nom: "France", flag: "🇫🇷", coutMult: 1.1, credBonus: 0, qualBonus: 0, mktMult: 1.45, savoirBonus: 3,
+    desc: "Presse spécialisée accessible : marketing très efficace." },
+};
+
+const PROFILS = {
+  ingenieur: { nom: "Ingénieur", icon: "⚙", desc: "Mouvement manufacture débloqué. Développement plus rapide, R&D -30%." },
+  financier: { nom: "Financier", icon: "💼", desc: "Capital ×1.5. Emprunts à taux réduit." },
+  artisan: { nom: "Artisan", icon: "🔧", desc: "Qualité +2, savoir-faire +10 au départ." },
+};
+
+const ORIGINES = {
+  heritier: { nom: "Héritier", capital: 2000000, dette: 0, reseau: 8, cred: 5, desc: "CHF 2'000'000, réseau immense. Partie facile." },
+  moyen: { nom: "Classe moyenne", capital: 300000, dette: 0, reseau: 4, cred: 2, desc: "CHF 300'000, réseau correct. Équilibré." },
+  selfmade: { nom: "Self-made", capital: 80000, dette: 30000, reseau: 2, cred: 1, desc: "CHF 80'000, crédit étudiant de 30'000. Difficile." },
+};
+
+const MOUVEMENTS = {
+  quartz: { nom: "Quartz", cout: 20, qual: 2, rd: 8000, dev: 1, desc: "Mouvement à ~CHF 20. 1 trim. de dev." },
+  ebauche: { nom: "Mécanique (ébauche)", cout: 220, qual: 5, rd: 35000, dev: 3, desc: "Ébauche à ~CHF 220. 3 trim. de dev." },
+  manufacture: { nom: "Manufacture", cout: 2500, qual: 8, rd: 400000, dev: 6, desc: "Mouvement maison à ~CHF 2'500. 6 trim. Ingénieur requis." },
+};
+
+const STYLES = {
+  sport: { nom: "Sport", mult: { grandpublic: 1.1, lifestyle: 1.15, connaisseurs: 0.9, bling: 0.9 } },
+  dress: { nom: "Classique", mult: { grandpublic: 0.9, lifestyle: 0.95, connaisseurs: 1.15, bling: 1.0 } },
+  plongeuse: { nom: "Plongeuse", mult: { grandpublic: 1.05, lifestyle: 1.1, connaisseurs: 1.05, bling: 0.85 } },
+  squelette: { nom: "Squelette", mult: { grandpublic: 0.7, lifestyle: 0.9, connaisseurs: 1.1, bling: 1.25 } },
+};
+
+const MATERIAUX = {
+  acier: { nom: "Acier", cout: 0, idealMult: 1 },
+  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15 },
+  or: { nom: "Or", cout: 2500, idealMult: 2.6 },
+};
+
+const SEGMENTS = {
+  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 90000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
+  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 55000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
+  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 16000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées." },
+  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 6000, qualMin: 4, notoMin: 35, desc: "Prix élevés, mais il faut être connu." },
+};
+
+const CLASSEMENT_MONDE = [
+  { nom: "Rolodex", rev: 9200 }, { nom: "Cartel", rev: 3100 }, { nom: "Homega", rev: 2600 },
+  { nom: "Padek Philange", rev: 2100 }, { nom: "Audemars Pique", rev: 1900 }, { nom: "Long-Innes", rev: 1100 },
+  { nom: "Fissot", rev: 900 }, { nom: "Grand Seikho", rev: 700 }, { nom: "TAG Heure", rev: 650 },
+  { nom: "Ublot", rev: 600 },
+];
+
+const INDES = ["Manufacture Delorme", "Kairos & Cie", "Atelier Brumaire", "Ferrand-Roux", "Tempus Nova", "Ostara Watch Co", "Cadran Bleu", "Maison Vaucher", "Heure Zéro", "Berthoud Frères"];
+
+const SEUILS_RANG = [
+  [600000000, 10], [200000000, 25], [60000000, 50], [25000000, 100],
+  [8000000, 200], [2500000, 400], [800000, 700], [250000, 1100], [50000, 1600], [0, 2200],
+];
+
+const EVENEMENTS = [
+  { annee: 2015, t: 2, titre: "Lancement de l'Apple Watch", texte: "Le quartz d'entrée de gamme prend un coup pendant 2 ans." },
+  { annee: 2017, t: 1, titre: "Reprise des exportations suisses", texte: "Le marché repart. Demande +10% cette année." },
+  { annee: 2020, t: 1, titre: "Pandémie de Covid-19", texte: "Salons annulés, boutiques fermées. Ventes -40% toute l'année." },
+  { annee: 2021, t: 2, titre: "Bulle spéculative", texte: "Connaisseurs et bling-bling +50% jusqu'à fin 2022." },
+  { annee: 2023, t: 1, titre: "Correction du marché gris", texte: "La fête est finie sur le haut de gamme." },
+];
+
+const OPPORTUNITES = [
+  { id: "salon", titre: "Invitation au salon Genève Time", texte: "Un stand se libère. CHF 25'000, mais la visibilité est réelle.", cout: 25000, pa: 1, req: (g) => g.modeles.some(m => m.statut === "actif") },
+  { id: "youtubeur", titre: "Un YouTubeur veut tester votre montre", texte: "« Remontoir » (280k abonnés) demande un exemplaire. Review honnête... dans les deux sens.", cout: 0, pa: 1, req: (g) => g.modeles.some(m => m.statut === "actif") },
+  { id: "detaillant", titre: "Grosse commande d'un détaillant", texte: "Une chaîne veut votre stock à -25%. Cash immédiat, marge sacrifiée, distribution renforcée.", cout: 0, pa: 1, req: (g) => g.modeles.some(m => m.stock > 20) },
+  { id: "voyagepresse", titre: "Organiser un voyage de presse", texte: "Trois journalistes dans le Jura, montres offertes. CHF 12'000. Si ça se sait...", cout: 12000, pa: 1, req: () => true },
+  { id: "collab", titre: "Collab influenceur lifestyle", texte: "500k abonnés, CHF 20'000 le post. La notoriété s'achète, la crédibilité en souffre.", cout: 20000, pa: 1, req: () => true },
+];
+
+const fmtCHF = (n) => "CHF " + Math.round(n).toLocaleString("fr-CH").replace(/\u202f/g, "'");
+const fmtM = (n) => n >= 1000 ? (n / 1000).toFixed(1) + " Mds" : n + " M";
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const num = (v) => Number(v) || 0;
+
+function multEvenements(annee, t, segKey, mvtKey) {
+  let m = 1;
+  if (mvtKey === "quartz" && (segKey === "grandpublic" || segKey === "lifestyle")) {
+    if ((annee === 2015 && t >= 2) || annee === 2016 || (annee === 2017 && t <= 2)) m *= 0.75;
+  }
+  if (annee === 2017) m *= 1.1;
+  if (annee === 2020) m *= 0.6;
+  if ((segKey === "connaisseurs" || segKey === "bling") && ((annee === 2021 && t >= 2) || annee === 2022)) m *= 1.5;
+  if ((segKey === "connaisseurs" || segKey === "bling") && annee === 2023) m *= 0.9;
+  return m;
+}
+
+function rangPour(rev) {
+  for (const [seuil, rang] of SEUILS_RANG) if (rev >= seuil) return rang;
+  return 2200;
+}
+
+function voisins(rang, revenus) {
+  const pick = (i) => INDES[(rang * 7 + i * 13) % INDES.length];
+  return {
+    dessus: [
+      { rang: Math.max(51, rang - Math.round(rang * 0.08)), nom: pick(1), rev: revenus * 1.35 },
+      { rang: Math.max(51, rang - Math.round(rang * 0.04)), nom: pick(2), rev: revenus * 1.15 },
+    ],
+    dessous: [
+      { rang: rang + Math.round(rang * 0.05), nom: pick(3), rev: revenus * 0.85 },
+      { rang: rang + Math.round(rang * 0.1), nom: pick(4), rev: revenus * 0.65 },
+    ],
+  };
+}
+
+const SAVE_KEY = "barillet-save-v3";
+
+// ============ COMPOSANT ============
+
+export default function BarilletProto() {
+  const [phase, setPhase] = useState("intro");
+  const [pays, setPays] = useState(null);
+  const [profil, setProfil] = useState(null);
+  const [origine, setOrigine] = useState(null);
+  const [marque, setMarque] = useState("");
+
+  const [g, setG] = useState(null);
+  const [rapport, setRapport] = useState(null);
+  const [bilanAnnuel, setBilanAnnuel] = useState(null);
+  const [finInfo, setFinInfo] = useState(null);
+  const [showJournal, setShowJournal] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [sauvegardeExiste, setSauvegardeExiste] = useState(false);
+  const [picker, setPicker] = useState(null); // 'facelift' | 'edition'
+
+  const [showNouveauModele, setShowNouveauModele] = useState(false);
+  const [nmMvt, setNmMvt] = useState("ebauche");
+  const [nmSeg, setNmSeg] = useState("lifestyle");
+  const [nmStyle, setNmStyle] = useState("sport");
+  const [nmMat, setNmMat] = useState("acier");
+  const [nmPrix, setNmPrix] = useState(700);
+  const [nmNom, setNmNom] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.storage.get(SAVE_KEY);
+        if (r && r.value) setSauvegardeExiste(true);
+      } catch (e) { }
+    })();
+  }, []);
+
+  async function sauvegarder() {
+    try {
+      await window.storage.set(SAVE_KEY, JSON.stringify({ g, pays, profil, origine, marque }));
+      setSaveMsg("Partie sauvegardée ✓");
+    } catch (e) { setSaveMsg("Échec de la sauvegarde"); }
+    setTimeout(() => setSaveMsg(""), 2500);
+  }
+
+  async function charger() {
+    try {
+      const r = await window.storage.get(SAVE_KEY);
+      if (r && r.value) {
+        const s = JSON.parse(r.value);
+        setG(s.g); setPays(s.pays); setProfil(s.profil); setOrigine(s.origine); setMarque(s.marque);
+        setPhase("play");
+      }
+    } catch (e) { setSaveMsg("Sauvegarde illisible"); }
+  }
+
+  function tirerOpportunite(etat) {
+    if (Math.random() > 0.45) return null;
+    const dispo = OPPORTUNITES.filter(o => o.req(etat));
+    if (dispo.length === 0) return null;
+    return dispo[Math.floor(Math.random() * dispo.length)].id;
+  }
+
+  function coutU(m) {
+    return Math.round((MOUVEMENTS[m.mvt].cout + 60 + MATERIAUX[m.materiau].cout) * PAYS[pays].coutMult * (1 - Math.min(0.15, (g ? g.savoir : 0) / 600)));
+  }
+
+  function fixesRecurrents(etat) {
+    return 12000 + etat.employes * 8000 + etat.ateliers * 6000;
+  }
+
+  function demarrer() {
+    const p = PAYS[pays], o = ORIGINES[origine];
+    const capital = Math.round(o.capital * (profil === "financier" ? 1.5 : 1));
+    const etat = {
+      annee: 2015, t: 1,
+      cash: capital, dette: o.dette,
+      noto: 2 + o.reseau, cred: Math.max(0, o.cred + p.credBonus),
+      des: 5, savoir: 5 + p.savoirBonus + (profil === "artisan" ? 10 : 0),
+      dist: 5 + o.reseau, capacite: 250,
+      employes: 0, ateliers: 0,
+      reseau: o.reseau, pa: 3,
+      modeles: [], kickstarterFait: false,
+      revenusAnnee: 0, revenusAnneePrec: 0, meilleurRang: 2200,
+      segVendues: { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 },
+      journal: [], opportunite: null,
+      messages: ["T1 2015 — " + (marque || "Votre marque") + " est née. Capital : " + fmtCHF(capital) + (o.dette ? " (dette : " + fmtCHF(o.dette) + ")" : "") + "."],
+    };
+    etat.opportunite = tirerOpportunite(etat);
+    setG(etat);
+    setPhase("play");
+  }
+
+  function coutRD(mvt) {
+    let c = MOUVEMENTS[mvt].rd;
+    if (profil === "ingenieur") c *= 0.7;
+    return Math.round(c);
+  }
+  function dureeDev(mvt) {
+    let d = MOUVEMENTS[mvt].dev;
+    if (profil === "ingenieur") d = Math.max(1, d - 1);
+    return d;
+  }
+  function qualNouveau(mvt) {
+    return MOUVEMENTS[mvt].qual + PAYS[pays].qualBonus + (profil === "artisan" ? 2 : 0) + Math.floor((g ? g.savoir : 0) / 25);
+  }
+
+  function creerModele() {
+    const cout = coutRD(nmMvt);
+    if (g.cash < cout || g.pa < 2) return;
+    const duree = dureeDev(nmMvt);
+    const nom = nmNom || "Modèle " + (g.modeles.length + 1);
+    setG({
+      ...g, cash: g.cash - cout, pa: g.pa - 2,
+      modeles: [...g.modeles, {
+        nom, mvt: nmMvt, seg: nmSeg, style: nmStyle, materiau: nmMat,
+        prix: nmPrix, qual: qualNouveau(nmMvt),
+        prod: 0, stock: 0, age: 0, statut: "dev", devRestant: duree,
+      }],
+      messages: [...g.messages, "R&D lancée : « " + nom + " » (" + MOUVEMENTS[nmMvt].nom + ", " + STYLES[nmStyle].nom + " " + MATERIAUX[nmMat].nom + ", " + SEGMENTS[nmSeg].nom + "). Prêt dans " + duree + " trim. Coût : " + fmtCHF(cout) + "."],
+    });
+    setShowNouveauModele(false);
+    setNmNom("");
+  }
+
+  function gainMarketing() { return Math.max(2, Math.round((8 - g.noto / 14) * PAYS[pays].mktMult)); }
+  function gainChoc() { return Math.max(4, Math.round((14 - g.noto / 10) * PAYS[pays].mktMult)); }
+  function gainDist() { return Math.max(2, 7 - Math.floor(g.dist / 20)); }
+
+  function estimerDemande(m) {
+    const seg = SEGMENTS[m.seg];
+    const prixN = Math.max(50, num(m.prix));
+    if (m.qual < seg.qualMin || g.noto < seg.notoMin) return 0;
+    const idealAdj = seg.ideal * MATERIAUX[m.materiau].idealMult * (0.55 + m.qual / 14 + g.cred / 300);
+    const priceFit = clamp(1.45 - prixN / idealAdj, 0.05, 1.1);
+    const distMult = 0.35 + (g.dist / 100) * 0.85;
+    const desMult = (m.seg === "connaisseurs" || m.seg === "bling") ? 0.45 + g.des / 90 : 0.85 + g.des / 300;
+    const satMult = seg.pool / (seg.pool + g.segVendues[m.seg] * 2);
+    const fr = Math.max(0.35, 1 - 0.045 * Math.max(0, m.age - 4));
+    const styleMult = STYLES[m.style].mult[m.seg];
+    let d = seg.base * Math.pow(g.noto / 100, 0.85) * priceFit * distMult * desMult * satMult * fr * styleMult;
+    d *= multEvenements(g.annee, g.t, m.seg, m.mvt);
+    return Math.round(d);
+  }
+
+  function action(type) {
+    if (!g) return;
+    if (type === "marketing" && g.pa >= 1 && g.cash >= 15000) {
+      const gain = gainMarketing();
+      setG({ ...g, pa: g.pa - 1, cash: g.cash - 15000, noto: clamp(g.noto + gain, 0, 100),
+        messages: [...g.messages, "Marketing : notoriété +" + gain + "."] });
+    }
+    if (type === "choc" && g.pa >= 1 && g.cash >= 30000) {
+      const gain = gainChoc();
+      setG({ ...g, pa: g.pa - 1, cash: g.cash - 30000, noto: clamp(g.noto + gain, 0, 100),
+        cred: clamp(g.cred - 2, 0, 100), des: clamp(g.des - 1, 0, 100),
+        messages: [...g.messages, "Campagne choc : notoriété +" + gain + ", mais crédibilité −2 et désirabilité −1. Le buzz a un prix."] });
+    }
+    if (type === "presse" && g.pa >= 1 && g.reseau >= 2) {
+      setG({ ...g, pa: g.pa - 1, cred: clamp(g.cred + 2, 0, 100), noto: clamp(g.noto + 1, 0, 100),
+        messages: [...g.messages, "Relations presse : crédibilité +2, notoriété +1."] });
+    }
+    if (type === "distribution" && g.pa >= 1 && g.cash >= 12000) {
+      const gain = gainDist();
+      setG({ ...g, pa: g.pa - 1, cash: g.cash - 12000, dist: clamp(g.dist + gain, 0, 100),
+        messages: [...g.messages, "Distribution : réseau de vente +" + gain + "."] });
+    }
+    if (type === "etude" && g.pa >= 1 && g.cash >= 5000) {
+      const actifs = g.modeles.filter(m => m.statut === "actif");
+      const lignes = actifs.map(m => m.nom + " : ~" + estimerDemande(m) + " pièces");
+      setG({ ...g, pa: g.pa - 1, cash: g.cash - 5000,
+        messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre : " + (lignes.length ? lignes.join(" · ") : "aucun modèle actif") + "."] });
+    }
+    if (type === "embauche" && g.pa >= 1) {
+      setG({ ...g, pa: g.pa - 1, employes: g.employes + 1, savoir: clamp(g.savoir + 4, 0, 100),
+        messages: [...g.messages, "Horloger embauché : savoir-faire +4, mais coûts fixes +CHF 8'000/trimestre."] });
+    }
+    if (type === "atelier" && g.pa >= 1 && g.cash >= 120000) {
+      setG({ ...g, pa: g.pa - 1, cash: g.cash - 120000, ateliers: g.ateliers + 1, capacite: g.capacite + 350,
+        messages: [...g.messages, "Atelier agrandi : capacité +350 pièces/trim, coûts fixes +CHF 6'000/trimestre."] });
+    }
+    if (type === "soldes" && g.pa >= 1) {
+      let cash = 0, unites = 0;
+      const modeles = g.modeles.map(m => {
+        if (m.stock > 0 && m.statut === "actif") {
+          const prixN = Math.max(50, num(m.prix));
+          unites += m.stock; cash += Math.round(m.stock * prixN * 0.65);
+          return { ...m, stock: 0 };
+        }
+        return m;
+      });
+      if (unites === 0) return;
+      setG({ ...g, pa: g.pa - 1, cash: g.cash + cash, modeles, des: clamp(g.des - 8, 0, 100),
+        revenusAnnee: g.revenusAnnee + cash,
+        messages: [...g.messages, "Soldes : " + unites + " pièces écoulées à −35% → +" + fmtCHF(cash) + ". Désirabilité −8 : brader laisse des traces."] });
+    }
+    if (type === "kickstarter" && g.pa >= 2 && !g.kickstarterFait && g.modeles.length > 0) {
+      const leve = Math.round(20000 + g.noto * 2500 + g.reseau * 8000);
+      setG({ ...g, pa: g.pa - 2, kickstarterFait: true, cash: g.cash + leve,
+        noto: clamp(g.noto + 8, 0, 100), des: clamp(g.des + 4, 0, 100),
+        messages: [...g.messages, "Kickstarter réussi : " + fmtCHF(leve) + " levés, notoriété +8, désirabilité +4."] });
+    }
+    if (type === "emprunt" && g.pa >= 1) {
+      setG({ ...g, pa: g.pa - 1, cash: g.cash + 150000, dette: g.dette + 150000,
+        messages: [...g.messages, "Emprunt : +CHF 150'000 (taux " + (profil === "financier" ? "4" : "6") + "%/an)."] });
+    }
+    if (type === "rembourser" && g.dette > 0 && g.cash > 0) {
+      const montant = Math.min(50000, g.dette, g.cash);
+      setG({ ...g, cash: g.cash - montant, dette: g.dette - montant,
+        messages: [...g.messages, "Remboursement : −" + fmtCHF(montant) + " de dette."] });
+    }
+  }
+
+  function faireFacelift(i) {
+    const m = g.modeles[i];
+    const cout = Math.round(coutRD(m.mvt) * 0.4);
+    if (g.pa < 1 || g.cash < cout) return;
+    setG({ ...g, pa: g.pa - 1, cash: g.cash - cout,
+      modeles: g.modeles.map((x, j) => j === i ? { ...x, age: 0 } : x),
+      messages: [...g.messages, "Facelift de « " + m.nom + " » : fraîcheur restaurée. Coût : " + fmtCHF(cout) + "."] });
+    setPicker(null);
+  }
+
+  function faireEdition(i) {
+    const m = g.modeles[i];
+    const cout = 50 * coutU(m);
+    if (g.pa < 1 || g.cash < cout) return;
+    const prixN = Math.max(50, num(m.prix));
+    const vendues = Math.round(50 * clamp(0.25 + g.des / 80, 0.2, 1));
+    const ca = Math.round(vendues * prixN * 1.6);
+    setG({ ...g, pa: g.pa - 1, cash: g.cash - cout + ca,
+      des: clamp(g.des + 8, 0, 100), cred: clamp(g.cred - 1, 0, 100),
+      revenusAnnee: g.revenusAnnee + ca,
+      messages: [...g.messages, "Édition limitée « " + m.nom + " » ×50 : " + vendues + " vendues à prix fort → +" + fmtCHF(ca - cout) + " net. Désirabilité +8, crédibilité −1 (le marketing de la rareté)."] });
+    setPicker(null);
+  }
+
+  function opportuniteAction(accepte) {
+    const opp = OPPORTUNITES.find(o => o.id === g.opportunite);
+    if (!opp) return;
+    if (!accepte) { setG({ ...g, opportunite: null }); return; }
+    if (g.pa < opp.pa || g.cash < opp.cout) return;
+    let etat = { ...g, pa: g.pa - opp.pa, cash: g.cash - opp.cout, opportunite: null };
+    let msg = "";
+    if (opp.id === "salon") { etat.noto = clamp(g.noto + 10, 0, 100); etat.cred = clamp(g.cred + 4, 0, 100); etat.des = clamp(g.des + 3, 0, 100); msg = "Salon Genève Time : notoriété +10, crédibilité +4, désirabilité +3."; }
+    if (opp.id === "youtubeur") {
+      if (Math.random() < 0.62) { etat.cred = clamp(g.cred + 5, 0, 100); etat.noto = clamp(g.noto + 4, 0, 100); etat.des = clamp(g.des + 3, 0, 100); msg = "Review positive de « Remontoir » : crédibilité +5, notoriété +4, désirabilité +3."; }
+      else { etat.cred = clamp(g.cred - 3, 0, 100); etat.noto = clamp(g.noto + 2, 0, 100); msg = "Review mitigée de « Remontoir »... crédibilité −3, notoriété +2."; }
+    }
+    if (opp.id === "detaillant") {
+      let cash = 0, unites = 0;
+      etat.modeles = g.modeles.map(m => {
+        if (m.stock > 0 && m.statut === "actif") {
+          const prixN = Math.max(50, num(m.prix));
+          unites += m.stock; cash += Math.round(m.stock * prixN * 0.75);
+          return { ...m, stock: 0 };
+        }
+        return m;
+      });
+      etat.cash += cash; etat.revenusAnnee = g.revenusAnnee + cash;
+      etat.dist = clamp(g.dist + 5, 0, 100);
+      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtCHF(cash) + ". Distribution +5.";
+    }
+    if (opp.id === "voyagepresse") {
+      if (Math.random() < 0.88) { etat.cred = clamp(g.cred + 5, 0, 100); msg = "Voyage de presse réussi : crédibilité +5."; }
+      else { etat.cred = clamp(g.cred - 8, 0, 100); msg = "Scandale ! Un journaliste raconte tout. Crédibilité −8."; }
+    }
+    if (opp.id === "collab") { etat.noto = clamp(g.noto + 12, 0, 100); etat.cred = clamp(g.cred - 2, 0, 100); msg = "Collab influenceur : notoriété +12, crédibilité −2."; }
+    etat.messages = [...g.messages, msg];
+    setG(etat);
+  }
+
+  function setProd(i, val) { setG({ ...g, modeles: g.modeles.map((m, j) => j === i ? { ...m, prod: val } : m) }); }
+  function setPrix(i, val) { setG({ ...g, modeles: g.modeles.map((m, j) => j === i ? { ...m, prix: val } : m) }); }
+
+  // ============ SIMULATION D'UN TRIMESTRE ============
+
+  function tirerAlea(gs) {
+    if (Math.random() > 0.4) return null;
+    const pool = [];
+    pool.push({ id: "retard", titre: "Fournisseur en retard", texte: "Un lot de composants n'arrive pas. Production divisée par deux ce trimestre." });
+    pool.push({ id: "chf", titre: "Le franc suisse s'envole", texte: "Coûts de production +12% ce trimestre." });
+    pool.push({ id: "celebrite", titre: "Une célébrité porte votre montre", texte: "Repérée en couverture. Notoriété +6, désirabilité +5." });
+    if (gs.noto >= 40) pool.push({ id: "contrefacon", titre: "Contrefaçons repérées", texte: "Des copies circulent. Désirabilité −5, ventes −10% ce trimestre." });
+    pool.push({ id: "article", titre: "Article élogieux", texte: "Un magazine spécialisé vous encense. Crédibilité +4." });
+    if (gs.modeles.some(m => m.stock > 10)) pool.push({ id: "cambriolage", titre: "Cambriolage de l'atelier", texte: "30% du stock disparaît, plus CHF 10'000 de dégâts." });
+    if (gs.employes > 0) pool.push({ id: "demission", titre: "Un horloger démissionne", texte: "Débauché par un concurrent. Savoir-faire −3." });
+    pool.push({ id: "tiktok", titre: "Buzz TikTok inattendu", texte: "Une vidéo devient virale. Notoriété +8, crédibilité −1." });
+    pool.push({ id: "recession", titre: "Récession locale", texte: "Demande −20% ce trimestre." });
+    if (gs.modeles.some(m => m.stock > 15)) pool.push({ id: "collectionneur", titre: "Un collectionneur passe commande", texte: "15 pièces d'un coup, payées +20%." });
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function simulateQuarter(gs, paRestants) {
+    const p = PAYS[pays];
+    let cash = gs.cash;
+    let noto = gs.noto, cred = gs.cred, des = gs.des, savoir = gs.savoir, dist = gs.dist;
+    let employes = gs.employes;
+    let segVendues = { ...gs.segVendues };
+    let lignes = [], messagesDev = [];
+    let revenus = 0, coutsProd = 0, caDirect = 0;
+
+    const evtHisto = EVENEMENTS.find(e => e.annee === gs.annee && e.t === gs.t);
+    const alea = evtHisto ? null : tirerAlea(gs);
+
+    let mProd = 1, mCoutU = 1, mDemande = 1;
+    let modeles = gs.modeles.map(m => ({ ...m }));
+
+    if (alea) {
+      if (alea.id === "retard") mProd = 0.5;
+      if (alea.id === "chf") mCoutU = 1.12;
+      if (alea.id === "celebrite") { noto = clamp(noto + 6, 0, 100); des = clamp(des + 5, 0, 100); }
+      if (alea.id === "contrefacon") { des = clamp(des - 5, 0, 100); mDemande *= 0.9; }
+      if (alea.id === "article") cred = clamp(cred + 4, 0, 100);
+      if (alea.id === "cambriolage") { modeles = modeles.map(m => ({ ...m, stock: Math.floor(m.stock * 0.7) })); cash -= 10000; }
+      if (alea.id === "demission") { savoir = clamp(savoir - 3, 0, 100); employes = Math.max(0, employes - 1); }
+      if (alea.id === "tiktok") { noto = clamp(noto + 8, 0, 100); cred = clamp(cred - 1, 0, 100); }
+      if (alea.id === "recession") mDemande *= 0.8;
+      if (alea.id === "collectionneur") {
+        const idx = modeles.findIndex(m => m.stock > 15);
+        if (idx >= 0) {
+          const prixN = Math.max(50, num(modeles[idx].prix));
+          const ca = Math.round(15 * prixN * 1.2);
+          modeles[idx].stock -= 15; caDirect += ca;
+        }
+      }
+    }
+
+    // capacité
+    const totalProdDemandee = modeles.reduce((s, m) => s + (m.statut === "actif" ? Math.max(0, num(m.prod)) : 0), 0);
+    const scaleCap = totalProdDemandee > gs.capacite ? gs.capacite / totalProdDemandee : 1;
+    let capDepassee = totalProdDemandee > gs.capacite;
+
+    modeles = modeles.map(m => {
+      if (m.statut === "dev") {
+        const restant = m.devRestant - 1;
+        if (restant <= 0) {
+          messagesDev.push("« " + m.nom + " » est prêt ! Réglez prix et production.");
+          savoir = clamp(savoir + 2, 0, 100);
+          return { ...m, statut: "actif", devRestant: 0 };
+        }
+        return { ...m, devRestant: restant };
+      }
+
+      const seg = SEGMENTS[m.seg];
+      const prixN = Math.max(50, num(m.prix));
+      const prodEff = Math.round(Math.max(0, num(m.prod)) * scaleCap * mProd);
+      const cU = Math.round((MOUVEMENTS[m.mvt].cout + 60 + MATERIAUX[m.materiau].cout) * p.coutMult * (1 - Math.min(0.15, savoir / 600)) * mCoutU);
+      coutsProd += prodEff * cU;
+
+      let d = 0;
+      if (m.qual >= seg.qualMin && noto >= seg.notoMin) {
+        const idealAdj = seg.ideal * MATERIAUX[m.materiau].idealMult * (0.55 + m.qual / 14 + cred / 300);
+        const priceFit = clamp(1.45 - prixN / idealAdj, 0.05, 1.1);
+        const distMult = 0.35 + (dist / 100) * 0.85;
+        const desMult = (m.seg === "connaisseurs" || m.seg === "bling") ? 0.45 + des / 90 : 0.85 + des / 300;
+        const satMult = seg.pool / (seg.pool + segVendues[m.seg] * 2);
+        const fr = Math.max(0.35, 1 - 0.045 * Math.max(0, m.age - 4));
+        const styleMult = STYLES[m.style].mult[m.seg];
+        d = seg.base * Math.pow(noto / 100, 0.85) * priceFit * distMult * desMult * satMult * fr * styleMult;
+        d *= multEvenements(gs.annee, gs.t, m.seg, m.mvt) * mDemande;
+        d *= 0.85 + Math.random() * 0.3;
+      }
+      const dispo = m.stock + prodEff;
+      const vendues = Math.min(Math.round(d), dispo);
+      segVendues[m.seg] += vendues;
+      const ca = vendues * prixN;
+      revenus += ca;
+      const stockFinal = dispo - vendues;
+      if (dispo > 0 && vendues >= dispo) des = clamp(des + 1, 0, 100);
+      if (stockFinal > 100 && stockFinal > prodEff * 2) des = clamp(des - 1, 0, 100);
+      lignes.push({ nom: m.nom, prod: prodEff, demande: Math.round(d), vendues, ca, stock: stockFinal, fraicheur: Math.max(0.35, 1 - 0.045 * Math.max(0, m.age - 4)) });
+      return { ...m, stock: stockFinal, age: m.age + 1 };
+    });
+
+    revenus += caDirect;
+
+    const taux = profil === "financier" ? 0.04 : 0.06;
+    const interets = Math.round(gs.dette * taux / 4);
+    const etabli = Math.min(paRestants, 3);
+    const fixes = Math.max(4000, 12000 + employes * 8000 + gs.ateliers * 6000 - etabli * 4000);
+    if (etabli > 0) savoir = clamp(savoir + etabli, 0, 100);
+    cash = cash - coutsProd - fixes - interets + revenus;
+
+    noto = Math.max(0, noto - Math.max(2, Math.round(noto * 0.05)));
+    cred = Math.max(0, cred - 1);
+    des = Math.max(0, des - 1);
+
+    const resultat = revenus - coutsProd - fixes - interets;
+    const faillite = cash < -50000;
+
+    const rap = { annee: gs.annee, t: gs.t, lignes, revenus, coutsProd, fixes, interets, resultat, evt: evtHisto, alea, cash, etabli, capDepassee };
+
+    const gs2 = {
+      ...gs, cash, modeles, segVendues, noto, cred, des, savoir, dist, employes,
+      journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat, cash }],
+      revenusAnnee: gs.revenusAnnee + revenus,
+      messages: messagesDev,
+    };
+    return { gs2, rap, faillite };
+  }
+
+  function finTrimestre() {
+    const { gs2, rap, faillite } = simulateQuarter(g, g.pa);
+    if (faillite) {
+      setFinInfo({ type: "faillite", annee: g.annee, revenus: gs2.revenusAnnee });
+      setPhase("fin"); return;
+    }
+    setRapport(rap);
+    if (g.t >= 4) {
+      const rang = rangPour(gs2.revenusAnnee);
+      setBilanAnnuel({ annee: g.annee, revenus: gs2.revenusAnnee, rang, prec: g.revenusAnneePrec, meilleurRang: Math.min(rang, g.meilleurRang) });
+    }
+    setG(gs2);
+    setPhase("rapport");
+  }
+
+  function passerAnnee() {
+    let etat = g, dernierRap = null;
+    let pa = g.pa;
+    while (true) {
+      const { gs2, rap, faillite } = simulateQuarter(etat, pa);
+      if (faillite) {
+        setFinInfo({ type: "faillite", annee: etat.annee, revenus: gs2.revenusAnnee });
+        setPhase("fin"); return;
+      }
+      dernierRap = rap;
+      if (etat.t >= 4) {
+        const rang = rangPour(gs2.revenusAnnee);
+        setBilanAnnuel({ annee: etat.annee, revenus: gs2.revenusAnnee, rang, prec: etat.revenusAnneePrec, meilleurRang: Math.min(rang, etat.meilleurRang) });
+        setG(gs2);
+        setRapport(null);
+        setPhase("annuel");
+        return;
+      }
+      etat = { ...gs2, t: etat.t + 1 };
+      pa = 3;
+    }
+  }
+
+  function continuerApresRapport() {
+    if (bilanAnnuel) { setPhase("annuel"); return; }
+    const etat = { ...g, t: g.t + 1, pa: 3 };
+    etat.opportunite = tirerOpportunite(etat);
+    etat.messages = ["T" + etat.t + " " + etat.annee + " — à vous de jouer.", ...g.messages];
+    setG(etat);
+    setPhase("play");
+  }
+
+  function continuerApresAnnuel() {
+    const rang = bilanAnnuel.rang;
+    const meilleurRang = Math.min(rang, g.meilleurRang);
+    const nouvelleAnnee = g.annee + 1;
+    if (rang <= 50) {
+      setFinInfo({ type: "top50", annee: g.annee, revenus: g.revenusAnnee, rang });
+      setPhase("fin"); setBilanAnnuel(null); return;
+    }
+    if (nouvelleAnnee > 2035) {
+      setFinInfo({ type: "temps", annee: 2035, revenus: g.revenusAnnee, rang, meilleurRang });
+      setPhase("fin"); setBilanAnnuel(null); return;
+    }
+    const etat = {
+      ...g, annee: nouvelleAnnee, t: 1, pa: 3,
+      revenusAnneePrec: g.revenusAnnee, revenusAnnee: 0, meilleurRang,
+      messages: ["T1 " + nouvelleAnnee + " — nouvelle année."],
+    };
+    etat.opportunite = tirerOpportunite(etat);
+    setG(etat);
+    setBilanAnnuel(null);
+    setPhase("play");
+  }
+
+  // ============ STYLES ============
+  const S = {
+    root: { background: "#0E140F", minHeight: "100vh", color: "#EDE6D6", fontFamily: "'VT323', monospace", fontSize: 19, lineHeight: 1.35, padding: "0 0 40px" },
+    wrap: { maxWidth: 560, margin: "0 auto", padding: "0 14px" },
+    h1: { fontFamily: "'Press Start 2P', monospace", fontSize: 17, color: "#C9A227", lineHeight: 1.6 },
+    h2: { fontFamily: "'Press Start 2P', monospace", fontSize: 11, color: "#C9A227", letterSpacing: 1, margin: "22px 0 10px" },
+    h3: { fontFamily: "'Press Start 2P', monospace", fontSize: 9, color: "#7A8A7C", letterSpacing: 1, margin: "14px 0 8px" },
+    panel: { background: "#151D16", border: "2px solid #2A3A2C", borderRadius: 4, padding: 14, marginBottom: 12 },
+    btn: (active) => ({ display: "block", width: "100%", textAlign: "left", background: active ? "#243626" : "#151D16", border: active ? "2px solid #C9A227" : "2px solid #2A3A2C", borderRadius: 4, padding: "10px 12px", color: "#EDE6D6", fontFamily: "'VT323', monospace", fontSize: 18, cursor: "pointer", marginBottom: 8 }),
+    action: (dispo) => ({ background: dispo ? "#243626" : "#131813", border: "2px solid " + (dispo ? "#4A6B4E" : "#22301F"), borderRadius: 4, padding: "9px 12px", color: dispo ? "#EDE6D6" : "#5A6A5C", fontFamily: "'VT323', monospace", fontSize: 18, cursor: dispo ? "pointer" : "default", width: "100%", textAlign: "left", marginBottom: 7 }),
+    gold: { color: "#C9A227" },
+    steel: { color: "#9DA8A6", fontSize: 16 },
+    red: { color: "#D06050" },
+    green: { color: "#8FBF7F" },
+    cta: { background: "#C9A227", color: "#0E140F", border: "none", borderRadius: 4, padding: "12px 18px", fontFamily: "'Press Start 2P', monospace", fontSize: 12, cursor: "pointer", width: "100%", marginTop: 12 },
+    ghost: { background: "transparent", color: "#9DA8A6", border: "2px solid #2A3A2C", borderRadius: 4, padding: "8px 12px", fontFamily: "'VT323', monospace", fontSize: 17, cursor: "pointer", width: "100%", marginTop: 8 },
+    input: { background: "#0E140F", border: "2px solid #2A3A2C", color: "#EDE6D6", fontFamily: "'VT323', monospace", fontSize: 18, padding: "6px 10px", borderRadius: 4, width: "100%" },
+    num: { background: "#0E140F", border: "2px solid #2A3A2C", color: "#C9A227", fontFamily: "'VT323', monospace", fontSize: 18, padding: "4px 8px", borderRadius: 4, width: 90, textAlign: "right" },
+    jauge: { fontSize: 16, color: "#9DA8A6" },
+  };
+
+  const fonts = <style>{"@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap'); * { box-sizing: border-box; } input:focus, button:focus { outline: 2px solid #C9A227; }"}</style>;
+
+  function Jauge({ label, val, max }) {
+    return (
+      <div>
+        <span style={S.jauge}>{label}</span><br />
+        <span style={{ fontSize: 21 }}>{val}</span><span style={S.steel}>/{max || 100}</span>
+      </div>
+    );
+  }
+
+  // ============ ÉCRANS ============
+
+  if (phase === "intro") {
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 60, textAlign: "center" }}>
+          <div style={{ fontSize: 44, marginBottom: 8 }}>⌚</div>
+          <div style={{ ...S.h1, fontSize: 22 }}>BARILLET</div>
+          <div style={{ ...S.steel, marginTop: 10 }}>le jeu — prototype v3</div>
+          <div style={{ ...S.panel, marginTop: 28, textAlign: "left" }}>
+            2015. Vous avez 20 ans pour bâtir une marque horlogère et viser le Top 50 mondial.
+            Un tour = un trimestre. Développer prend du temps, les jauges déclinent, la faillite est définitive.
+          </div>
+          <button style={S.cta} onClick={() => setPhase("setup")}>NOUVELLE PARTIE</button>
+          {sauvegardeExiste && <button style={S.ghost} onClick={charger}>REPRENDRE LA SAUVEGARDE</button>}
+          {saveMsg && <div style={{ ...S.steel, marginTop: 10 }}>{saveMsg}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "setup") {
+    const pret = pays && profil && origine;
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 24 }}>
+          <div style={S.h1}>Création</div>
+          <div style={S.h2}>NOM DE LA MARQUE</div>
+          <input style={S.input} value={marque} onChange={e => setMarque(e.target.value)} placeholder="Ex. Vallorbe & Fils" />
+          <div style={S.h2}>PAYS DE DÉPART</div>
+          {Object.entries(PAYS).map(([k, p]) => (
+            <button key={k} style={S.btn(pays === k)} onClick={() => setPays(k)}>
+              {p.flag} <span style={S.gold}>{p.nom}</span><br /><span style={S.steel}>{p.desc}</span>
+            </button>
+          ))}
+          <div style={S.h2}>PROFIL</div>
+          {Object.entries(PROFILS).map(([k, p]) => (
+            <button key={k} style={S.btn(profil === k)} onClick={() => setProfil(k)}>
+              {p.icon} <span style={S.gold}>{p.nom}</span><br /><span style={S.steel}>{p.desc}</span>
+            </button>
+          ))}
+          <div style={S.h2}>ORIGINE SOCIALE</div>
+          {Object.entries(ORIGINES).map(([k, o]) => (
+            <button key={k} style={S.btn(origine === k)} onClick={() => setOrigine(k)}>
+              <span style={S.gold}>{o.nom}</span><br /><span style={S.steel}>{o.desc}</span>
+            </button>
+          ))}
+          <button style={{ ...S.cta, opacity: pret ? 1 : 0.35 }} disabled={!pret} onClick={demarrer}>
+            FONDER LA MARQUE
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "play" && g) {
+    const opp = g.opportunite ? OPPORTUNITES.find(o => o.id === g.opportunite) : null;
+    const actifs = g.modeles.filter(m => m.statut === "actif");
+    const prodTotale = actifs.reduce((s, m) => s + Math.max(0, num(m.prod)), 0);
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div style={S.h1}>{marque || "Votre marque"}</div>
+            <div style={{ ...S.gold, fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>T{g.t} {g.annee}</div>
+          </div>
+
+          <div style={{ ...S.panel, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+            <div>Caisse<br /><span style={{ ...(g.cash < 30000 ? S.red : S.gold), fontSize: 22 }}>{fmtCHF(g.cash)}</span></div>
+            <div>Dette<br /><span style={{ ...(g.dette > 0 ? S.red : S.steel), fontSize: 22 }}>{fmtCHF(g.dette)}</span></div>
+          </div>
+          <div style={{ ...S.panel, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <Jauge label="Notoriété" val={g.noto} />
+            <Jauge label="Crédibilité" val={g.cred} />
+            <Jauge label="Désirabilité" val={g.des} />
+            <Jauge label="Savoir-faire" val={g.savoir} />
+            <Jauge label="Distribution" val={g.dist} />
+            <div><span style={S.jauge}>Capacité</span><br />
+              <span style={{ fontSize: 21, color: prodTotale > g.capacite ? "#D06050" : "#EDE6D6" }}>{prodTotale}</span>
+              <span style={S.steel}>/{g.capacite}</span></div>
+          </div>
+
+          {g.messages.length > 0 && (
+            <div style={{ ...S.panel, borderColor: "#4A6B4E" }}>
+              {g.messages.map((m, i) => <div key={i} style={{ marginBottom: 4 }}>▸ {m}</div>)}
+            </div>
+          )}
+
+          {opp && (
+            <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+              <span style={S.gold}>★ {opp.titre}</span><br />
+              <span style={S.steel}>{opp.texte}</span><br />
+              <span style={S.steel}>{opp.pa} PA{opp.cout > 0 ? " + " + fmtCHF(opp.cout) : ""}</span>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => opportuniteAction(false)}>Décliner</button>
+                <button style={{ ...S.cta, marginTop: 0, opacity: (g.pa >= opp.pa && g.cash >= opp.cout) ? 1 : 0.4 }}
+                  onClick={() => opportuniteAction(true)}>ACCEPTER</button>
+              </div>
+            </div>
+          )}
+
+          <div style={S.h2}>COLLECTION</div>
+          {g.modeles.length === 0 && <div style={{ ...S.panel, ...S.steel }}>Aucun modèle. Lancez une R&D — développer prend du temps.</div>}
+          {g.modeles.map((m, i) => (
+            <div key={i} style={{ ...S.panel, opacity: m.statut === "dev" ? 0.75 : 1 }}>
+              <div><span style={S.gold}>{m.nom}</span> <span style={S.steel}>— {MOUVEMENTS[m.mvt].nom} · {STYLES[m.style].nom} · {MATERIAUX[m.materiau].nom} · {SEGMENTS[m.seg].nom} · qualité {m.qual}/10</span></div>
+              {m.statut === "dev" ? (
+                <div style={{ marginTop: 6 }}>
+                  <span style={S.gold}>⚙ En développement — {m.devRestant} trimestre{m.devRestant > 1 ? "s" : ""} restant{m.devRestant > 1 ? "s" : ""}</span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 14, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <label style={S.steel}>Prix<br />
+                    <input type="number" style={S.num} value={m.prix} onChange={e => setPrix(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
+                  </label>
+                  <label style={S.steel}>Prod./trim.<br />
+                    <input type="number" style={S.num} value={m.prod} onChange={e => setProd(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
+                  </label>
+                  <div style={S.steel}>Stock<br /><span style={{ color: "#EDE6D6", fontSize: 20 }}>{m.stock}</span></div>
+                  <div style={S.steel}>Coût/unité<br /><span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtCHF(coutU(m))}</span></div>
+                  <div style={S.steel}>Fraîcheur<br /><span style={{ color: (1 - 0.045 * Math.max(0, m.age - 4)) < 0.6 ? "#D06050" : "#EDE6D6", fontSize: 20 }}>{Math.round(Math.max(0.35, 1 - 0.045 * Math.max(0, m.age - 4)) * 100)}%</span></div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div style={S.h2}>ACTIONS — {g.pa} PA restants</div>
+          <div style={{ ...S.steel, marginBottom: 8 }}>Les PA non dépensés = travail à l'établi : savoir-faire +1 et coûts fixes −4'000 chacun.</div>
+
+          <div style={S.h3}>PRODUIT</div>
+          {!showNouveauModele && (
+            <button style={S.action(g.pa >= 2)} onClick={() => g.pa >= 2 && setShowNouveauModele(true)}>
+              ⌚ Nouvelle R&D <span style={S.steel}>(2 PA + coût, 1 à 6 trim.)</span>
+            </button>
+          )}
+          {showNouveauModele && (
+            <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+              <input style={{ ...S.input, marginBottom: 8 }} value={nmNom} onChange={e => setNmNom(e.target.value)} placeholder="Nom du modèle" />
+              {Object.entries(MOUVEMENTS).map(([k, mv]) => {
+                const bloque = k === "manufacture" && profil !== "ingenieur";
+                return (
+                  <button key={k} style={{ ...S.btn(nmMvt === k), opacity: bloque ? 0.4 : 1 }} disabled={bloque} onClick={() => setNmMvt(k)}>
+                    <span style={S.gold}>{mv.nom}</span> <span style={S.steel}>— {fmtCHF(coutRD(k))}, {dureeDev(k)} trim. {bloque ? "⚙ ingénieur requis" : ""}</span>
+                  </button>
+                );
+              })}
+              <div style={S.h3}>STYLE</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {Object.entries(STYLES).map(([k, st]) => (
+                  <button key={k} style={{ ...S.btn(nmStyle === k), marginBottom: 0 }} onClick={() => setNmStyle(k)}>{st.nom}</button>
+                ))}
+              </div>
+              <div style={S.h3}>MATÉRIAU</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                {Object.entries(MATERIAUX).map(([k, mt]) => (
+                  <button key={k} style={{ ...S.btn(nmMat === k), marginBottom: 0 }} onClick={() => setNmMat(k)}>{mt.nom}{mt.cout > 0 ? " (+" + mt.cout + ")" : ""}</button>
+                ))}
+              </div>
+              <div style={S.h3}>SEGMENT</div>
+              {Object.entries(SEGMENTS).map(([k, sg]) => (
+                <button key={k} style={S.btn(nmSeg === k)} onClick={() => { setNmSeg(k); setNmPrix(Math.round(sg.ideal * MATERIAUX[nmMat].idealMult)); }}>
+                  <span style={S.gold}>{sg.nom}</span> <span style={S.steel}>— {sg.desc}</span>
+                </button>
+              ))}
+              <label style={{ ...S.steel, display: "block", marginTop: 8 }}>Prix de vente<br />
+                <input type="number" style={S.num} value={nmPrix} onChange={e => setNmPrix(e.target.value === "" ? "" : parseInt(e.target.value) || 0)} />
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ ...S.cta, background: "#2A3A2C", color: "#EDE6D6" }} onClick={() => setShowNouveauModele(false)}>ANNULER</button>
+                <button style={{ ...S.cta, opacity: g.cash >= coutRD(nmMvt) ? 1 : 0.4 }} onClick={creerModele}>LANCER LA R&D</button>
+              </div>
+            </div>
+          )}
+          <button style={S.action(g.pa >= 1 && actifs.length > 0)} onClick={() => actifs.length > 0 && g.pa >= 1 && setPicker(picker === "facelift" ? null : "facelift")}>
+            ✨ Facelift d'un modèle <span style={S.steel}>(1 PA + 40% du coût R&D) — restaure la fraîcheur</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && actifs.length > 0)} onClick={() => actifs.length > 0 && g.pa >= 1 && setPicker(picker === "edition" ? null : "edition")}>
+            💎 Édition limitée ×50 <span style={S.steel}>(1 PA + prod.) — désirabilité +8, crédibilité −1</span>
+          </button>
+          {picker && (
+            <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+              <span style={S.steel}>Choisir le modèle :</span>
+              {g.modeles.map((m, i) => m.statut === "actif" && (
+                <button key={i} style={S.btn(false)} onClick={() => picker === "facelift" ? faireFacelift(i) : faireEdition(i)}>
+                  {m.nom} <span style={S.steel}>{picker === "facelift" ? "— " + fmtCHF(Math.round(coutRD(m.mvt) * 0.4)) : "— " + fmtCHF(50 * coutU(m)) + " de production"}</span>
+                </button>
+              ))}
+              <button style={S.ghost} onClick={() => setPicker(null)}>Annuler</button>
+            </div>
+          )}
+          <button style={S.action(g.pa >= 1)} onClick={() => action("embauche")}>
+            👤 Embaucher un horloger <span style={S.steel}>(1 PA) — savoir-faire +4, coûts fixes +8'000/trim</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && g.cash >= 120000)} onClick={() => action("atelier")}>
+            🏭 Agrandir l'atelier <span style={S.steel}>(1 PA, CHF 120'000) — capacité +350, fixes +6'000/trim</span>
+          </button>
+
+          <div style={S.h3}>IMAGE</div>
+          <button style={S.action(g.pa >= 1 && g.cash >= 15000)} onClick={() => action("marketing")}>
+            📣 Marketing <span style={S.steel}>(1 PA, 15'000) — notoriété +{gainMarketing()}</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && g.cash >= 30000)} onClick={() => action("choc")}>
+            💥 Campagne choc <span style={S.steel}>(1 PA, 30'000) — notoriété +{gainChoc()}, crédibilité −2, désirabilité −1</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && g.reseau >= 2)} onClick={() => action("presse")}>
+            📰 Relations presse <span style={S.steel}>(1 PA) — crédibilité +2</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && g.cash >= 5000)} onClick={() => action("etude")}>
+            🔍 Étude de marché <span style={S.steel}>(1 PA, 5'000) — révèle la demande estimée</span>
+          </button>
+
+          <div style={S.h3}>COMMERCE</div>
+          <button style={S.action(g.pa >= 1 && g.cash >= 12000)} onClick={() => action("distribution")}>
+            🏪 Développer la distribution <span style={S.steel}>(1 PA, 12'000) — réseau +{gainDist()}</span>
+          </button>
+          <button style={S.action(g.pa >= 1 && g.modeles.some(m => m.stock > 0 && m.statut === "actif"))} onClick={() => action("soldes")}>
+            🏷 Soldes <span style={S.steel}>(1 PA) — tout le stock à −35%, désirabilité −8</span>
+          </button>
+          {!g.kickstarterFait && (
+            <button style={S.action(g.pa >= 2 && g.modeles.length > 0)} onClick={() => action("kickstarter")}>
+              🚀 Kickstarter <span style={S.steel}>(2 PA, une fois) — cash + notoriété + désirabilité</span>
+            </button>
+          )}
+
+          <div style={S.h3}>FINANCE</div>
+          <button style={S.action(g.pa >= 1)} onClick={() => action("emprunt")}>
+            🏦 Emprunt <span style={S.steel}>(1 PA) — +150'000, taux {profil === "financier" ? "4" : "6"}%</span>
+          </button>
+          {g.dette > 0 && (
+            <button style={S.action(g.cash > 0)} onClick={() => action("rembourser")}>
+              💰 Rembourser <span style={S.steel}>(0 PA) — jusqu'à 50'000 de dette</span>
+            </button>
+          )}
+
+          <button style={S.cta} onClick={finTrimestre}>FIN DU TRIMESTRE ▸</button>
+          <button style={S.ghost} onClick={passerAnnee}>▸▸ Passer à la fin de l'année (sans autres actions)</button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={S.ghost} onClick={() => setShowJournal(!showJournal)}>{showJournal ? "Masquer le journal" : "Journal"}</button>
+            <button style={S.ghost} onClick={sauvegarder}>Sauvegarder</button>
+          </div>
+          {saveMsg && <div style={{ ...S.steel, textAlign: "center", marginTop: 6 }}>{saveMsg}</div>}
+
+          {showJournal && (
+            <div style={{ ...S.panel, marginTop: 10 }}>
+              {g.journal.length === 0 && <span style={S.steel}>Aucun trimestre passé.</span>}
+              {g.journal.slice().reverse().map((j, i) => (
+                <div key={i} style={{ padding: "4px 0", borderBottom: "1px solid #1E2A20", fontSize: 17 }}>
+                  <span style={S.steel}>T{j.t} {j.annee}</span> · CA {fmtCHF(j.revenus)} ·
+                  <span style={j.resultat >= 0 ? S.green : S.red}> {j.resultat >= 0 ? "+" : ""}{fmtCHF(j.resultat)}</span>
+                  <span style={S.steel}> · Caisse {fmtCHF(j.cash)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "rapport" && rapport) {
+    const r = rapport;
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 24 }}>
+          <div style={S.h1}>Rapport T{r.t} {r.annee}</div>
+          {r.evt && (
+            <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>
+              <span style={S.gold}>⚡ {r.evt.titre}</span><br /><span style={S.steel}>{r.evt.texte}</span>
+            </div>
+          )}
+          {r.alea && (
+            <div style={{ ...S.panel, borderColor: "#4A7C9E", marginTop: 12 }}>
+              <span style={{ color: "#7AA8C8" }}>🎲 {r.alea.titre}</span><br /><span style={S.steel}>{r.alea.texte}</span>
+            </div>
+          )}
+          {r.capDepassee && (
+            <div style={{ ...S.panel, borderColor: "#D06050" }}>
+              <span style={S.red}>⚠ Capacité de production dépassée — production réduite au prorata.</span>
+            </div>
+          )}
+          {r.lignes.length === 0 && <div style={{ ...S.panel, ...S.steel, marginTop: 12 }}>Aucun modèle en vente ce trimestre.</div>}
+          {r.lignes.map((l, i) => (
+            <div key={i} style={{ ...S.panel, marginTop: 12 }}>
+              <span style={S.gold}>{l.nom}</span>{l.fraicheur < 0.6 && <span style={S.red}> (vieillissant)</span>}<br />
+              <span style={S.steel}>Produites {l.prod} · Demande {l.demande} · </span>
+              <span>Vendues {l.vendues}</span><span style={S.steel}> · Stock {l.stock}</span><br />
+              <span style={S.green}>{fmtCHF(l.ca)} de chiffre d'affaires</span>
+            </div>
+          ))}
+          <div style={S.panel}>
+            <div>Revenus <span style={{ float: "right", ...S.green }}>{fmtCHF(r.revenus)}</span></div>
+            <div>Production <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.coutsProd)}</span></div>
+            <div>Coûts fixes{r.etabli > 0 ? " (établi −" + (r.etabli * 4000).toLocaleString("fr-CH") + ")" : ""} <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.fixes)}</span></div>
+            <div>Intérêts <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.interets)}</span></div>
+            <div style={{ borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6 }}>
+              Résultat <span style={{ float: "right", ...(r.resultat >= 0 ? S.green : S.red), fontSize: 21 }}>{r.resultat >= 0 ? "+" : ""}{fmtCHF(r.resultat)}</span>
+            </div>
+            <div>Caisse <span style={{ float: "right", ...S.gold }}>{fmtCHF(r.cash)}</span></div>
+          </div>
+          <button style={S.cta} onClick={continuerApresRapport}>CONTINUER ▸</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "annuel" && bilanAnnuel) {
+    const b = bilanAnnuel;
+    const v = voisins(b.rang, b.revenus);
+    const trims = g.journal.filter(j => j.annee === b.annee);
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 24 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 34 }}>🏆</div>
+            <div style={S.h1}>CLASSEMENT {b.annee}</div>
+            <div style={S.steel}>Le Stanley Morgan Top 50 est tombé</div>
+          </div>
+          <div style={{ ...S.panel, marginTop: 16 }}>
+            {CLASSEMENT_MONDE.map((c, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+                <span><span style={S.steel}>#{i + 1}</span> {c.nom}</span>
+                <span style={S.steel}>{fmtM(c.rev)}</span>
+              </div>
+            ))}
+            <div style={{ ...S.steel, textAlign: "center", padding: "4px 0" }}>· · ·</div>
+            {v.dessus.map((x, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+                <span><span style={S.steel}>#~{x.rang}</span> {x.nom}</span>
+                <span style={S.steel}>{fmtCHF(x.rev)}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 14px", background: "#243626", margin: "0 -14px" }}>
+              <span><span style={S.gold}>#~{b.rang}</span> {marque || "Votre marque"}</span>
+              <span style={S.gold}>{fmtCHF(b.revenus)}</span>
+            </div>
+            {v.dessous.map((x, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+                <span><span style={S.steel}>#~{x.rang}</span> {x.nom}</span>
+                <span style={S.steel}>{fmtCHF(x.rev)}</span>
+              </div>
+            ))}
+          </div>
+          {trims.length > 0 && (
+            <div style={S.panel}>
+              {trims.map((j, i) => (
+                <div key={i} style={{ padding: "3px 0", borderBottom: "1px solid #1E2A20", fontSize: 17 }}>
+                  <span style={S.steel}>T{j.t}</span> · CA {fmtCHF(j.revenus)} ·
+                  <span style={j.resultat >= 0 ? S.green : S.red}> {j.resultat >= 0 ? "+" : ""}{fmtCHF(j.resultat)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={S.panel}>
+            Revenus annuels : <span style={S.gold}>{fmtCHF(b.revenus)}</span>
+            {b.prec > 0 && <span style={b.revenus >= b.prec ? S.green : S.red}> ({b.revenus >= b.prec ? "+" : ""}{Math.round((b.revenus / Math.max(1, b.prec) - 1) * 100)}% vs {b.annee - 1})</span>}
+            <br /><span style={S.steel}>Objectif Top 50 : ~CHF 60 millions annuels.</span>
+          </div>
+          <button style={S.cta} onClick={continuerApresAnnuel}>ANNÉE SUIVANTE ▸</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "fin" && finInfo) {
+    const f = finInfo;
+    const titres = { faillite: "FAILLITE", top50: "TOP 50 !", temps: "2035 — BILAN" };
+    const textes = {
+      faillite: f.annee + ". Les créanciers ont saisi l'atelier. " + (marque || "Votre marque") + " rejoint le cimetière des marques oubliées.",
+      top50: f.annee + ". " + (marque || "Votre marque") + " entre au Stanley Morgan Top 50 avec " + fmtCHF(f.revenus) + " de revenus. L'industrie s'incline.",
+      temps: "Vingt ans se sont écoulés. " + (marque || "Votre marque") + " termine autour du rang #" + f.rang + " avec " + fmtCHF(f.revenus) + " de revenus annuels. " + (f.rang <= 200 ? "Une marque indépendante respectée." : "Le Top 50 reste un rêve lointain."),
+    };
+    return (
+      <div style={S.root}>{fonts}
+        <div style={{ ...S.wrap, paddingTop: 60, textAlign: "center" }}>
+          <div style={{ fontSize: 40 }}>{f.type === "faillite" ? "💀" : f.type === "top50" ? "👑" : "⌛"}</div>
+          <div style={{ ...S.h1, marginTop: 10 }}>{titres[f.type]}</div>
+          <div style={{ ...S.panel, marginTop: 20, textAlign: "left" }}>{textes[f.type]}</div>
+          <button style={S.cta} onClick={() => {
+            setPhase("intro"); setG(null); setRapport(null); setBilanAnnuel(null); setFinInfo(null);
+            setPays(null); setProfil(null); setOrigine(null); setMarque("");
+          }}>REJOUER</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}

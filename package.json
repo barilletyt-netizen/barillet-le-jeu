@@ -1,0 +1,20 @@
+{
+  "name": "barillet-le-jeu",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "description": "Barillet — le jeu. Simulation de gestion horlogère, tour par tour trimestriel.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  }
+}

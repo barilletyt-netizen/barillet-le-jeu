@@ -1,0 +1,88 @@
+import { S } from "../styles.js";
+import { fmtCHF, fmtH, fmtNb } from "../engine/formules.js";
+
+export default function Rapport({ r, onContinuer }) {
+  return (
+    <div style={S.root}>
+      <div style={{ ...S.wrap, paddingTop: 24 }}>
+        <div style={S.h1}>
+          Rapport T{r.t} {r.annee}
+        </div>
+
+        {r.evt && (
+          <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>
+            <span style={S.gold}>⚡ {r.evt.titre}</span>
+            <br />
+            <span style={S.steel}>{r.evt.texte}</span>
+          </div>
+        )}
+        {r.alea && (
+          <div style={{ ...S.panel, borderColor: "#4A7C9E", marginTop: 12 }}>
+            <span style={S.blue}>🎲 {r.alea.titre}</span>
+            <br />
+            <span style={S.steel}>{r.alea.texte}</span>
+          </div>
+        )}
+        {r.capDepassee && (
+          <div style={{ ...S.panel, borderColor: "#D06050" }}>
+            <span style={S.red}>
+              ⚠ Atelier saturé — {fmtH(r.heuresDemandees)} demandées pour {fmtH(r.capacite)} disponibles. Production
+              réduite au prorata.
+            </span>
+          </div>
+        )}
+
+        {r.lignes.length === 0 && (
+          <div style={{ ...S.panel, ...S.steel, marginTop: 12 }}>Aucun modèle en vente ce trimestre.</div>
+        )}
+        {r.lignes.map((l, i) => (
+          <div key={i} style={{ ...S.panel, marginTop: 12 }}>
+            <span style={S.gold}>{l.nom}</span>
+            {l.fraicheur < 0.6 && <span style={S.red}> (vieillissant)</span>}
+            <br />
+            <span style={S.steel}>
+              Produites {fmtNb(l.prod)} ({fmtH(l.heures)}) · Demande {fmtNb(l.demande)} ·{" "}
+            </span>
+            <span>Vendues {fmtNb(l.vendues)}</span>
+            <span style={S.steel}> · Stock {fmtNb(l.stock)}</span>
+            <br />
+            <span style={S.green}>{fmtCHF(l.ca)} de chiffre d'affaires</span>
+          </div>
+        ))}
+
+        <div style={S.panel}>
+          <div>
+            Revenus <span style={{ float: "right", ...S.green }}>{fmtCHF(r.revenus)}</span>
+          </div>
+          <div>
+            Production <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.coutsProd)}</span>
+          </div>
+          <div>
+            Coûts fixes{r.etabli > 0 ? " (établi −" + fmtNb(r.etabli * 4000) + ")" : ""}{" "}
+            <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.fixes)}</span>
+          </div>
+          <div>
+            Intérêts <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.interets)}</span>
+          </div>
+          <div style={{ borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6 }}>
+            Résultat{" "}
+            <span style={{ float: "right", ...(r.resultat >= 0 ? S.green : S.red), fontSize: 21 }}>
+              {r.resultat >= 0 ? "+" : ""}
+              {fmtCHF(r.resultat)}
+            </span>
+          </div>
+          <div>
+            Caisse <span style={{ float: "right", ...S.gold }}>{fmtCHF(r.cash)}</span>
+          </div>
+          <div style={{ ...S.steel, marginTop: 6 }}>
+            Atelier : {fmtH(r.heuresUtilisees)} utilisées sur {fmtH(r.capacite)}
+          </div>
+        </div>
+
+        <button style={S.cta} onClick={onContinuer}>
+          CONTINUER ▸
+        </button>
+      </div>
+    </div>
+  );
+}
