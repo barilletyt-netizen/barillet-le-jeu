@@ -7,30 +7,32 @@
 export const ANNEE_DEBUT = 2015;
 export const ANNEE_FIN = 2065;
 
-// Le fondateur dispose de 500 h par trimestre. Ce qui n'est pas dépensé en
+// Le fondateur dispose de 360 h par trimestre. Ce qui n'est pas dépensé en
 // actions part à l'établi : production + savoir-faire. Chaque heure de com est
 // une montre non produite — c'est le cœur du jeu.
-export const HEURES_FONDATEUR = 500;
+// Playtest v0.5 : 500 h laissaient tout faire dans le même trimestre. À 360 h,
+// une R&D coûte la moitié du trimestre et il faut choisir.
+export const HEURES_FONDATEUR = 360;
 
 // Coûts en heures des actions du fondateur. Blocs chunky, jamais de micro-gestion.
 export const COUTS_H = {
-  marketing: 60,
-  choc: 80,
-  presse: 40,
-  rd: 150,
-  facelift: 60,
-  edition: 60,
-  kickstarter: 120,
-  distribution: 60,
-  etude: 30,
-  soldes: 20,
-  embauche: 30,
-  atelier: 40,
-  emprunt: 20,
+  marketing: 80,
+  choc: 110,
+  presse: 50,
+  rd: 180,
+  facelift: 80,
+  edition: 80,
+  kickstarter: 160,
+  distribution: 80,
+  etude: 40,
+  soldes: 30,
+  embauche: 40,
+  atelier: 60,
+  emprunt: 30,
 };
 
 // Heures d'établi nécessaires pour gagner 1 point de savoir-faire.
-export const HEURES_PAR_SAVOIR = 200;
+export const HEURES_PAR_SAVOIR = 150;
 
 export const PAYS = {
   suisse: {
@@ -114,17 +116,67 @@ export const MATERIAUX = {
   or: { nom: "Or", cout: 2500, idealMult: 2.6, expert: true },
 };
 
-// Arbre techno. `req` = complication précédente, `ingenieur` = ingénieur requis
+// Arbre techno à trois niveaux par complication (18 recherches en tout).
+// `req` = complication précédente, qu'il faut maîtriser au moins au niveau
+// COMPL_NIVEAU_REQUIS pour ouvrir celle-ci. `ingenieur` = ingénieur requis
 // (employé ou profil), `manufacture` = mouvement manufacture obligatoire.
-// heures = heures d'atelier ajoutées par pièce. prixMult = prix acceptable.
+// Par niveau : heures = heures d'atelier ajoutées par pièce ; prixMult = prix
+// acceptable ; qual = qualité ajoutée.
+export const COMPL_NIVEAU_REQUIS = 2;
+
 export const COMPLICATIONS = {
-  aucune: { nom: "Trois aiguilles", heures: 0, rdHeures: 0, rd: 0, dev: 0, qual: 0, prixMult: 1, req: null },
-  date: { nom: "Date", heures: 1, rdHeures: 60, rd: 15000, dev: 1, qual: 0, prixMult: 1.1, req: null },
-  chrono: { nom: "Chronographe", heures: 3, rdHeures: 150, rd: 90000, dev: 3, qual: 1, prixMult: 1.45, req: "date" },
-  gmt: { nom: "GMT", heures: 2, rdHeures: 130, rd: 70000, dev: 2, qual: 1, prixMult: 1.35, req: "chrono" },
-  lune: { nom: "Phase de lune", heures: 2, rdHeures: 140, rd: 80000, dev: 2, qual: 1, prixMult: 1.4, req: "gmt", ingenieur: true },
-  reserve: { nom: "Réserve de marche", heures: 2, rdHeures: 120, rd: 60000, dev: 2, qual: 1, prixMult: 1.25, req: "lune", ingenieur: true },
-  tourbillon: { nom: "Tourbillon", heures: 12, rdHeures: 300, rd: 600000, dev: 6, qual: 2, prixMult: 3, req: "reserve", ingenieur: true, manufacture: true },
+  aucune: {
+    nom: "Trois aiguilles", req: null,
+    niveaux: [{ nom: "Trois aiguilles", heures: 0, rdHeures: 0, rd: 0, dev: 0, qual: 0, prixMult: 1 }],
+  },
+  date: {
+    nom: "Date", req: null,
+    niveaux: [
+      { nom: "Date à guichet", heures: 1, rdHeures: 60, rd: 15000, dev: 1, qual: 0, prixMult: 1.1 },
+      { nom: "Grande date", heures: 1, rdHeures: 90, rd: 35000, dev: 1, qual: 1, prixMult: 1.2 },
+      { nom: "Quantième annuel", heures: 2, rdHeures: 140, rd: 90000, dev: 2, qual: 1, prixMult: 1.35 },
+    ],
+  },
+  chrono: {
+    nom: "Chronographe", req: "date",
+    niveaux: [
+      { nom: "Chrono à came", heures: 3, rdHeures: 150, rd: 90000, dev: 2, qual: 1, prixMult: 1.4 },
+      { nom: "Roue à colonnes", heures: 4, rdHeures: 200, rd: 160000, dev: 3, qual: 2, prixMult: 1.6 },
+      { nom: "Rattrapante", heures: 6, rdHeures: 280, rd: 320000, dev: 4, qual: 2, prixMult: 1.95 },
+    ],
+  },
+  gmt: {
+    nom: "GMT", req: "chrono",
+    niveaux: [
+      { nom: "Aiguille 24 heures", heures: 2, rdHeures: 120, rd: 60000, dev: 2, qual: 1, prixMult: 1.3 },
+      { nom: "Heure sautante", heures: 2, rdHeures: 170, rd: 120000, dev: 2, qual: 1, prixMult: 1.45 },
+      { nom: "Heure universelle", heures: 3, rdHeures: 230, rd: 240000, dev: 3, qual: 2, prixMult: 1.7 },
+    ],
+  },
+  lune: {
+    nom: "Phase de lune", req: "gmt", ingenieur: true,
+    niveaux: [
+      { nom: "Phase de lune", heures: 2, rdHeures: 130, rd: 80000, dev: 2, qual: 1, prixMult: 1.35 },
+      { nom: "Lune de précision", heures: 3, rdHeures: 190, rd: 150000, dev: 3, qual: 1, prixMult: 1.5 },
+      { nom: "Complication astronomique", heures: 5, rdHeures: 260, rd: 300000, dev: 4, qual: 2, prixMult: 1.85 },
+    ],
+  },
+  reserve: {
+    nom: "Réserve de marche", req: "lune", ingenieur: true,
+    niveaux: [
+      { nom: "Indicateur de réserve", heures: 2, rdHeures: 110, rd: 60000, dev: 2, qual: 1, prixMult: 1.25 },
+      { nom: "Réserve longue durée", heures: 3, rdHeures: 160, rd: 130000, dev: 2, qual: 1, prixMult: 1.4 },
+      { nom: "Réserve d'un mois", heures: 4, rdHeures: 220, rd: 260000, dev: 3, qual: 2, prixMult: 1.65 },
+    ],
+  },
+  tourbillon: {
+    nom: "Tourbillon", req: "reserve", ingenieur: true, manufacture: true,
+    niveaux: [
+      { nom: "Tourbillon une cage", heures: 12, rdHeures: 300, rd: 600000, dev: 5, qual: 2, prixMult: 2.6 },
+      { nom: "Tourbillon volant", heures: 14, rdHeures: 380, rd: 900000, dev: 5, qual: 2, prixMult: 3.2 },
+      { nom: "Tourbillon multi-axes", heures: 18, rdHeures: 460, rd: 1400000, dev: 6, qual: 3, prixMult: 4.2 },
+    ],
+  },
 };
 
 // Finition maison : débloquée par le décorateur.

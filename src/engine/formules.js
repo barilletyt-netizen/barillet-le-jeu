@@ -1,6 +1,6 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION,
-  EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE,
+  EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE, COMPL_NIVEAU_REQUIS,
 } from "../data/config.js";
 import { multEvenements } from "../data/evenements.js";
 
@@ -18,7 +18,14 @@ export const num = (v) => Number(v) || 0;
 // quartz 1 h/pièce, ébauche 3 h, manufacture 10 h, plus les heures de
 // complication et de finition. La capacité reste le frein anti-snowball.
 
-export const complicationDe = (m) => COMPLICATIONS[m.compl || "aucune"];
+// Un modèle fige le niveau de complication qu'il avait à sa création.
+export function complicationDe(m) {
+  const c = COMPLICATIONS[m.compl || "aucune"];
+  const n = clamp(m.complNiveau || 1, 1, c.niveaux.length);
+  return c.niveaux[n - 1];
+}
+
+export const nomComplication = (m) => complicationDe(m).nom;
 
 export function heuresParPiece(m) {
   return MOUVEMENTS[m.mvt].heures + complicationDe(m).heures + (m.finition ? FINITION.heures : 0);
@@ -76,13 +83,13 @@ export function heuresRD(base, employes) {
   return base;
 }
 
-export function qualiteNouveau(mvtKey, { pays, profil, savoir, compl = "aucune", finition = false }) {
+export function qualiteNouveau(mvtKey, { pays, profil, savoir, compl = "aucune", complNiveau = 1, finition = false }) {
   return (
     MOUVEMENTS[mvtKey].qual +
     PAYS[pays].qualBonus +
     (profil === "artisan" ? 2 : 0) +
     Math.floor(savoir / 25) +
-    COMPLICATIONS[compl].qual +
+    paletteComplication(compl, complNiveau).qual +
     (finition ? FINITION.qual : 0)
   );
 }
@@ -98,19 +105,57 @@ export const tauxInteret = (profil) => (profil === "financier" ? 0.04 : 0.06);
 
 export const aIngenieur = (g, profil) => profil === "ingenieur" || g.employes.ingenieur > 0;
 
-// Complications recherchables maintenant : la précédente est acquise, celle-ci
-// ne l'est pas encore. `bloque` = il manque l'ingénieur.
+// Niveau déjà maîtrisé pour une complication (0 = pas encore recherchée).
+export const niveauDe = (g, id) => g.complications[id] || 0;
+
+/**
+ * Prochain palier recherchable de chaque complication.
+ * Une complication s'ouvre quand la précédente est maîtrisée au niveau
+ * COMPL_NIVEAU_REQUIS — il ne suffit plus d'effleurer l'arbre.
+ */
 export function complicationsRecherchables(g, profil) {
   return Object.entries(COMPLICATIONS)
-    .filter(([k]) => k !== "aucune" && !g.complications.includes(k))
-    .filter(([, c]) => c.req === null || g.complications.includes(c.req))
-    .map(([k, c]) => ({ id: k, ...c, bloque: !!c.ingenieur && !aIngenieur(g, profil) }));
+    .filter(([k]) => k !== "aucune")
+    .map(([k, c]) => {
+      const acquis = niveauDe(g, k);
+      const prochain = acquis + 1;
+      if (prochain > c.niveaux.length) return null; // complication maîtrisée à fond
+      const chaineOk = c.req === null || niveauDe(g, c.req) >= COMPL_NIVEAU_REQUIS;
+      if (!chaineOk) return null;
+      return {
+        id: k, famille: c.nom, niveau: prochain, acquis,
+        ...c.niveaux[prochain - 1],
+        ingenieur: !!c.ingenieur, manufacture: !!c.manufacture,
+        bloque: !!c.ingenieur && !aIngenieur(g, profil),
+      };
+    })
+    .filter(Boolean);
+}
+
+// Complications verrouillées, pour montrer au joueur ce qui l'attend.
+export function complicationsVerrouillees(g) {
+  return Object.entries(COMPLICATIONS)
+    .filter(([k, c]) => k !== "aucune" && c.req !== null && niveauDe(g, c.req) < COMPL_NIVEAU_REQUIS)
+    .map(([k, c]) => ({
+      id: k, famille: c.nom,
+      manque: COMPLICATIONS[c.req].nom + " niveau " + COMPL_NIVEAU_REQUIS,
+    }));
 }
 
 // Complications utilisables sur un modèle : le tourbillon exige la manufacture.
 export function complicationsDispo(g, mvtKey) {
-  return g.complications.filter((k) => !COMPLICATIONS[k].manufacture || mvtKey === "manufacture");
+  return Object.keys(COMPLICATIONS).filter(
+    (k) =>
+      (k === "aucune" || niveauDe(g, k) > 0) &&
+      (!COMPLICATIONS[k].manufacture || mvtKey === "manufacture")
+  );
 }
+
+// Le niveau qu'un nouveau modèle recevrait pour cette complication.
+export const niveauPourModele = (g, id) => (id === "aucune" ? 1 : niveauDe(g, id));
+
+export const paletteComplication = (id, niveau) =>
+  COMPLICATIONS[id].niveaux[clamp(niveau || 1, 1, COMPLICATIONS[id].niveaux.length) - 1];
 
 export const materiauxDispo = (g) =>
   Object.keys(MATERIAUX).filter((k) => !MATERIAUX[k].expert || g.employes.materiaux > 0);

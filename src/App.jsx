@@ -6,14 +6,15 @@ import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
 import {
-  ATELIER_COUT, ATELIER_HEURES, COMPLICATIONS, COUTS_H, EMPLOYES,
+  ATELIER_COUT, ATELIER_HEURES, COUTS_H, EMPLOYES,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutRD, coutUnitaire, dureeDev, estimerDemande, fmtCHF, fmtH,
-  gainChoc, gainDist, gainMarketing, heuresRD, num, qualiteNouveau,
+  gainChoc, gainDist, gainMarketing, heuresRD, niveauPourModele, num,
+  paletteComplication, qualiteNouveau,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
@@ -106,9 +107,10 @@ export default function App() {
     const duree = dureeDev(nm.mvt, profil, g.employes);
     const nom = nm.nom || "Modèle " + (g.modeles.length + 1);
     const compl = nm.compl || "aucune";
+    const complNiveau = niveauPourModele(g, compl);
     const detail = [
       MOUVEMENTS[nm.mvt].nom,
-      COMPLICATIONS[compl].nom,
+      paletteComplication(compl, complNiveau).nom,
       STYLES[nm.style].nom + " " + MATERIAUX[nm.mat].nom,
       SEGMENTS[nm.seg].nom,
     ].join(", ");
@@ -121,9 +123,11 @@ export default function App() {
         ...g.modeles,
         {
           nom, mvt: nm.mvt, seg: nm.seg, style: nm.style, materiau: nm.mat,
-          compl, finition: !!nm.finition,
+          compl, complNiveau, finition: !!nm.finition,
           prix: nm.prix,
-          qual: qualiteNouveau(nm.mvt, { pays, profil, savoir: g.savoir, compl, finition: !!nm.finition }),
+          qual: qualiteNouveau(nm.mvt, {
+            pays, profil, savoir: g.savoir, compl, complNiveau, finition: !!nm.finition,
+          }),
           prod: 0, stock: 0, age: 0, statut: "dev", devRestant: duree,
         },
       ],
@@ -135,19 +139,21 @@ export default function App() {
     });
   }
 
-  function rechercherComplication(id) {
-    const c = COMPLICATIONS[id];
-    const heures = heuresRD(c.rdHeures, g.employes);
-    if (!assez(heures, c.rd) || g.recherche) return;
-    const duree = Math.max(1, c.dev - (g.employes.ingenieur > 0 ? 1 : 0));
+  // `palier` vient de complicationsRecherchables : il porte déjà l'id, le niveau
+  // visé et les coûts de ce niveau précis.
+  function rechercherComplication(palier) {
+    const heures = heuresRD(palier.rdHeures, g.employes);
+    if (!assez(heures, palier.rd) || g.recherche) return;
+    const duree = Math.max(1, palier.dev - (g.employes.ingenieur > 0 ? 1 : 0));
     setG({
       ...g,
-      cash: g.cash - c.rd,
+      cash: g.cash - palier.rd,
       heures: g.heures - heures,
-      recherche: { id, restant: duree },
+      recherche: { id: palier.id, niveau: palier.niveau, restant: duree },
       messages: [
         ...g.messages,
-        "Recherche lancée : " + c.nom + ". " + duree + " trim., " + fmtH(heures) + " et " + fmtCHF(c.rd) + ".",
+        "Recherche lancée : " + palier.famille + " niveau " + palier.niveau + " (« " + palier.nom + " »). " +
+        duree + " trim., " + fmtH(heures) + " et " + fmtCHF(palier.rd) + ".",
       ],
     });
   }

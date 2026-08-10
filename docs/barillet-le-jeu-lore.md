@@ -70,24 +70,29 @@
 
 ### Le système d'heures (décision majeure v0.5 — remplace les points d'action)
 
-**Principe.** Plus de PA. Le fondateur dispose de **500 heures par trimestre**. Toute action coûte des heures. Les heures non allouées vont automatiquement à l'établi : elles alimentent la production et font monter le savoir-faire. L'ancien « bonus établi » disparaît — les heures libres *sont* l'établi.
+**Principe.** Plus de PA. Le fondateur dispose de **360 heures par trimestre**. Toute action coûte des heures. Les heures non allouées vont automatiquement à l'établi : elles alimentent la production et font monter le savoir-faire (1 point par 150 h, plafonné à 2). L'ancien « bonus établi » disparaît — les heures libres *sont* l'établi.
 
-**Coûts indicatifs** (blocs chunky, jamais de micro-gestion) :
+> **Playtest, août 2026 :** le budget était fixé à 500 h dans l'addendum. Verdict manette en main : « on peut faire beaucoup trop de choses, le jeu est bien trop facile. » Descendu à **360 h** avec des coûts d'action relevés. Une R&D mange désormais la moitié du trimestre.
+
+**Coûts** (blocs chunky, jamais de micro-gestion) :
 
 | Action | Heures | Aussi |
 |---|---|---|
-| Campagne marketing | 60 h | + CHF |
-| Campagne choc | 80 h | + CHF |
-| Relations presse | 40 h | — |
-| R&D nouveau modèle | 150 h | + CHF, puis dev sur plusieurs trimestres |
-| Recherche de complication | 60–300 h | + CHF, + trimestres |
-| Facelift | 60 h | + CHF |
+| Campagne marketing | 80 h | + CHF |
+| Campagne choc | 110 h | + CHF |
+| Relations presse | 50 h | — |
+| R&D nouveau modèle | 180 h | + CHF, puis dev sur plusieurs trimestres |
+| Recherche de complication | 60–460 h | + CHF, + trimestres |
+| Facelift | 80 h | + CHF |
 | Salon | 80 h | + voyage |
-| Kickstarter | 120 h | — |
-| Développer la distribution | 60 h | + CHF |
-| Étude de marché | 30 h | + CHF |
-| Édition limitée | 60 h | + production |
-| Embauche / emprunt / négociation fournisseur | 20–40 h | — |
+| Kickstarter | 160 h | — |
+| Développer la distribution | 80 h | + CHF |
+| Étude de marché | 40 h | + CHF |
+| Édition limitée | 80 h | + production |
+| Soldes | 30 h | — |
+| Embauche | 40 h | — |
+| Agrandir l'atelier | 60 h | + CHF |
+| Emprunt | 30 h | — |
 | Production | heures restantes | quartz 1 h/pièce, ébauche 3 h, manufacture 10 h |
 
 **Employés = heures spécialisées.** Chaque employé apporte ~450 h/trimestre dans sa spécialité :
@@ -97,7 +102,7 @@
 - **Expert matériaux** : débloque bronze / or / titane / céramique (remplace les anciens modules matériaux), réduit les coûts matière
 - Plus tard (départements) : commercial, marketing, IT — convertissent des tâches du fondateur en tâches déléguées
 
-**Atelier = postes de travail.** La capacité d'atelier reste un plafond d'heures : on ne peut pas produire plus d'heures qu'il n'y a de postes, même avec des employés. Embaucher sans agrandir ne sert à rien — et inversement.
+**Atelier = postes de travail.** La capacité d'atelier reste un plafond d'heures : on ne peut pas produire plus d'heures qu'il n'y a de postes, même avec des employés. Embaucher sans agrandir ne sert à rien — et inversement. **Ce plafond doit être dit explicitement dans l'UI** (playtest : le joueur embauchait sans comprendre pourquoi rien ne changeait) : le panneau d'embauche annonce les heures réellement utilisables, et le bandeau d'heures signale la main-d'œuvre perdue.
 
 **Conséquence design voulue** : en début de partie, chaque heure de com est une montre non produite. La première embauche est un tournant. C'est le cœur émotionnel du jeu.
 
@@ -113,11 +118,13 @@
 5. **Distribution** — multiplie le volume accessible (absorbe l'ancien « réseau », supprimé)
 6. **Capacité d'atelier — EN HEURES** : plafond de production. Frein anti-snowball principal.
 
-### Complications (arbre techno)
+### Complications (arbre techno — 3 niveaux par famille)
 - Arbre : **Date → Chronographe → GMT → Phase de lune → Réserve de marche → Tourbillon**
-- Chaque complication se recherche une fois (heures + CHF + trimestres) puis s'applique aux nouveaux modèles
-- Prérequis : la complication précédente ; un **ingénieur** (employé ou profil) pour les hautes ; le tourbillon exige en plus un mouvement manufacture
-- Effet : ajoute des heures de production/pièce, monte la qualité et le prix acceptable
+- **Chaque famille a trois paliers** (18 recherches en tout), chacun avec ses heures, son coût et ses trimestres. Playtest : un seul palier par complication rendait l'arbre trop plat.
+- Il faut maîtriser une famille **au niveau 2** pour ouvrir la suivante — on ne traverse pas l'arbre en effleurant chaque branche.
+- Les paliers : Date à guichet → Grande date → Quantième annuel · Chrono à came → Roue à colonnes → Rattrapante · Aiguille 24 h → Heure sautante → Heure universelle · Phase de lune → Lune de précision → Complication astronomique · Indicateur de réserve → Réserve longue durée → Réserve d'un mois · Tourbillon une cage → Tourbillon volant → Tourbillon multi-axes
+- Prérequis : un **ingénieur** (employé ou profil) à partir de la phase de lune ; le tourbillon exige en plus un mouvement manufacture
+- Effet : ajoute des heures de production/pièce, monte la qualité et le prix acceptable. Un modèle fige le niveau du jour de sa création.
 - La « Montre du Siècle » (fin n°8) exige le tourbillon manufacture
 
 ### Déblocage progressif des actions (principe clé)

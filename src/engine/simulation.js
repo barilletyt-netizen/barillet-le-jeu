@@ -27,8 +27,8 @@ export function etatInitial({ pays, profil, origine, marque }) {
     heures: HEURES_FONDATEUR, // heures du fondateur restantes ce trimestre
     employes: { ...EMPLOYES_VIDE },
     ateliers: 0,
-    complications: ["aucune"],
-    recherche: null, // { id, restant } — complication en cours de développement
+    complications: { aucune: 1 }, // id → niveau maîtrisé
+    recherche: null, // { id, niveau, restant } — complication en développement
     reseau: o.reseau,
     modeles: [], kickstarterFait: false,
     revenusAnnee: 0, revenusAnneePrec: 0, meilleurRang: 2200,
@@ -166,10 +166,11 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   let recherche = gs.recherche ? { ...gs.recherche, restant: gs.recherche.restant - 1 } : null;
   let complications = gs.complications;
   if (recherche && recherche.restant <= 0) {
-    complications = [...complications, recherche.id];
+    const palier = COMPLICATIONS[recherche.id].niveaux[recherche.niveau - 1];
+    complications = { ...complications, [recherche.id]: recherche.niveau };
     messagesDev.push(
-      "Complication maîtrisée : " + COMPLICATIONS[recherche.id].nom +
-      ". Disponible sur les nouveaux modèles."
+      "Complication maîtrisée : " + COMPLICATIONS[recherche.id].nom + " niveau " + recherche.niveau +
+      " — « " + palier.nom + " ». Disponible sur les nouveaux modèles."
     );
     savoir = clamp(savoir + 3, 0, 100);
     recherche = null;

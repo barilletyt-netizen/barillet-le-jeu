@@ -4,12 +4,14 @@ import Jauge from "./Jauge.jsx";
 import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION,
   ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, COUTS_H, HEURES_FONDATEUR,
+  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS,
 } from "../data/config.js";
 import { OPPORTUNITES } from "../data/evenements.js";
 import {
-  chargeHeures, complicationsDispo, complicationsRecherchables, coutRD, coutUnitaire,
-  dureeDev, fmtCHF, fmtH, fraicheur, gainChoc, gainDist, gainMarketing,
-  heuresEmployes, heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, nbEmployes,
+  chargeHeures, complicationDe, complicationsDispo, complicationsRecherchables,
+  complicationsVerrouillees, coutRD, coutUnitaire, dureeDev, fmtCHF, fmtH, fraicheur,
+  gainChoc, gainDist, gainMarketing, heuresEmployes, heuresModele, heuresParPiece,
+  heuresProductionDispo, heuresRD, nbEmployes, niveauPourModele, paletteComplication,
 } from "../engine/formules.js";
 
 export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
@@ -27,6 +29,12 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const actifs = g.modeles.filter((m) => m.statut === "actif");
   const charge = chargeHeures(g.modeles);
   const dispoProd = heuresProductionDispo(g);
+  const mainOeuvreEquipe = heuresEmployes(g.employes);
+  // Main-d'œuvre payée mais que les postes d'atelier ne peuvent pas absorber.
+  const heuresPerdues = Math.max(0, g.heures + mainOeuvreEquipe - g.capacite);
+  // Ce qu'un employé de production ajouterait vraiment, postes compris.
+  const postesLibres = Math.max(0, g.capacite - g.heures - mainOeuvreEquipe);
+  const gainEmbauche = Math.min(HEURES_EMPLOYE, postesLibres);
   const coutU = (m) => coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
 
   // Une action est jouable si le fondateur a les heures et la caisse le budget.
@@ -34,6 +42,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const ok = (heures, cash = 0) => g.heures >= heures && (cash <= 0 || g.cash >= cash);
   const heuresRDModele = heuresRD(COUTS_H.rd, g.employes);
   const recherchables = complicationsRecherchables(g, profil);
+  const verrouillees = complicationsVerrouillees(g);
   const complsModele = complicationsDispo(g, nm.mvt);
   const materiauxOk = Object.keys(MATERIAUX).filter((k) => !MATERIAUX[k].expert || g.employes.materiaux > 0);
   const decorateurDispo = g.employes.decorateur > 0;
@@ -95,9 +104,15 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
               sur {fmtH(dispoProd)} disponibles
             </span>
             <span style={S.steel}>
-              (vous {fmtH(g.heures)} + équipe {fmtH(heuresEmployes(g.employes))}, postes {fmtH(g.capacite)})
+              (vous {fmtH(g.heures)} + équipe {fmtH(mainOeuvreEquipe)}, postes {fmtH(g.capacite)})
             </span>
           </div>
+          {heuresPerdues > 0 && (
+            <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
+              ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées. Agrandissez l'atelier
+              pour qu'elles servent à quelque chose.
+            </div>
+          )}
         </div>
 
         <div style={{ ...S.panel, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -150,7 +165,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
 
         {g.recherche && (
           <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
-            <span style={S.blue}>⚙ Recherche en cours : {COMPLICATIONS[g.recherche.id].nom}</span>
+            <span style={S.blue}>
+              ⚙ Recherche en cours : {COMPLICATIONS[g.recherche.id].nom} niveau {g.recherche.niveau} — «{" "}
+              {paletteComplication(g.recherche.id, g.recherche.niveau).nom} »
+            </span>
             <br />
             <span style={S.steel}>
               {g.recherche.restant} trimestre{g.recherche.restant > 1 ? "s" : ""} restant
@@ -168,7 +186,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             <div>
               <span style={S.gold}>{m.nom}</span>{" "}
               <span style={S.steel}>
-                — {MOUVEMENTS[m.mvt].nom} · {COMPLICATIONS[m.compl || "aucune"].nom} · {STYLES[m.style].nom} ·{" "}
+                — {MOUVEMENTS[m.mvt].nom} · {complicationDe(m).nom} · {STYLES[m.style].nom} ·{" "}
                 {MATERIAUX[m.materiau].nom}
                 {m.finition ? " · finition maison" : ""} · {SEGMENTS[m.seg].nom} · qualité {m.qual}/10 ·{" "}
                 {heuresParPiece(m)} h/pièce
@@ -267,19 +285,26 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             })}
 
             <div style={S.h3}>COMPLICATION</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-              {complsModele.map((k) => (
-                <button key={k} style={{ ...S.btn(nm.compl === k), marginBottom: 0 }} onClick={() => setNm({ ...nm, compl: k })}>
-                  {COMPLICATIONS[k].nom}
-                  {COMPLICATIONS[k].heures > 0 ? <span style={S.steel}> +{COMPLICATIONS[k].heures} h</span> : null}
+            {complsModele.map((k) => {
+              const niveau = niveauPourModele(g, k);
+              const pal = paletteComplication(k, niveau);
+              return (
+                <button key={k} style={S.btn(nm.compl === k)} onClick={() => setNm({ ...nm, compl: k })}>
+                  <span style={S.gold}>{pal.nom}</span>
+                  {k !== "aucune" && <span style={S.steel}> (niveau {niveau})</span>}
+                  {pal.heures > 0 && (
+                    <span style={S.steel}>
+                      {" "}
+                      — +{pal.heures} h/pièce, qualité +{pal.qual}, prix acceptable ×{pal.prixMult}
+                    </span>
+                  )}
                 </button>
-              ))}
+              );
+            })}
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Un modèle fige le niveau du jour : monter la complication après coup ne le met pas à jour.
+              {recherchables.length > 0 ? " Les paliers suivants se recherchent dans ATELIER & ÉQUIPE." : ""}
             </div>
-            {recherchables.length > 0 && (
-              <div style={{ ...S.steel, marginTop: 6 }}>
-                Les autres complications se recherchent dans la section ATELIER.
-              </div>
-            )}
 
             <div style={S.h3}>STYLE</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
@@ -414,11 +439,25 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
 
         {panneau !== "embauche" && (
           <button style={S.action(ok(COUTS_H.embauche))} onClick={() => ok(COUTS_H.embauche) && setPanneau("embauche")}>
-            👥 Embaucher <span style={S.steel}>({fmtH(COUTS_H.embauche)}) — 450 h de spécialité par trimestre</span>
+            👥 Embaucher{" "}
+            <span style={S.steel}>({fmtH(COUTS_H.embauche)}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>
           </button>
         )}
         {panneau === "embauche" && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+            {gainEmbauche < HEURES_EMPLOYE && (
+              <div style={{ ...S.panel, borderColor: "#D06050", marginBottom: 8 }}>
+                <span style={S.red}>
+                  ⚠ Vos postes d'atelier sont presque pleins : un employé de production n'ajouterait que{" "}
+                  {fmtH(gainEmbauche)} utilisables sur {fmtH(HEURES_EMPLOYE)}.
+                </span>
+                <br />
+                <span style={S.steel}>
+                  Agrandissez l'atelier ({fmtCHF(ATELIER_COUT)}, +{ATELIER_HEURES} h de postes) avant d'embaucher,
+                  ou vous paierez un salaire pour rien.
+                </span>
+              </div>
+            )}
             {Object.entries(EMPLOYES).map(([k, e]) => (
               <button
                 key={k}
@@ -430,6 +469,16 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
               >
                 {e.icon} <span style={S.gold}>{e.nom}</span>{" "}
                 <span style={S.steel}>— {fmtCHF(e.fixes)}/trim · {e.desc}</span>
+                {e.production && (
+                  <>
+                    <br />
+                    <span style={{ ...S.steel, color: gainEmbauche > 0 ? "#8FBF7F" : "#D06050" }}>
+                      {gainEmbauche > 0
+                        ? "→ " + fmtH(gainEmbauche) + " réellement utilisables avec vos postes actuels"
+                        : "→ 0 h utilisable : vos postes d'atelier sont saturés"}
+                    </span>
+                  </>
+                )}
               </button>
             ))}
             <button style={S.ghost} onClick={() => setPanneau(null)}>
@@ -451,6 +500,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         )}
         {panneau === "complication" && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+            <div style={{ ...S.steel, marginBottom: 8 }}>
+              Chaque complication a trois paliers. Il faut la maîtriser au niveau {COMPL_NIVEAU_REQUIS} pour
+              ouvrir la suivante de l'arbre.
+            </div>
             {recherchables.map((c) => {
               const h = heuresRD(c.rdHeures, g.employes);
               const jouable = !c.bloque && ok(h, c.rd);
@@ -460,19 +513,27 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   style={{ ...S.btn(false), opacity: jouable ? 1 : 0.45 }}
                   disabled={!jouable}
                   onClick={() => {
-                    actions.rechercherComplication(c.id);
+                    actions.rechercherComplication(c);
                     setPanneau(null);
                   }}
                 >
-                  <span style={S.gold}>{c.nom}</span>{" "}
+                  <span style={S.gold}>{c.famille}</span>{" "}
+                  <span style={S.steel}>niveau {c.niveau}/3 — « {c.nom} »</span>
+                  <br />
                   <span style={S.steel}>
-                    — {fmtH(h)} + {fmtCHF(c.rd)}, {c.dev} trim. · +{c.heures} h/pièce, qualité +{c.qual}
+                    {fmtH(h)} + {fmtCHF(c.rd)}, {c.dev} trim. · +{c.heures} h/pièce, qualité +{c.qual}, prix
+                    acceptable ×{c.prixMult}
                     {c.bloque ? " · ⚙ ingénieur requis" : ""}
                     {c.manufacture ? " · manufacture requise" : ""}
                   </span>
                 </button>
               );
             })}
+            {verrouillees.length > 0 && (
+              <div style={{ ...S.steel, marginTop: 6 }}>
+                Encore fermé : {verrouillees.map((v) => v.famille + " (demande " + v.manque + ")").join(" · ")}.
+              </div>
+            )}
             <button style={S.ghost} onClick={() => setPanneau(null)}>
               Annuler
             </button>

@@ -33,11 +33,12 @@ localStorage (automatique en début de trimestre + bouton manuel), déploiement 
 
 ### Session 2 — moteur (spec v0.5)
 
-- **Budget d'heures, plus de points d'action.** Le fondateur a **500 h par trimestre**.
-  Chaque action en coûte (marketing 60 h, presse 40 h, R&D 150 h, Kickstarter 120 h…).
+- **Budget d'heures, plus de points d'action.** Le fondateur a **360 h par trimestre**.
+  Chaque action en coûte (marketing 80 h, presse 50 h, R&D 180 h, Kickstarter 160 h…).
   Ce qui n'est pas dépensé part à l'établi : ces heures produisent des montres et font
-  monter le savoir-faire (1 point par tranche de 200 h, plafonné à 2). L'ancien bonus
+  monter le savoir-faire (1 point par tranche de 150 h, plafonné à 2). L'ancien bonus
   établi a disparu — les heures libres *sont* l'établi.
+  *(L'addendum disait 500 h ; le playtest a tranché à 360 h, c'était trop facile.)*
 - **Employés spécialisés** (30 h pour embaucher, ~450 h/trimestre chacun) :
   horloger et décorateur apportent des heures de production ; l'ingénieur réduit les
   heures de R&D de 40 % et fait gagner un trimestre de développement ; l'expert
@@ -48,13 +49,14 @@ localStorage (automatique en début de trimestre + bouton manuel), déploiement 
   embaucher sans agrandir ne sert à rien, et inversement. Les heures productibles sont
   `min(heures du fondateur + heures d'équipe, postes)`.
 - **Complications** — arbre Date → Chronographe → GMT → Phase de lune → Réserve de
-  marche → Tourbillon. Chacune se recherche une fois (heures + CHF + trimestres) puis
-  s'applique aux nouveaux modèles : heures/pièce, qualité et prix acceptable en hausse.
+  marche → Tourbillon, **à trois paliers chacune** (18 recherches). Il faut maîtriser une
+  famille au niveau 2 pour ouvrir la suivante. Chaque palier ajoute des heures/pièce, de
+  la qualité et du prix acceptable ; un modèle fige le niveau du jour de sa création.
   Les hautes complications exigent un ingénieur, le tourbillon exige la manufacture.
 - **Crédibilité rééquilibrée** : gains passifs au T1 de chaque année — +1 si le
   savoir-faire atteint 60, +1 tous les 5 ans d'existence de la marque.
 - **Horizon 2015 → 2065** (50 ans, 200 trimestres).
-- Sauvegarde en `barillet-save-v5` : les parties v4 (points d'action) ne sont pas
+- Sauvegarde en `barillet-save-v6` : les parties antérieures ne sont pas
   migrées, le modèle a changé.
 
 ## Structure

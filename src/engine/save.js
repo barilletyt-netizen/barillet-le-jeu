@@ -1,9 +1,9 @@
 // Sauvegarde locale (localStorage). Une seule partie à la fois.
-// v5 = passage au budget d'heures (v0.5). Les sauvegardes v4 (points
-// d'action) ne sont volontairement pas migrées : le modèle a changé.
+// v6 = complications à trois niveaux et budget d'heures resserré. Les
+// sauvegardes antérieures ne sont pas migrées : le modèle a changé.
 
-const SAVE_KEY = "barillet-save-v5";
-const VERSION = 5;
+const SAVE_KEY = "barillet-save-v6";
+const VERSION = 6;
 
 function dispo() {
   try {
