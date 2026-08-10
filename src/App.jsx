@@ -162,7 +162,7 @@ export default function App() {
       savoir: clamp(g.savoir + e.savoir, 0, 100),
       messages: [
         ...g.messages,
-        e.nom + " embauché·e : savoir-faire +" + e.savoir + ", coûts fixes +" + fmtCHF(e.fixes) + "/trimestre. " + e.desc,
+        e.nom + " embauché·e : " + e.desc + " Savoir-faire +" + e.savoir + ", coûts fixes +" + fmtCHF(e.fixes) + "/trimestre.",
       ],
     });
   }

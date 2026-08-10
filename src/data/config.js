@@ -71,11 +71,11 @@ export const HEURES_EMPLOYE = 450;
 export const EMPLOYES = {
   horloger: {
     nom: "Horloger", icon: "👤", production: true, fixes: 8000, savoir: 4,
-    desc: "+450 h de production par trimestre, savoir-faire +4.",
+    desc: "+450 h de production par trimestre.",
   },
   decorateur: {
     nom: "Décorateur", icon: "🎨", production: true, fixes: 9000, savoir: 2,
-    desc: "+450 h de production, débloque les finitions (qualité et désirabilité).",
+    desc: "+450 h de production, débloque la finition maison.",
   },
   ingenieur: {
     nom: "Ingénieur", icon: "⚙", production: false, fixes: 12000, savoir: 3,
