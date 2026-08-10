@@ -26,8 +26,15 @@ export default function Rapport({ r, onContinuer }) {
         {r.capDepassee && (
           <div style={{ ...S.panel, borderColor: "#D06050" }}>
             <span style={S.red}>
-              ⚠ Atelier saturé — {fmtH(r.heuresDemandees)} demandées pour {fmtH(r.capacite)} disponibles. Production
-              réduite au prorata.
+              ⚠ Atelier saturé — {fmtH(r.heuresDemandees)} planifiées pour {fmtH(r.heuresDispo)} disponibles.
+              Production réduite au prorata.
+            </span>
+          </div>
+        )}
+        {r.gainsCred && r.gainsCred.length > 0 && (
+          <div style={{ ...S.panel, borderColor: "#4A6B4E" }}>
+            <span style={S.green}>
+              ✦ Crédibilité +{r.gainsCred.length} — {r.gainsCred.join(", ")}.
             </span>
           </div>
         )}
@@ -58,8 +65,7 @@ export default function Rapport({ r, onContinuer }) {
             Production <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.coutsProd)}</span>
           </div>
           <div>
-            Coûts fixes{r.etabli > 0 ? " (établi −" + fmtNb(r.etabli * 4000) + ")" : ""}{" "}
-            <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.fixes)}</span>
+            Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.fixes)}</span>
           </div>
           <div>
             Intérêts <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.interets)}</span>
@@ -75,7 +81,9 @@ export default function Rapport({ r, onContinuer }) {
             Caisse <span style={{ float: "right", ...S.gold }}>{fmtCHF(r.cash)}</span>
           </div>
           <div style={{ ...S.steel, marginTop: 6 }}>
-            Atelier : {fmtH(r.heuresUtilisees)} utilisées sur {fmtH(r.capacite)}
+            Atelier : {fmtH(r.heuresUtilisees)} produites sur {fmtH(r.heuresDispo)} disponibles (vous{" "}
+            {fmtH(r.heuresFondateur)} + équipe {fmtH(r.heuresEquipe)}, postes {fmtH(r.capacite)})
+            {r.gainSavoir > 0 ? " · établi : savoir-faire +" + r.gainSavoir : ""}
           </div>
         </div>
 

@@ -1,9 +1,9 @@
 // Sauvegarde locale (localStorage). Une seule partie à la fois.
-// v4 = première version portée sous Vite (PA à 2, capacité en heures) :
-// les sauvegardes du proto ne sont volontairement pas relues.
+// v5 = passage au budget d'heures (v0.5). Les sauvegardes v4 (points
+// d'action) ne sont volontairement pas migrées : le modèle a changé.
 
-const SAVE_KEY = "barillet-save-v4";
-const VERSION = 4;
+const SAVE_KEY = "barillet-save-v5";
+const VERSION = 5;
 
 function dispo() {
   try {

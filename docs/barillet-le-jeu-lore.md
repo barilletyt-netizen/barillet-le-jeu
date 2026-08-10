@@ -1,18 +1,20 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.4 (août 2026)
+## Document de lore et de design — v0.5 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
 > Plateforme v1 : jeu web (GitHub Pages / itch.io), jouable sur mobile.
-> **Statut : boucle cœur validée en proto (3 itérations). Prêt pour Claude Code.**
-> Verdict playtest : « un début, mais austère » → le fun viendra des assets, du déblocage progressif et de la variété de contenu. Les mécaniques tiennent.
+> **Statut : boucle cœur validée en proto (3 itérations), portée sous Vite + React (S1), moteur d'heures en place (S2).**
+> Verdict playtest v0.4 : « un début, mais austère » → le fun viendra des assets, du déblocage progressif et de la variété de contenu. Les mécaniques tiennent.
+> **Changement majeur v0.5 : les points d'action sont remplacés par un budget d'heures.**
 
 ---
 
 ## 1. Cadre temporel
 
-- **Début : 2015.** Durée : 50 ans → fin en 2065.
+- **Début : 2015.** Durée : 50 ans → fin en 2065. (Appliqué depuis S2.)
 - **Tour = 1 trimestre** (200 tours). Passage d'année entière en un clic : indispensable (validé).
+- **Objectifs quinquennaux** : tous les 5 ans (2020, 2025, 2030…), un méga-événement — bilan de décennie du Stanley Morgan + un objectif proposé pour les 5 ans suivants (ex. « atteindre CHF 500'000 de revenus annuels », « lancer une mécanique », « entrer au top 500 »). Objectif atteint = récompense (crédibilité, offre de financement, invitation salon majeur). Raté = conséquence douce. C'est ce qui relance l'intérêt du passage des trimestres sur 200 tours. (Session S4.)
 
 ### Événements historiques scriptés 2015–2026
 - **Janv. 2015 : la BNS abandonne le taux plancher** — le CHF s'envole de 20% en un jour. Coûts suisses en forte hausse, exportateurs en crise. (Événement d'ouverture brutal si départ en Suisse.)
@@ -39,7 +41,7 @@
 - 2050 : renaissance artisanale mondiale — les métiers d'art valorisés comme jamais
 - 2055 : la Chine domine le haut de gamme — recomposition du Top 50
 - 2060 : l'horlogerie classée au patrimoine immatériel prioritaire — subventions aux manufactures historiques (bonus ancienneté)
-(Claude Code : répartir en événements T1–T4, certains avec choix du joueur.)
+(Claude Code : répartir en événements T1–T4, certains avec choix du joueur. Session S4.)
 
 ## 2. Création de personnage
 
@@ -66,27 +68,60 @@
 
 ## 3. Boucle de jeu et jauges
 
-- **2 points d'action par trimestre** (décision finale — resserré depuis le proto à 3 pour créer de vrais dilemmes). Pas de bonus de PA par profil en v1.
-- **PA non dépensés = travail à l'établi** : savoir-faire +1 et coûts fixes −4'000 chacun (validé).
+### Le système d'heures (décision majeure v0.5 — remplace les points d'action)
+
+**Principe.** Plus de PA. Le fondateur dispose de **500 heures par trimestre**. Toute action coûte des heures. Les heures non allouées vont automatiquement à l'établi : elles alimentent la production et font monter le savoir-faire. L'ancien « bonus établi » disparaît — les heures libres *sont* l'établi.
+
+**Coûts indicatifs** (blocs chunky, jamais de micro-gestion) :
+
+| Action | Heures | Aussi |
+|---|---|---|
+| Campagne marketing | 60 h | + CHF |
+| Campagne choc | 80 h | + CHF |
+| Relations presse | 40 h | — |
+| R&D nouveau modèle | 150 h | + CHF, puis dev sur plusieurs trimestres |
+| Recherche de complication | 60–300 h | + CHF, + trimestres |
+| Facelift | 60 h | + CHF |
+| Salon | 80 h | + voyage |
+| Kickstarter | 120 h | — |
+| Développer la distribution | 60 h | + CHF |
+| Étude de marché | 30 h | + CHF |
+| Édition limitée | 60 h | + production |
+| Embauche / emprunt / négociation fournisseur | 20–40 h | — |
+| Production | heures restantes | quartz 1 h/pièce, ébauche 3 h, manufacture 10 h |
+
+**Employés = heures spécialisées.** Chaque employé apporte ~450 h/trimestre dans sa spécialité :
+- **Horloger** : heures de production + savoir-faire
+- **Décorateur** : heures de production + débloque les **finitions** (qualité et désirabilité sur les modèles concernés)
+- **Ingénieur** : accélère la R&D (moins d'heures, un trimestre de moins), requis pour les hautes complications
+- **Expert matériaux** : débloque bronze / or / titane / céramique (remplace les anciens modules matériaux), réduit les coûts matière
+- Plus tard (départements) : commercial, marketing, IT — convertissent des tâches du fondateur en tâches déléguées
+
+**Atelier = postes de travail.** La capacité d'atelier reste un plafond d'heures : on ne peut pas produire plus d'heures qu'il n'y a de postes, même avec des employés. Embaucher sans agrandir ne sert à rien — et inversement.
+
+**Conséquence design voulue** : en début de partie, chaque heure de com est une montre non produite. La première embauche est un tournant. C'est le cœur émotionnel du jeu.
+
+### Autres règles de boucle
 - **Économie 100% en CHF interne** (décision finale). Affichage possible d'autres devises en pure cosmétique.
 - Faillite = game over.
 
 ### Les 6 jauges (validées)
 1. **Notoriété** — décline ~5%/trim, marketing à rendement décroissant
-2. **Crédibilité** — presse, reviews, salons. Rééquilibrage requis : ajouter des gains passifs (savoir-faire ≥ 60 → +1/an ; ancienneté de la marque → +1 tous les 5 ans)
-3. **Désirabilité** — hype/marché gris. Monte : éditions limitées, **rupture de stock (+2/trim par modèle en sold-out — la rareté volontaire est une stratégie de cœur)**. Descend : soldes, surstock
+2. **Crédibilité** — presse, reviews, salons. Rééquilibrée en S2 : gains passifs (savoir-faire ≥ 60 → +1/an ; ancienneté de la marque → +1 tous les 5 ans)
+3. **Désirabilité** — hype/marché gris. Monte : éditions limitées, finitions, **rupture de stock (+2/trim par modèle en sold-out — la rareté volontaire est une stratégie de cœur)**. Descend : soldes, surstock
 4. **Savoir-faire** — établi, R&D, embauches ; améliore qualité et coûts
 5. **Distribution** — multiplie le volume accessible (absorbe l'ancien « réseau », supprimé)
-6. **Capacité d'atelier — EN HEURES** : quartz 1h/pièce, ébauche 3h, manufacture 10h. Frein anti-snowball principal.
+6. **Capacité d'atelier — EN HEURES** : plafond de production. Frein anti-snowball principal.
 
-### Modules d'atelier (déblocages)
-- Traitement des matériaux : bronze → or → titane/céramique
-- Atelier complications : chrono → GMT → tourbillon (arbre techno)
-- Bureau technique : requis pour la manufacture
-- Chaque module : coût d'achat + coûts fixes récurrents + heures de capacité
+### Complications (arbre techno)
+- Arbre : **Date → Chronographe → GMT → Phase de lune → Réserve de marche → Tourbillon**
+- Chaque complication se recherche une fois (heures + CHF + trimestres) puis s'applique aux nouveaux modèles
+- Prérequis : la complication précédente ; un **ingénieur** (employé ou profil) pour les hautes ; le tourbillon exige en plus un mouvement manufacture
+- Effet : ajoute des heures de production/pièce, monte la qualité et le prix acceptable
+- La « Montre du Siècle » (fin n°8) exige le tourbillon manufacture
 
 ### Déblocage progressif des actions (principe clé)
-Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges, année, modules, taille d'équipe. Exemples : Campagne choc → notoriété ≥ 20 ; Édition limitée → désirabilité ≥ 15 ; Boutique en propre → distribution ≥ 40. Certaines actions n'apparaissent qu'après un événement.
+Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges, année, complications, taille d'équipe. Exemples : Campagne choc → notoriété ≥ 20 ; Édition limitée → désirabilité ≥ 15 ; Boutique en propre → distribution ≥ 40. Certaines actions n'apparaissent qu'après un événement. *(Non implémenté : sorti du plan révisé, à replacer en S4 ou S6.)*
 
 ## 4. Production & organisation
 (inchangé v0.3 : postes clés nommés avec stats + effectifs standard ; louer → construire ; Vallée de Joux/Neuchâtel = vivier, Paris = difficile ; départements Marketing/Finance/IT ; distribution directe/détaillants/boutiques/e-commerce ; fournisseurs avec stats, track record, coût, faillite possible ; verticalisation = accomplissement ultime, pas de simulation de label)
@@ -100,6 +135,8 @@ Kickstarter (levier du self-made) ; emprunts ; investisseurs avec dilution → t
 Rolodex, Cartel, Homega, Padek Philange, Audemars Pique, Long-Innes, Fissot, Grand Seikho, TAG Heure, Ublot + indépendants : Manufacture Delorme, Kairos & Cie, Atelier Brumaire, Ferrand-Roux, Tempus Nova, Ostara Watch Co, Cadran Bleu, Maison Vaucher, Heure Zéro, Berthoud Frères.
 Classement annuel : **« Stanley Morgan Top 50 »** (métrique centrale, cérémonie annuelle).
 Groupes acheteurs (offres de rachat) : Groupe Richemond, Souatch Group, fonds « Alpine Capital Partners » (à affiner).
+
+**Classement vivant (S3)** : les revenus des marques du Top 50 évoluent d'année en année (croissance aléatoire pondérée + événements). Le classement n'est plus statique.
 
 ### Les 20 YouTubeurs
 **Caméos réels (accords) :** MoonWatch (JC — accord obtenu), **Barillet (easter egg : Julien lui-même en YouTubeur dans le jeu)**.
@@ -149,7 +186,13 @@ Mécanique : reviews = bonus/malus, jamais fatal. Presse achetable (voyages, mon
 21. Pénurie d'acier / de composants
 22. Un concurrent copie votre best-seller (fraîcheur −)
 
-## 8. Fins de partie
+## 8. Couche narrative (priorité anti-austérité — S3)
+
+- **Récit trimestriel** : 1–2 paragraphes générés par gabarits, qui racontent le trimestre en intégrant (a) les actions prises par le joueur, (b) l'aléa/événement, (c) le résultat commercial, (d) une brève du monde. Ton : chronique horlogère, sérieux avec clins d'œil.
+- **Nouvelles des concurrents** : chaque trimestre, 1–2 brèves du monde (« Rolodex ouvre une boutique à Shanghai », « Ublot signe un footballeur », « Ferrand-Roux en difficulté — rachat possible »).
+- **Page d'introduction** au lancement d'une partie : le pitch (créer une marque pérenne, viser le Top 50), les règles de base, le contexte 2015.
+
+## 9. Fins de partie
 1. **Victoire 1 : Top 50** du Stanley Morgan
 2. **Victoire 2 : Top 10**
 3. **Rachat** (accepté ou forcé par dilution) — fin moyenne, épilogue narratif
@@ -160,30 +203,38 @@ Mécanique : reviews = bonus/malus, jamais fatal. Presse achetable (voyages, mon
 8. **La Montre du Siècle** — créer une pièce ultime (tourbillon manufacture, qualité 10, désirabilité max) qui entre au musée : le nom passe à la postérité même si la marque reste moyenne. Victoire d'artisan.
 9. **Le Scandale** — presse achetée révélée + fraude cumulées : ruine réputationnelle, la marque survit mais le fondateur est banni de l'industrie. Défaite narrative distincte de la faillite.
 
-## 9. Direction artistique (moodboard fourni par Julien, 5 références)
+## 10. Direction artistique (moodboard fourni par Julien, 5 références)
 - **Style : flat pixel art à gros contour sombre**, formes lisibles, fond uni clair ou carte colorée
 - Résolution sprites montres : 48×48 à 64×64, palette douce (beiges, bruns, verts sauge, or)
 - Les silhouettes iconiques (sport acier à lunette octogonale, rectangulaire dress à chiffres romains, calculatrice rétro, plongeuse) sont **reconnaissables mais génériques** — cohérent avec l'approche parodique, jamais de reproduction exacte d'un design déposé
 - L'UI sombre « établi » du proto (vert nuit + laiton + ivoire, typo pixel) est validée comme base ; les cartes de montres sur fond clair contrastent dessus
 - Chaque modèle créé par le joueur = sprite assemblé par couches : boîtier (forme × matériau) + cadran (couleur) + bracelet — combinatoire plutôt que sprites uniques
+- **Menu d'accueil** avec élément pixel animé (balancier qui oscille)
+- **Personnage animé en jeu** selon le profil : établi (artisan/ingénieur) ou bureau (financier)
 
-## 10. Ton
+## 11. Audio
+**Bande sonore composée par Julien** (2–3 pistes + sons UI). Prévoir un gestionnaire audio simple : boucle menu, boucle jeu, stingers (cérémonie annuelle, fin de partie), volume réglable, **coupé par défaut sur mobile**. (Session S5.)
+
+## 12. Ton
 Simulation sérieuse avec clins d'œil. L'humour vit dans les noms, les événements, les reviews.
 
-## 11. RESTE À TRANCHER
+## 13. Reporté en v1.1 (post-beta, décision de périmètre)
+- **Décoration profonde des montres** (pierres, gravures, cadrans d'art) : cosmétique, multiplie les sprites, n'ajoute rien mécaniquement au lancement. La combinatoire boîtier/matériau/cadran/bracelet suffit pour la v1.
+
+## 14. RESTE À TRANCHER
 - [ ] Accords Frank sans C / Flyback / Clément Entretemps (ou passage en parodie)
 - [ ] Noms définitifs via vidéo communauté (plus tard)
 - [ ] Détail des 4 fins alternatives (conditions chiffrées)
 - [ ] Salons fictifs : 5–6 à nommer (parodies de Watches & Wonders, Baselworld†, salons Asie/US)
+- [ ] Où replacer le déblocage progressif des actions, sorti du plan révisé
 
-## 12. Plan Claude Code (kickoff)
-**Prérequis faits :** GitHub ✓, itch.io ✓, moodboard ✓, lore v0.4 ✓, proto validé ✓.
+## 15. Plan de sessions (révisé v0.5 : 4 → 6)
 
-**Session 1 (~2h) :** créer le repo `barillet-le-jeu` ; porter le proto (fichier barille-proto.jsx fourni comme spec de départ) dans un vrai projet Vite + React ; PA à 2 ; self-made à 10'000 ; capacité en heures ; sauvegarde localStorage ; déploiement GitHub Pages dès la fin de session (le jeu est en ligne, même moche).
-**Session 2 :** modules d'atelier + déblocage progressif des actions + rééquilibrage crédibilité.
-**Session 3 :** les 20 YouTubeurs + aléas complets + événements 2015–2026 enrichis.
-**Session 4 :** sprites pixel art par couches + avatars + écrans de fin.
-Ensuite : beta communauté sur itch.io, devlog #1.
+- **S1 — portage ✅** : repo `barillet-le-jeu`, projet Vite + React, self-made à 10'000, capacité en heures, sauvegarde localStorage, déploiement GitHub Pages.
+- **S2 — moteur ✅** : système d'heures (fondateur + employés spécialisés), complications, rééquilibrage crédibilité, horizon → 2065.
+- **S3 — narratif** : récit trimestriel, brèves concurrents, classement vivant, page d'intro.
+- **S4 — rythme** : objectifs quinquennaux, événements 2026–2065, aléas complets, les 20 YouTubeurs.
+- **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, intégration audio.
+- **S6 — polish & beta** : équilibrage complet (une partie 2015–2065 testée), écrans de fin, build itch.io + GitHub Pages.
 
-**Prompt de démarrage à coller dans Claude Code, session 1 :**
-« Lis barillet-le-jeu-lore.md et barille-proto.jsx. Crée un projet Vite+React nommé barillet-le-jeu qui porte le prototype en respectant la spec v0.4 : 2 PA/trimestre, self-made à 10'000 CHF, capacité en heures d'atelier (quartz 1h, ébauche 3h, manufacture 10h), sauvegarde localStorage, et prépare le déploiement GitHub Pages. Garde l'UI et l'équilibrage du proto pour le reste. »
+Beta communauté : **fin novembre**. Devlog #1 : dès que S2–S3 donnent quelque chose à montrer.

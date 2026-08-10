@@ -1,5 +1,5 @@
 // Événements historiques scriptés, aléas trimestriels et opportunités.
-// Session 3 : enrichir 2015-2026 et monter à ~20 aléas.
+// Session S4 : enrichir 2015-2065 et monter à ~20 aléas.
 
 export const EVENEMENTS = [
   { annee: 2015, t: 2, titre: "Lancement de l'Apple Watch", texte: "Le quartz d'entrée de gamme prend un coup pendant 2 ans." },
@@ -26,29 +26,32 @@ export const OPPORTUNITES = [
   {
     id: "salon", titre: "Invitation au salon Genève Time",
     texte: "Un stand se libère. CHF 25'000, mais la visibilité est réelle.",
-    cout: 25000, pa: 1, req: (g) => g.modeles.some((m) => m.statut === "actif"),
+    cout: 25000, heures: 80, req: (g) => g.modeles.some((m) => m.statut === "actif"),
   },
   {
     id: "youtubeur", titre: "Un YouTubeur veut tester votre montre",
     texte: "« Remontoir » (280k abonnés) demande un exemplaire. Review honnête... dans les deux sens.",
-    cout: 0, pa: 1, req: (g) => g.modeles.some((m) => m.statut === "actif"),
+    cout: 0, heures: 20, req: (g) => g.modeles.some((m) => m.statut === "actif"),
   },
   {
     id: "detaillant", titre: "Grosse commande d'un détaillant",
     texte: "Une chaîne veut votre stock à -25%. Cash immédiat, marge sacrifiée, distribution renforcée.",
-    cout: 0, pa: 1, req: (g) => g.modeles.some((m) => m.stock > 20),
+    cout: 0, heures: 30, req: (g) => g.modeles.some((m) => m.stock > 20),
   },
   {
     id: "voyagepresse", titre: "Organiser un voyage de presse",
     texte: "Trois journalistes dans le Jura, montres offertes. CHF 12'000. Si ça se sait...",
-    cout: 12000, pa: 1, req: () => true,
+    cout: 12000, heures: 80, req: () => true,
   },
   {
     id: "collab", titre: "Collab influenceur lifestyle",
     texte: "500k abonnés, CHF 20'000 le post. La notoriété s'achète, la crédibilité en souffre.",
-    cout: 20000, pa: 1, req: () => true,
+    cout: 20000, heures: 40, req: () => true,
   },
 ];
+
+// Effectif total, sans dépendre du moteur (évite un cycle d'imports).
+const effectif = (employes) => Object.values(employes).reduce((s, n) => s + n, 0);
 
 // Aléas possibles ce trimestre, selon l'état de la partie.
 export function poolAleas(g) {
@@ -62,7 +65,7 @@ export function poolAleas(g) {
   ];
   if (g.noto >= 40) pool.push({ id: "contrefacon", titre: "Contrefaçons repérées", texte: "Des copies circulent. Désirabilité −5, ventes −10% ce trimestre." });
   if (g.modeles.some((m) => m.stock > 10)) pool.push({ id: "cambriolage", titre: "Cambriolage de l'atelier", texte: "30% du stock disparaît, plus CHF 10'000 de dégâts." });
-  if (g.employes > 0) pool.push({ id: "demission", titre: "Un horloger démissionne", texte: "Débauché par un concurrent. Savoir-faire −3." });
+  if (effectif(g.employes) > 0) pool.push({ id: "demission", titre: "Un collaborateur démissionne", texte: "Débauché par un concurrent. Savoir-faire −3, un poste à repourvoir." });
   if (g.modeles.some((m) => m.stock > 15)) pool.push({ id: "collectionneur", titre: "Un collectionneur passe commande", texte: "15 pièces d'un coup, payées +20%." });
   return pool;
 }
