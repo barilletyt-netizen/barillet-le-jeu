@@ -1,5 +1,5 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.5 (août 2026)
+## Document de lore et de design — v0.6 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
@@ -14,6 +14,7 @@
 
 - **Début : 2015.** Durée : 50 ans → fin en 2065. (Appliqué depuis S2.)
 - **Tour = 1 trimestre** (200 tours). Passage d'année entière en un clic : indispensable (validé).
+- **Courbe de progression visée** (playtest, référence Coffee Inc 2) : une à deux années avant le décollage, pas de millions de bénéfice dès la 2e année. La saturation d'un segment se mesure sur les **ventes récentes** et se résorbe, au lieu de fermer le marché définitivement — sinon le joueur bute sur un mur infranchissable vers 25–30 M de CA.
 - **Objectifs quinquennaux** : tous les 5 ans (2020, 2025, 2030…), un méga-événement — bilan de décennie du Stanley Morgan + un objectif proposé pour les 5 ans suivants (ex. « atteindre CHF 500'000 de revenus annuels », « lancer une mécanique », « entrer au top 500 »). Objectif atteint = récompense (crédibilité, offre de financement, invitation salon majeur). Raté = conséquence douce. C'est ce qui relance l'intérêt du passage des trimestres sur 200 tours. (Session S4.)
 
 ### Événements historiques scriptés 2015–2026
@@ -115,8 +116,29 @@
 2. **Crédibilité** — presse, reviews, salons. Rééquilibrée en S2 : gains passifs (savoir-faire ≥ 60 → +1/an ; ancienneté de la marque → +1 tous les 5 ans)
 3. **Désirabilité** — hype/marché gris. Monte : éditions limitées, finitions, **rupture de stock (+2/trim par modèle en sold-out — la rareté volontaire est une stratégie de cœur)**. Descend : soldes, surstock
 4. **Savoir-faire** — établi, R&D, embauches ; améliore qualité et coûts
-5. **Distribution** — multiplie le volume accessible (absorbe l'ancien « réseau », supprimé)
+5. **Distribution** — n'est plus une jauge sur 100 mais un **jeu de canaux** (voir ci-dessous)
 6. **Capacité d'atelier — EN HEURES** : plafond de production. Frein anti-snowball principal.
+
+### Canaux de distribution (v0.6 — remplacent la jauge)
+Playtest : « la distribution, j'aimerais qu'on la développe comme l'équipe. Au lieu d'un truc en /100, il faudrait dire si on vend chez un AD, nous-mêmes sur internet, sur les foires ou dans une boutique à nous. »
+
+Cinq canaux, trois paliers chacun. Chaque canal a une **portée** (volume accessible), une **marge** (part du prix qui revient à la marque), un coût d'ouverture et des coûts fixes récurrents.
+
+| Canal | Portée max | Marge | Particularité |
+|---|---|---|---|
+| Vente directe | ×0.7 | 100% | Disponible d'emblée, petit volume |
+| E-commerce | ×2.0 | 92% | Frais de paiement et logistique |
+| Foires et salons | ×1.4 | 95% | Fixes lourds, entretient la crédibilité |
+| Détaillants agréés | ×5.0 | 55% | Le volume, mais 45% part au revendeur. Demande crédibilité ≥ 6 |
+| Boutique en propre | ×2.6 | 100% | Marge pleine, loyer très lourd, désirabilité +. Demande notoriété ≥ 30 |
+
+L'arbitrage central : les AD ouvrent le gros volume mais diluent la marge ; la boutique en propre garde tout mais coûte une fortune en fixe.
+
+### Encadrement (v0.6)
+Au-delà de **5 personnes en production par chef d'atelier**, l'atelier perd en efficacité (jusqu'à 55% seulement des heures rendues). Playtest : « plus on engage de personnel, plus à un moment il va falloir des chefs d'atelier pour gérer tout cela. » On peut aussi **se séparer d'un collaborateur** (indemnité de 2 trimestres de salaire).
+
+### Fiscalité (v0.6)
+**Impôt de 18% sur le bénéfice annuel**, prélevé au bilan du T4.
 
 ### Complications (arbre techno — 3 niveaux par famille)
 - Arbre : **Date → Chronographe → GMT → Phase de lune → Réserve de marche → Tourbillon**
@@ -124,7 +146,14 @@
 - Il faut maîtriser une famille **au niveau 2** pour ouvrir la suivante — on ne traverse pas l'arbre en effleurant chaque branche.
 - Les paliers : Date à guichet → Grande date → Quantième annuel · Chrono à came → Roue à colonnes → Rattrapante · Aiguille 24 h → Heure sautante → Heure universelle · Phase de lune → Lune de précision → Complication astronomique · Indicateur de réserve → Réserve longue durée → Réserve d'un mois · Tourbillon une cage → Tourbillon volant → Tourbillon multi-axes
 - Prérequis : un **ingénieur** (employé ou profil) à partir de la phase de lune ; le tourbillon exige en plus un mouvement manufacture
+- **Une montre peut cumuler jusqu'à 3 complications** (v0.6) : heures et qualité s'additionnent, les multiplicateurs de prix acceptable se multiplient.
 - Effet : ajoute des heures de production/pièce, monte la qualité et le prix acceptable. Un modèle fige le niveau du jour de sa création.
+
+### Matériaux (v0.6 — arbre de recherche)
+Acier acquis d'office. Bronze → Titane → Céramique / Or : chacun demande une **recherche** (heures + CHF + trimestres) **et** un expert matériaux dans l'équipe. Playtest : « dès que j'ai le bon artisan, je peux rusher les montres en or et augmenter drastiquement le bénéfice. »
+
+### Prix : c'est le joueur qui décide (v0.6)
+Le jeu n'affiche **aucun prix par défaut**. À la conception il annonce le **coût de fabrication**, la qualité et les heures par pièce ; le prix est saisi par le joueur, et une montre sans prix ne se vend pas. L'**étude de marché** chiffre la demande à trois prix différents.
 - La « Montre du Siècle » (fin n°8) exige le tourbillon manufacture
 
 ### Déblocage progressif des actions (principe clé)
@@ -239,6 +268,7 @@ Simulation sérieuse avec clins d'œil. L'humour vit dans les noms, les événem
 
 - **S1 — portage ✅** : repo `barillet-le-jeu`, projet Vite + React, self-made à 10'000, capacité en heures, sauvegarde localStorage, déploiement GitHub Pages.
 - **S2 — moteur ✅** : système d'heures (fondateur + employés spécialisés), complications, rééquilibrage crédibilité, horizon → 2065.
+- **S2.5 — retours du premier smoke test ✅** : prix libre, canaux de distribution, recherche des matériaux, complications cumulables, encadrement, licenciements, impôts, cohérence du classement, rééquilibrage des volumes.
 - **S3 — narratif** : récit trimestriel, brèves concurrents, classement vivant, page d'intro.
 - **S4 — rythme** : objectifs quinquennaux, événements 2026–2065, aléas complets, les 20 YouTubeurs.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, intégration audio.

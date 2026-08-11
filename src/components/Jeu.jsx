@@ -2,16 +2,18 @@ import { useState } from "react";
 import { S } from "../styles.js";
 import Jauge from "./Jauge.jsx";
 import {
-  MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION,
+  MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
   ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, COUTS_H, HEURES_FONDATEUR,
-  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS,
+  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
 } from "../data/config.js";
 import { OPPORTUNITES } from "../data/evenements.js";
 import {
-  chargeHeures, complicationDe, complicationsDispo, complicationsRecherchables,
-  complicationsVerrouillees, coutRD, coutUnitaire, dureeDev, fmtCHF, fmtH, fraicheur,
-  gainChoc, gainDist, gainMarketing, heuresEmployes, heuresModele, heuresParPiece,
-  heuresProductionDispo, heuresRD, nbEmployes, niveauPourModele, paletteComplication,
+  canauxOuvrables, chargeHeures, complicationsDispo, complicationsRecherchables,
+  complicationsVerrouillees, coutFacelift, coutRD, coutUnitaire, dureeDev, encadrement,
+  fmtCHF, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
+  heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
+  materiauxRecherchables, nbEmployes, nomComplications, num, paletteComplication,
+  porteeTotale, qualiteNouveau,
 } from "../engine/formules.js";
 
 export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
@@ -19,10 +21,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
 
   const [showJournal, setShowJournal] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
-  const [panneau, setPanneau] = useState(null); // "rd" | "complication" | "embauche"
+  const [panneau, setPanneau] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
-    compl: "aucune", finition: false, prix: 700, nom: "",
+    compls: [], finition: false, nom: "",
   });
 
   const opp = g.opportunite ? OPPORTUNITES.find((o) => o.id === g.opportunite) : null;
@@ -30,33 +32,50 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const charge = chargeHeures(g.modeles);
   const dispoProd = heuresProductionDispo(g);
   const mainOeuvreEquipe = heuresEmployes(g.employes);
-  // Main-d'œuvre payée mais que les postes d'atelier ne peuvent pas absorber.
-  const heuresPerdues = Math.max(0, g.heures + mainOeuvreEquipe - g.capacite);
-  // Ce qu'un employé de production ajouterait vraiment, postes compris.
-  const postesLibres = Math.max(0, g.capacite - g.heures - mainOeuvreEquipe);
-  const gainEmbauche = Math.min(HEURES_EMPLOYE, postesLibres);
+  const enc = encadrement(g.employes);
+  const heuresPerdues = Math.max(0, g.heures + mainOeuvreEquipe * enc.efficacite - g.capacite);
+  const postesLibres = Math.max(0, g.capacite - g.heures - mainOeuvreEquipe * enc.efficacite);
+  const gainEmbauche = Math.round(Math.min(HEURES_EMPLOYE * enc.efficacite, postesLibres));
   const coutU = (m) => coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
 
-  // Une action est jouable si le fondateur a les heures et la caisse le budget.
-  // Sans coût en CHF, elle reste jouable à découvert (cf. App.jsx).
   const ok = (heures, cash = 0) => g.heures >= heures && (cash <= 0 || g.cash >= cash);
   const heuresRDModele = heuresRD(COUTS_H.rd, g.employes);
-  const recherchables = complicationsRecherchables(g, profil);
+  const recherchables = [...complicationsRecherchables(g, profil), ...materiauxRecherchables(g)];
   const verrouillees = complicationsVerrouillees(g);
   const complsModele = complicationsDispo(g, nm.mvt);
-  const materiauxOk = Object.keys(MATERIAUX).filter((k) => !MATERIAUX[k].expert || g.employes.materiaux > 0);
-  const decorateurDispo = g.employes.decorateur > 0;
+  const materiauxOk = Object.keys(MATERIAUX).filter((k) => g.materiaux[k]);
+  const canaux = canauxOuvrables(g);
+  const portee = porteeTotale(g.canaux);
+  const marge = margeMoyenne(g.canaux);
+
+  // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
+  // guider le joueur, pas un prix suggéré.
+  const apercu = {
+    mvt: nm.mvt, materiau: nm.mat, finition: nm.finition,
+    compls: nm.compls.map((id) => ({ id, niveau: g.complications[id] || 1 })),
+  };
+  const coutApercu = coutUnitaire(apercu, { pays, savoir: g.savoir, employes: g.employes });
+  const qualApercu = qualiteNouveau(nm.mvt, {
+    pays, profil, savoir: g.savoir, compls: apercu.compls, finition: nm.finition,
+  });
 
   function lancerRD() {
     actions.creerModele(nm);
     setPanneau(null);
-    setNm({ ...nm, nom: "" });
+    setNm({ ...nm, nom: "", compls: [] });
   }
 
-  // Le mouvement peut invalider la complication choisie (tourbillon = manufacture).
+  function basculerCompl(id) {
+    const dedans = nm.compls.includes(id);
+    if (dedans) return setNm({ ...nm, compls: nm.compls.filter((x) => x !== id) });
+    if (nm.compls.length >= COMPLICATIONS_MAX) return;
+    setNm({ ...nm, compls: [...nm.compls, id] });
+  }
+
+  // Le mouvement peut invalider une complication déjà cochée (tourbillon = manufacture).
   function choisirMvt(k) {
-    const compls = complicationsDispo(g, k);
-    setNm({ ...nm, mvt: k, compl: compls.includes(nm.compl) ? nm.compl : "aucune" });
+    const permises = complicationsDispo(g, k);
+    setNm({ ...nm, mvt: k, compls: nm.compls.filter((c) => permises.includes(c)) });
   }
 
   return (
@@ -113,6 +132,12 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
               pour qu'elles servent à quelque chose.
             </div>
           )}
+          {enc.manque > 0 && (
+            <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
+              ⚠ Atelier sous-encadré : {enc.manque} chef{enc.manque > 1 ? "s" : ""} d'atelier manquant
+              {enc.manque > 1 ? "s" : ""}. L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures.
+            </div>
+          )}
         </div>
 
         <div style={{ ...S.panel, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -120,7 +145,13 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           <Jauge label="Crédibilité" val={g.cred} />
           <Jauge label="Désirabilité" val={g.des} />
           <Jauge label="Savoir-faire" val={g.savoir} />
-          <Jauge label="Distribution" val={g.dist} />
+          <div>
+            <span style={S.jauge}>Portée</span>
+            <br />
+            <span style={{ fontSize: 21 }}>×{portee.toFixed(1)}</span>
+            <br />
+            <span style={S.steel}>marge {fmtPct(marge)}</span>
+          </div>
           <div>
             <span style={S.jauge}>Équipe</span>
             <br />
@@ -166,8 +197,12 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         {g.recherche && (
           <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
             <span style={S.blue}>
-              ⚙ Recherche en cours : {COMPLICATIONS[g.recherche.id].nom} niveau {g.recherche.niveau} — «{" "}
-              {paletteComplication(g.recherche.id, g.recherche.niveau).nom} »
+              ⚙ Recherche en cours :{" "}
+              {g.recherche.type === "materiau"
+                ? MATERIAUX[g.recherche.id].nom
+                : COMPLICATIONS[g.recherche.id].nom +
+                  " niveau " + g.recherche.niveau +
+                  " — « " + paletteComplication(g.recherche.id, g.recherche.niveau).nom + " »"}
             </span>
             <br />
             <span style={S.steel}>
@@ -186,7 +221,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             <div>
               <span style={S.gold}>{m.nom}</span>{" "}
               <span style={S.steel}>
-                — {MOUVEMENTS[m.mvt].nom} · {complicationDe(m).nom} · {STYLES[m.style].nom} ·{" "}
+                — {MOUVEMENTS[m.mvt].nom} · {nomComplications(m)} · {STYLES[m.style].nom} ·{" "}
                 {MATERIAUX[m.materiau].nom}
                 {m.finition ? " · finition maison" : ""} · {SEGMENTS[m.seg].nom} · qualité {m.qual}/10 ·{" "}
                 {heuresParPiece(m)} h/pièce
@@ -200,52 +235,68 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 </span>
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 14, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <label style={S.steel}>
-                  Prix
-                  <br />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    style={S.num}
-                    value={m.prix}
-                    onChange={(e) => actions.setPrix(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
-                  />
-                </label>
-                <label style={S.steel}>
-                  Prod./trim.
-                  <br />
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    style={S.num}
-                    value={m.prod}
-                    onChange={(e) => actions.setProd(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
-                  />
-                </label>
-                <div style={S.steel}>
-                  Heures
-                  <br />
-                  <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtH(heuresModele(m))}</span>
+              <>
+                <div style={{ display: "flex", gap: 14, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <label style={S.steel}>
+                    Votre prix
+                    <br />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="à fixer"
+                      style={{ ...S.num, borderColor: num(m.prix) > 0 ? "#2A3A2C" : "#C9A227" }}
+                      value={m.prix}
+                      onChange={(e) => actions.setPrix(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
+                    />
+                  </label>
+                  <label style={S.steel}>
+                    Prod./trim.
+                    <br />
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      style={S.num}
+                      value={m.prod}
+                      onChange={(e) => actions.setProd(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
+                    />
+                  </label>
+                  <div style={S.steel}>
+                    Coût/pièce
+                    <br />
+                    <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtCHF(coutU(m))}</span>
+                  </div>
+                  <div style={S.steel}>
+                    Heures
+                    <br />
+                    <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtH(heuresModele(m))}</span>
+                  </div>
+                  <div style={S.steel}>
+                    Stock
+                    <br />
+                    <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtNb(m.stock)}</span>
+                  </div>
+                  <div style={S.steel}>
+                    Fraîcheur
+                    <br />
+                    <span style={{ color: fraicheur(m.age) < 0.6 ? "#D06050" : "#EDE6D6", fontSize: 20 }}>
+                      {Math.round(fraicheur(m.age) * 100)}%
+                    </span>
+                  </div>
                 </div>
-                <div style={S.steel}>
-                  Stock
-                  <br />
-                  <span style={{ color: "#EDE6D6", fontSize: 20 }}>{m.stock}</span>
+                <div style={{ ...S.steel, marginTop: 6 }}>
+                  {num(m.prix) > 0 ? (
+                    <>
+                      Marge unitaire encaissée :{" "}
+                      <span style={{ color: num(m.prix) * marge > coutU(m) ? "#8FBF7F" : "#D06050" }}>
+                        {fmtCHF(num(m.prix) * marge - coutU(m))}
+                      </span>{" "}
+                      (prix × {fmtPct(marge)} de marge canal − coût)
+                    </>
+                  ) : (
+                    <span style={S.gold}>Fixez un prix : sans prix, rien ne se vend.</span>
+                  )}
                 </div>
-                <div style={S.steel}>
-                  Coût/unité
-                  <br />
-                  <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtCHF(coutU(m))}</span>
-                </div>
-                <div style={S.steel}>
-                  Fraîcheur
-                  <br />
-                  <span style={{ color: fraicheur(m.age) < 0.6 ? "#D06050" : "#EDE6D6", fontSize: 20 }}>
-                    {Math.round(fraicheur(m.age) * 100)}%
-                  </span>
-                </div>
-              </div>
+              </>
             )}
           </div>
         ))}
@@ -284,27 +335,28 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
               );
             })}
 
-            <div style={S.h3}>COMPLICATION</div>
+            <div style={S.h3}>COMPLICATIONS — {nm.compls.length}/{COMPLICATIONS_MAX}</div>
+            {complsModele.length === 0 && (
+              <div style={{ ...S.steel, marginBottom: 8 }}>
+                Aucune complication maîtrisée. Trois aiguilles pour l'instant — la recherche se lance dans
+                ATELIER &amp; ÉQUIPE.
+              </div>
+            )}
             {complsModele.map((k) => {
-              const niveau = niveauPourModele(g, k);
+              const niveau = g.complications[k];
               const pal = paletteComplication(k, niveau);
+              const coche = nm.compls.includes(k);
               return (
-                <button key={k} style={S.btn(nm.compl === k)} onClick={() => setNm({ ...nm, compl: k })}>
-                  <span style={S.gold}>{pal.nom}</span>
-                  {k !== "aucune" && <span style={S.steel}> (niveau {niveau})</span>}
-                  {pal.heures > 0 && (
-                    <span style={S.steel}>
-                      {" "}
-                      — +{pal.heures} h/pièce, qualité +{pal.qual}, prix acceptable ×{pal.prixMult}
-                    </span>
-                  )}
+                <button key={k} style={S.btn(coche)} onClick={() => basculerCompl(k)}>
+                  <span style={S.gold}>{coche ? "✓ " : ""}{pal.nom}</span>
+                  <span style={S.steel}> (niveau {niveau})</span>
+                  <br />
+                  <span style={S.steel}>
+                    +{pal.heures} h/pièce, qualité +{pal.qual}, prix acceptable ×{pal.prixMult}
+                  </span>
                 </button>
               );
             })}
-            <div style={{ ...S.steel, marginTop: 6 }}>
-              Un modèle fige le niveau du jour : monter la complication après coup ne le met pas à jour.
-              {recherchables.length > 0 ? " Les paliers suivants se recherchent dans ATELIER & ÉQUIPE." : ""}
-            </div>
 
             <div style={S.h3}>STYLE</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
@@ -324,19 +376,18 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 </button>
               ))}
             </div>
-            {g.employes.materiaux === 0 && (
+            {materiauxOk.length < Object.keys(MATERIAUX).length && (
               <div style={{ ...S.steel, marginTop: 6 }}>
-                Bronze, titane, céramique et or demandent un expert matériaux dans l'équipe.
+                Les autres alliages demandent une recherche et un expert matériaux.
               </div>
             )}
 
             <div style={S.h3}>FINITION</div>
-            {decorateurDispo ? (
+            {g.employes.decorateur > 0 ? (
               <button style={S.btn(nm.finition)} onClick={() => setNm({ ...nm, finition: !nm.finition })}>
                 <span style={S.gold}>{nm.finition ? "✓ Finition maison" : "Finition maison"}</span>{" "}
                 <span style={S.steel}>
-                  — +{FINITION.heures} h/pièce, +{FINITION.cout} CHF/pièce, qualité +{FINITION.qual}, entretient la
-                  désirabilité
+                  — +{FINITION.heures} h/pièce, +{FINITION.cout} CHF/pièce, qualité +{FINITION.qual}
                 </span>
               </button>
             ) : (
@@ -345,33 +396,26 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
               </div>
             )}
 
-            <div style={S.h3}>SEGMENT</div>
+            <div style={S.h3}>SEGMENT VISÉ</div>
             {Object.entries(SEGMENTS).map(([k, sg]) => (
-              <button
-                key={k}
-                style={S.btn(nm.seg === k)}
-                onClick={() =>
-                  setNm({
-                    ...nm, seg: k,
-                    prix: Math.round(sg.ideal * MATERIAUX[nm.mat].idealMult * COMPLICATIONS[nm.compl].prixMult),
-                  })
-                }
-              >
-                <span style={S.gold}>{sg.nom}</span> <span style={S.steel}>— {sg.desc}</span>
+              <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
+                <span style={S.gold}>{sg.nom}</span>{" "}
+                <span style={S.steel}>— {sg.desc} Repère de prix : {fmtCHF(sg.ideal)}.</span>
               </button>
             ))}
 
-            <label style={{ ...S.steel, display: "block", marginTop: 8 }}>
-              Prix de vente
+            {/* Pas de prix suggéré : on donne le coût, le joueur décide. */}
+            <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 10 }}>
+              <span style={S.steel}>Cette montre vous coûtera</span>
               <br />
-              <input
-                type="number"
-                inputMode="numeric"
-                style={S.num}
-                value={nm.prix}
-                onChange={(e) => setNm({ ...nm, prix: e.target.value === "" ? "" : parseInt(e.target.value) || 0 })}
-              />
-            </label>
+              <span style={{ ...S.gold, fontSize: 22 }}>{fmtCHF(coutApercu)}</span>
+              <span style={S.steel}> par pièce · qualité {qualApercu}/10 · {heuresParPiece(apercu)} h/pièce</span>
+              <br />
+              <span style={S.steel}>
+                Vous fixerez son prix vous-même quand elle sortira d'étude. L'étude de marché chiffre la demande
+                à plusieurs prix.
+              </span>
+            </div>
 
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...S.cta, background: "#2A3A2C", color: "#EDE6D6" }} onClick={() => setPanneau(null)}>
@@ -389,7 +433,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           onClick={() => actifs.length > 0 && ok(COUTS_H.facelift) && setPicker(picker === "facelift" ? null : "facelift")}
         >
           ✨ Facelift d'un modèle{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.facelift)} + 40% du coût R&D) — restaure la fraîcheur</span>
+          <span style={S.steel}>({fmtH(COUTS_H.facelift)} + 75% du coût R&D) — restaure la fraîcheur</span>
         </button>
         <button
           style={S.action(ok(COUTS_H.edition) && actifs.length > 0)}
@@ -415,13 +459,63 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                     {m.nom}{" "}
                     <span style={S.steel}>
                       {picker === "facelift"
-                        ? "— " + fmtCHF(Math.round(coutRD(m.mvt, profil) * 0.4))
+                        ? "— " + fmtCHF(coutFacelift(m, profil))
                         : "— " + fmtCHF(50 * coutU(m)) + " de production"}
                     </span>
                   </button>
                 )
             )}
             <button style={S.ghost} onClick={() => setPicker(null)}>
+              Annuler
+            </button>
+          </div>
+        )}
+
+        <div style={S.h3}>DISTRIBUTION — portée ×{portee.toFixed(1)}, marge {fmtPct(marge)}</div>
+        <div style={{ ...S.panel, ...S.steel }}>
+          {Object.entries(g.canaux)
+            .filter(([, n]) => n > 0)
+            .map(([id, n]) => CANAUX[id].icon + " " + CANAUX[id].nom + " — " + CANAUX[id].paliers[n - 1].nom)
+            .join(" · ")}
+          <br />
+          Plus de portée = plus de volume accessible. Mais chaque canal encaisse sa part : les détaillants
+          agréés vendent large et prennent 45%.
+        </div>
+        {panneau !== "canaux" && canaux.length > 0 && (
+          <button style={S.action(true)} onClick={() => setPanneau("canaux")}>
+            🏪 Développer la distribution <span style={S.steel}>— ouvrir ou agrandir un canal</span>
+          </button>
+        )}
+        {panneau === "canaux" && (
+          <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+            {canaux.map((c) => {
+              const jouable = c.manque.length === 0 && ok(c.heures, c.cout);
+              return (
+                <button
+                  key={c.id}
+                  style={{ ...S.btn(false), opacity: jouable ? 1 : 0.45 }}
+                  disabled={!jouable}
+                  onClick={() => {
+                    actions.ouvrirCanal(c);
+                    setPanneau(null);
+                  }}
+                >
+                  <span style={S.gold}>
+                    {c.canal.icon} {c.canal.nom}
+                  </span>{" "}
+                  <span style={S.steel}>
+                    palier {c.niveau}/3 — « {c.nom} »
+                  </span>
+                  <br />
+                  <span style={S.steel}>
+                    {fmtH(c.heures)} + {fmtCHF(c.cout)}, puis {fmtCHF(c.fixes)}/trim · portée +{c.portee}, marge{" "}
+                    {fmtPct(c.canal.marge)}
+                    {c.manque.length ? " · ⚠ demande " + c.manque.join(" et ") : ""}
+                  </span>
+                </button>
+              );
+            })}
+            <button style={S.ghost} onClick={() => setPanneau(null)}>
               Annuler
             </button>
           </div>
@@ -435,6 +529,13 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 .filter(([, n]) => n > 0)
                 .map(([k, n]) => EMPLOYES[k].nom + " ×" + n)
                 .join(" · ")}
+          {enc.requis > 0 && (
+            <>
+              <br />
+              Encadrement : {enc.chefs}/{enc.requis} chef{enc.requis > 1 ? "s" : ""} d'atelier (1 pour{" "}
+              {ENCADREMENT_PAR_CHEF} personnes en production) — efficacité {fmtPct(enc.efficacite)}.
+            </>
+          )}
         </div>
 
         {panneau !== "embauche" && (
@@ -487,43 +588,79 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           </div>
         )}
 
-        {panneau !== "complication" && recherchables.length > 0 && (
-          <button
-            style={S.action(!g.recherche)}
-            onClick={() => !g.recherche && setPanneau("complication")}
-          >
-            🔩 Rechercher une complication{" "}
+        {nbEmployes(g.employes) > 0 && panneau !== "equipe" && (
+          <button style={S.action(ok(COUTS_H.licenciement))} onClick={() => setPanneau("equipe")}>
+            👋 Se séparer d'un collaborateur{" "}
+            <span style={S.steel}>({fmtH(COUTS_H.licenciement)} + indemnité) — allège les coûts fixes</span>
+          </button>
+        )}
+        {panneau === "equipe" && (
+          <div style={{ ...S.panel, borderColor: "#C9A227" }}>
+            {Object.entries(g.employes)
+              .filter(([, n]) => n > 0)
+              .map(([k, n]) => (
+                <button
+                  key={k}
+                  style={{ ...S.btn(false), opacity: ok(COUTS_H.licenciement) ? 1 : 0.45 }}
+                  disabled={!ok(COUTS_H.licenciement)}
+                  onClick={() => {
+                    actions.licencier(k);
+                    setPanneau(null);
+                  }}
+                >
+                  {EMPLOYES[k].icon} <span style={S.gold}>{EMPLOYES[k].nom}</span>{" "}
+                  <span style={S.steel}>
+                    (×{n}) — indemnité {fmtCHF(indemnite(k))}, puis {fmtCHF(EMPLOYES[k].fixes)}/trim économisés
+                  </span>
+                </button>
+              ))}
+            <button style={S.ghost} onClick={() => setPanneau(null)}>
+              Annuler
+            </button>
+          </div>
+        )}
+
+        {panneau !== "recherche" && recherchables.length > 0 && (
+          <button style={S.action(!g.recherche)} onClick={() => !g.recherche && setPanneau("recherche")}>
+            🔩 Lancer une recherche{" "}
             <span style={S.steel}>
-              {g.recherche ? "— une recherche est déjà en cours" : "— arbre Date → Chrono → GMT → Lune → Réserve → Tourbillon"}
+              {g.recherche ? "— une recherche est déjà en cours" : "— complications et matériaux"}
             </span>
           </button>
         )}
-        {panneau === "complication" && (
+        {panneau === "recherche" && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
             <div style={{ ...S.steel, marginBottom: 8 }}>
-              Chaque complication a trois paliers. Il faut la maîtriser au niveau {COMPL_NIVEAU_REQUIS} pour
-              ouvrir la suivante de l'arbre.
+              Une seule recherche à la fois. Chaque complication a trois paliers, et il faut la maîtriser au
+              niveau {COMPL_NIVEAU_REQUIS} pour ouvrir la suivante de l'arbre.
             </div>
             {recherchables.map((c) => {
               const h = heuresRD(c.rdHeures, g.employes);
               const jouable = !c.bloque && ok(h, c.rd);
               return (
                 <button
-                  key={c.id}
+                  key={c.type + c.id}
                   style={{ ...S.btn(false), opacity: jouable ? 1 : 0.45 }}
                   disabled={!jouable}
                   onClick={() => {
-                    actions.rechercherComplication(c);
+                    actions.rechercher(c);
                     setPanneau(null);
                   }}
                 >
-                  <span style={S.gold}>{c.famille}</span>{" "}
-                  <span style={S.steel}>niveau {c.niveau}/3 — « {c.nom} »</span>
+                  <span style={S.gold}>
+                    {c.type === "materiau" ? "🧪 " : ""}
+                    {c.famille}
+                  </span>{" "}
+                  <span style={S.steel}>
+                    {c.type === "materiau" ? "— travail de la matière" : "niveau " + c.niveau + "/3 — « " + c.nom + " »"}
+                  </span>
                   <br />
                   <span style={S.steel}>
-                    {fmtH(h)} + {fmtCHF(c.rd)}, {c.dev} trim. · +{c.heures} h/pièce, qualité +{c.qual}, prix
-                    acceptable ×{c.prixMult}
-                    {c.bloque ? " · ⚙ ingénieur requis" : ""}
+                    {fmtH(h)} + {fmtCHF(c.rd)}, {c.dev} trim.
+                    {c.type === "complication"
+                      ? " · +" + c.heures + " h/pièce, qualité +" + c.qual + ", prix acceptable ×" + c.prixMult
+                      : ""}
+                    {c.bloque ? (c.type === "materiau" ? " · 🧪 expert matériaux requis" : " · ⚙ ingénieur requis") : ""}
                     {c.manufacture ? " · manufacture requise" : ""}
                   </span>
                 </button>
@@ -564,14 +701,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         </button>
         <button style={S.action(ok(COUTS_H.etude, 5000))} onClick={() => actions.action("etude")}>
           🔍 Étude de marché{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.etude)}, 5'000) — révèle la demande estimée</span>
+          <span style={S.steel}>({fmtH(COUTS_H.etude)}, 5'000) — la demande à trois prix différents</span>
         </button>
 
         <div style={S.h3}>COMMERCE</div>
-        <button style={S.action(ok(COUTS_H.distribution, 12000))} onClick={() => actions.action("distribution")}>
-          🏪 Développer la distribution{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.distribution)}, 12'000) — réseau +{gainDist(g)}</span>
-        </button>
         <button
           style={S.action(ok(COUTS_H.soldes) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
           onClick={() => actions.action("soldes")}

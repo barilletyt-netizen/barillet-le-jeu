@@ -20,7 +20,7 @@ export const COUTS_H = {
   choc: 110,
   presse: 50,
   rd: 180,
-  facelift: 80,
+  facelift: 140,
   edition: 80,
   kickstarter: 160,
   distribution: 80,
@@ -29,7 +29,13 @@ export const COUTS_H = {
   embauche: 40,
   atelier: 60,
   emprunt: 30,
+  licenciement: 30,
+  canal: 0, // le coût en heures dépend du palier ouvert
 };
+
+// Un facelift coûte cette part du budget R&D d'origine (playtest : 40% était
+// trop peu, on relançait un modèle indéfiniment pour rien).
+export const FACELIFT_PART_RD = 0.75;
 
 // Heures d'établi nécessaires pour gagner 1 point de savoir-faire.
 export const HEURES_PAR_SAVOIR = 150;
@@ -85,11 +91,22 @@ export const EMPLOYES = {
   },
   materiaux: {
     nom: "Expert matériaux", icon: "🧪", production: false, fixes: 10000, savoir: 2,
-    desc: "Débloque bronze, titane, céramique et or. Coûts matière −20%.",
+    desc: "Requis pour travailler bronze, titane, céramique et or. Coûts matière −20%.",
+  },
+  chef: {
+    nom: "Chef d'atelier", icon: "📋", production: false, fixes: 14000, savoir: 1,
+    desc: "Encadre jusqu'à " + 5 + " personnes en production. Sans lui, l'atelier perd en efficacité.",
   },
 };
 
-export const EMPLOYES_VIDE = { horloger: 0, decorateur: 0, ingenieur: 0, materiaux: 0 };
+// Encadrement : au-delà de ce ratio, il faut des chefs d'atelier.
+export const ENCADREMENT_PAR_CHEF = 5;
+// Efficacité plancher quand personne n'encadre l'atelier.
+export const ENCADREMENT_PLANCHER = 0.55;
+// Indemnité de licenciement, en trimestres de salaire.
+export const INDEMNITE_TRIMESTRES = 2;
+
+export const EMPLOYES_VIDE = { horloger: 0, decorateur: 0, ingenieur: 0, materiaux: 0, chef: 0 };
 
 // ---- Produit ------------------------------------------------------------
 
@@ -107,14 +124,20 @@ export const STYLES = {
   squelette: { nom: "Squelette", mult: { grandpublic: 0.7, lifestyle: 0.9, connaisseurs: 1.1, bling: 1.25 } },
 };
 
-// expert : nécessite un expert matériaux dans l'équipe.
+// Les matériaux se travaillent : chacun demande une recherche (heures + CHF +
+// trimestres) ET un expert matériaux dans l'équipe. L'acier est acquis d'office.
+// Playtest : avec le seul expert, on passait directement à l'or et le bénéfice
+// explosait. `req` enchaîne l'apprentissage des alliages.
 export const MATERIAUX = {
-  acier: { nom: "Acier", cout: 0, idealMult: 1, expert: false },
-  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, expert: true },
-  titane: { nom: "Titane", cout: 320, idealMult: 1.5, expert: true },
-  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, expert: true },
-  or: { nom: "Or", cout: 2500, idealMult: 2.6, expert: true },
+  acier: { nom: "Acier", cout: 0, idealMult: 1, req: null, rdHeures: 0, rd: 0, dev: 0, acquisDepart: true },
+  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, req: null, rdHeures: 80, rd: 30000, dev: 1 },
+  titane: { nom: "Titane", cout: 320, idealMult: 1.5, req: "bronze", rdHeures: 160, rd: 120000, dev: 2 },
+  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, req: "titane", rdHeures: 200, rd: 200000, dev: 2 },
+  or: { nom: "Or", cout: 2500, idealMult: 2.6, req: "titane", rdHeures: 240, rd: 350000, dev: 3 },
 };
+
+// Nombre maximum de complications sur une même montre.
+export const COMPLICATIONS_MAX = 3;
 
 // Arbre techno à trois niveaux par complication (18 recherches en tout).
 // `req` = complication précédente, qu'il faut maîtriser au moins au niveau
@@ -182,12 +205,78 @@ export const COMPLICATIONS = {
 // Finition maison : débloquée par le décorateur.
 export const FINITION = { heures: 1, cout: 80, qual: 1, prixMult: 1.2 };
 
+// `ideal` sert de repère de prix au joueur et de pivot à la formule de demande —
+// ce n'est plus un prix imposé. `pool` = taille du marché avant saturation.
+// Playtest : les pools d'origine plafonnaient le quartz vers 1'500 pièces par
+// trimestre. Élargis pour qu'une marque de volume puisse exister.
 export const SEGMENTS = {
-  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 90000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
-  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 55000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
-  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 16000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées." },
-  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 6000, qualMin: 4, notoMin: 35, desc: "Prix élevés, mais il faut être connu." },
+  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
+  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
+  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 90000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées." },
+  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 30000, qualMin: 4, notoMin: 35, desc: "Prix élevés, mais il faut être connu." },
 };
+
+// La saturation d'un segment se résorbe : elle mesure les ventes récentes, pas
+// le cumul de toute la partie (sinon le marché se ferme définitivement).
+export const SATURATION_DECROISSANCE = 0.75;
+
+// ---- Canaux de distribution (remplacent la jauge « distribution /100 ») -----
+// Chaque canal a 3 paliers. `portee` multiplie le volume accessible, `marge` est
+// la part du prix qui revient à la marque : les détaillants agréés ouvrent le
+// volume mais prennent leur commission.
+export const CANAUX = {
+  direct: {
+    nom: "Vente directe", icon: "🤝", marge: 1.0,
+    desc: "Bouche-à-oreille, atelier, connaissances. Peu de volume, toute la marge.",
+    paliers: [
+      { nom: "Carnet d'adresses", portee: 0.35, cout: 0, fixes: 0, heures: 0 },
+      { nom: "Fichier clients", portee: 0.5, cout: 15000, fixes: 2000, heures: 40 },
+      { nom: "Clientèle fidélisée", portee: 0.7, cout: 60000, fixes: 6000, heures: 60 },
+    ],
+  },
+  ecommerce: {
+    nom: "E-commerce", icon: "💻", marge: 0.92,
+    desc: "Votre boutique en ligne. Frais de paiement et logistique.",
+    paliers: [
+      { nom: "Site vitrine", portee: 0.6, cout: 25000, fixes: 3000, heures: 60 },
+      { nom: "Boutique en ligne", portee: 1.2, cout: 80000, fixes: 8000, heures: 60 },
+      { nom: "Plateforme internationale", portee: 2.0, cout: 250000, fixes: 20000, heures: 80 },
+    ],
+  },
+  foires: {
+    nom: "Foires et salons", icon: "🎪", marge: 0.95, bonusCred: 1,
+    desc: "Stands et salons. Coûte cher en fixe, entretient la crédibilité.",
+    paliers: [
+      { nom: "Salons régionaux", portee: 0.4, cout: 20000, fixes: 8000, heures: 80 },
+      { nom: "Circuit européen", portee: 0.8, cout: 60000, fixes: 18000, heures: 80 },
+      { nom: "Salons mondiaux", portee: 1.4, cout: 150000, fixes: 40000, heures: 100 },
+    ],
+  },
+  detaillants: {
+    nom: "Détaillants agréés", icon: "🏬", marge: 0.55, reqCred: 6,
+    desc: "Le volume, mais 45% du prix part chez le revendeur.",
+    paliers: [
+      { nom: "Quelques revendeurs", portee: 1.5, cout: 15000, fixes: 4000, heures: 80 },
+      { nom: "Réseau national", portee: 3.0, cout: 60000, fixes: 10000, heures: 80 },
+      { nom: "Réseau mondial", portee: 5.0, cout: 200000, fixes: 25000, heures: 100 },
+    ],
+  },
+  boutique: {
+    nom: "Boutique en propre", icon: "🏛", marge: 1.0, reqNoto: 30, bonusDes: 2,
+    desc: "Vitrine à votre nom. Marge pleine, loyer lourd, désirabilité en hausse.",
+    paliers: [
+      { nom: "Première boutique", portee: 0.7, cout: 300000, fixes: 25000, heures: 120 },
+      { nom: "Quelques adresses", portee: 1.5, cout: 700000, fixes: 55000, heures: 120 },
+      { nom: "Flagships mondiaux", portee: 2.6, cout: 1500000, fixes: 110000, heures: 140 },
+    ],
+  },
+};
+
+export const CANAUX_VIDE = { direct: 1, ecommerce: 0, foires: 0, detaillants: 0, boutique: 0 };
+
+// ---- Fiscalité ----------------------------------------------------------
+// Impôt sur le bénéfice annuel, prélevé au bilan de fin d'année.
+export const IMPOT_TAUX = 0.18;
 
 // ---- Atelier et coûts fixes ---------------------------------------------
 // L'atelier est un plafond d'heures : embaucher sans agrandir ne sert à rien.

@@ -1,15 +1,17 @@
 import { EVENEMENTS, OPPORTUNITES, poolAleas } from "../data/evenements.js";
 import {
-  PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS,
+  PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
   CAPACITE_DEPART, HEURES_FONDATEUR, HEURES_PAR_SAVOIR, ANNEE_DEBUT,
-  CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS,
+  CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX,
 } from "../data/config.js";
 import {
-  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, fmtCHF,
-  fraicheur, heuresEmployes, heuresParPiece, num, tauxInteret,
+  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, encadrement, fmtCHF,
+  fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
 } from "./formules.js";
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const SEGMENTS_VIDE = { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 };
 
 export function etatInitial({ pays, profil, origine, marque }) {
   const p = PAYS[pays];
@@ -22,18 +24,20 @@ export function etatInitial({ pays, profil, origine, marque }) {
     cred: Math.max(0, o.cred + p.credBonus),
     des: 5,
     savoir: 5 + p.savoirBonus + (profil === "artisan" ? 10 : 0),
-    dist: 5 + o.reseau,
     capacite: CAPACITE_DEPART, // postes d'atelier, en heures par trimestre
     heures: HEURES_FONDATEUR, // heures du fondateur restantes ce trimestre
     employes: { ...EMPLOYES_VIDE },
     ateliers: 0,
+    canaux: { ...CANAUX_VIDE }, // id → palier ouvert
     complications: { aucune: 1 }, // id → niveau maîtrisé
-    recherche: null, // { id, niveau, restant } — complication en développement
+    materiaux: { acier: true }, // id → maîtrisé
+    recherche: null, // { type, id, niveau, restant }
     reseau: o.reseau,
     modeles: [], kickstarterFait: false,
-    revenusAnnee: 0, revenusAnneePrec: 0, meilleurRang: 2200,
-    segVendues: { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 },
-    journal: [], opportunite: null,
+    revenusAnnee: 0, revenusAnneePrec: 0, resultatAnnee: 0, meilleurRang: 2200,
+    saturation: { ...SEGMENTS_VIDE }, // ventes récentes, se résorbent chaque trimestre
+    segVendues: { ...SEGMENTS_VIDE }, // cumul, pour les statistiques
+    journal: [], opportunite: null, oppRecentes: [],
     messages: [
       "T1 " + ANNEE_DEBUT + " — " + (marque || "Votre marque") + " est née. Capital : " +
       fmtCHF(capital) + (o.dette ? " (dette : " + fmtCHF(o.dette) + ")" : "") +
@@ -44,9 +48,17 @@ export function etatInitial({ pays, profil, origine, marque }) {
   return etat;
 }
 
+/**
+ * Tire une opportunité. Rien tant qu'aucun modèle n'est lancé — recevoir des
+ * journalistes avant d'avoir la moindre montre n'avait aucun sens. Et on ne
+ * repropose pas ce qui vient de passer.
+ */
 export function tirerOpportunite(etat) {
-  if (Math.random() > 0.45) return null;
-  const dispo = OPPORTUNITES.filter((o) => o.req(etat));
+  if (etat.modeles.length === 0) return null;
+  if (Math.random() > 0.4) return null;
+  const recentes = etat.oppRecentes || [];
+  let dispo = OPPORTUNITES.filter((o) => o.req(etat) && !recentes.includes(o.id));
+  if (dispo.length === 0) dispo = OPPORTUNITES.filter((o) => o.req(etat));
   return dispo.length ? pick(dispo).id : null;
 }
 
@@ -65,12 +77,13 @@ export function tirerAlea(gs) {
 export function simulateQuarter(gs, heuresRestantes, ctx) {
   const { pays, profil } = ctx;
   let cash = gs.cash;
-  let { noto, cred, des, savoir, dist } = gs;
+  let { noto, cred, des, savoir } = gs;
   let employes = { ...gs.employes };
   const segVendues = { ...gs.segVendues };
+  const saturation = { ...gs.saturation };
   const lignes = [];
   const messagesDev = [];
-  let revenus = 0, coutsProd = 0, caDirect = 0;
+  let ventesBrutes = 0, coutsProd = 0, caDirect = 0;
 
   // Un événement historique remplace l'aléa du trimestre : pas deux chocs à la fois.
   const evtHisto = EVENEMENTS.find((e) => e.annee === gs.annee && e.t === gs.t) || null;
@@ -107,14 +120,18 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     }
   }
 
-  // Heures disponibles : ce qui reste au fondateur + les employés de production,
-  // plafonné par les postes de l'atelier. Si la charge dépasse, tout est réduit
-  // au prorata.
-  const heuresDispo = Math.min(heuresRestantes + heuresEmployes(employes), gs.capacite);
+  // Heures disponibles : fondateur + équipe de production, corrigée par
+  // l'encadrement, plafonnée par les postes de l'atelier.
+  const enc = encadrement(employes);
+  const heuresDispo = Math.floor(
+    Math.min(heuresRestantes + heuresEmployes(employes) * enc.efficacite, gs.capacite)
+  );
   const heuresDemandees = chargeHeures(modeles);
   const capDepassee = heuresDemandees > heuresDispo;
   const scaleCap = capDepassee ? heuresDispo / heuresDemandees : 1;
   let heuresUtilisees = 0;
+
+  const marge = margeMoyenne(gs.canaux);
 
   modeles = modeles.map((m) => {
     if (m.statut === "dev") {
@@ -136,42 +153,53 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
 
     // L'état courant sert de base à la demande : les jauges déjà modifiées par
     // l'aléa comptent dès ce trimestre.
-    const etatDemande = { ...gs, noto, cred, des, dist, segVendues };
+    const etatDemande = { ...gs, noto, cred, des, saturation };
     let d = demandeBase(m, etatDemande, mDemande);
     if (d > 0) d *= 0.85 + Math.random() * 0.3;
 
     const dispo = m.stock + prodEff;
     const vendues = Math.min(Math.round(d), dispo);
     segVendues[m.seg] += vendues;
-    revenus += vendues * prixN;
+    saturation[m.seg] += vendues;
+    ventesBrutes += vendues * prixN;
     const stockFinal = dispo - vendues;
 
     // Rupture de stock = rareté : la désirabilité monte. Surstock : elle baisse.
     if (dispo > 0 && vendues >= dispo) des = clamp(des + 1, 0, 100);
     if (stockFinal > 100 && stockFinal > prodEff * 2) des = clamp(des - 1, 0, 100);
-    // Une finition maison qui se vend entretient la désirabilité.
     if (m.finition && vendues > 0) des = clamp(des + 1, 0, 100);
 
     lignes.push({
       nom: m.nom, prod: prodEff, heures: prodEff * heuresParPiece(m),
-      demande: Math.round(d), vendues, ca: vendues * prixN,
+      demande: Math.round(d), vendues, ca: Math.round(vendues * prixN * marge),
       stock: stockFinal, fraicheur: fraicheur(m.age),
     });
     return { ...m, stock: stockFinal, age: m.age + 1 };
   });
 
-  revenus += caDirect;
+  ventesBrutes += caDirect;
+  const commissions = Math.round(ventesBrutes * (1 - marge));
+  const revenus = Math.round(ventesBrutes * marge);
 
-  // Recherche de complication en cours.
+  // La saturation se résorbe : un marché qu'on laisse respirer se rouvre.
+  for (const k of Object.keys(saturation)) saturation[k] = Math.round(saturation[k] * SATURATION_DECROISSANCE);
+
+  // Recherche en cours (complication ou matériau).
   let recherche = gs.recherche ? { ...gs.recherche, restant: gs.recherche.restant - 1 } : null;
   let complications = gs.complications;
+  let materiaux = gs.materiaux;
   if (recherche && recherche.restant <= 0) {
-    const palier = COMPLICATIONS[recherche.id].niveaux[recherche.niveau - 1];
-    complications = { ...complications, [recherche.id]: recherche.niveau };
-    messagesDev.push(
-      "Complication maîtrisée : " + COMPLICATIONS[recherche.id].nom + " niveau " + recherche.niveau +
-      " — « " + palier.nom + " ». Disponible sur les nouveaux modèles."
-    );
+    if (recherche.type === "materiau") {
+      materiaux = { ...materiaux, [recherche.id]: true };
+      messagesDev.push("Matériau maîtrisé : " + MATERIAUX[recherche.id].nom + ". Disponible sur les nouveaux modèles.");
+    } else {
+      const palier = COMPLICATIONS[recherche.id].niveaux[recherche.niveau - 1];
+      complications = { ...complications, [recherche.id]: recherche.niveau };
+      messagesDev.push(
+        "Complication maîtrisée : " + COMPLICATIONS[recherche.id].nom + " niveau " + recherche.niveau +
+        " — « " + palier.nom + " ». Disponible sur les nouveaux modèles."
+      );
+    }
     savoir = clamp(savoir + 3, 0, 100);
     recherche = null;
   }
@@ -181,8 +209,21 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
   const interets = Math.round((gs.dette * tauxInteret(profil)) / 4);
-  const fixes = coutsFixes({ employes, ateliers: gs.ateliers });
-  cash = cash - coutsProd - fixes - interets + revenus;
+  const fixes = coutsFixes({ employes, ateliers: gs.ateliers, canaux: gs.canaux });
+  const resultat = revenus - coutsProd - fixes - interets;
+  cash += resultat;
+
+  // Impôt sur le bénéfice, prélevé au dernier trimestre de l'exercice.
+  const beneficeAnnuel = gs.resultatAnnee + resultat;
+  const impot = gs.t === 4 && beneficeAnnuel > 0 ? Math.round(beneficeAnnuel * IMPOT_TAUX) : 0;
+  cash -= impot;
+
+  // Les canaux qui font vivre l'image.
+  for (const [id, n] of Object.entries(gs.canaux)) {
+    if (!n) continue;
+    if (CANAUX[id].bonusCred) cred = clamp(cred + CANAUX[id].bonusCred, 0, 100);
+    if (CANAUX[id].bonusDes) des = clamp(des + CANAUX[id].bonusDes, 0, 100);
+  }
 
   // Déclin naturel des jauges : rien n'est acquis.
   noto = Math.max(0, noto - Math.max(2, Math.round(noto * 0.05)));
@@ -203,23 +244,24 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     }
   }
 
-  const resultat = revenus - coutsProd - fixes - interets;
   const faillite = cash < -50000;
 
   const rap = {
-    annee: gs.annee, t: gs.t, lignes, revenus, coutsProd, fixes, interets, resultat,
+    annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
+    coutsProd, fixes, interets, impot, resultat, resultatNet: resultat - impot,
     evt: evtHisto, alea, cash, capDepassee, gainsCred, gainSavoir,
     heuresUtilisees, heuresDemandees, heuresDispo,
     heuresFondateur: Math.max(0, heuresRestantes),
     heuresEquipe: heuresEmployes(employes),
-    capacite: gs.capacite,
+    encadrement: enc, capacite: gs.capacite,
   };
 
   const gs2 = {
-    ...gs, cash, modeles, segVendues, noto, cred, des, savoir, dist, employes,
-    complications, recherche,
-    journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat, cash }],
+    ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,
+    complications, materiaux, recherche,
+    journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash }],
     revenusAnnee: gs.revenusAnnee + revenus,
+    resultatAnnee: gs.t === 4 ? 0 : beneficeAnnuel,
     messages: messagesDev,
   };
   return { gs2, rap, faillite };

@@ -1,5 +1,5 @@
 import { S } from "../styles.js";
-import { CLASSEMENT_MONDE, voisins } from "../data/monde.js";
+import { CLASSEMENT_MONDE, REVENUS_TOP50, voisins } from "../data/monde.js";
 import { fmtCHF, fmtM } from "../engine/formules.js";
 
 export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
@@ -74,7 +74,7 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
             </span>
           )}
           <br />
-          <span style={S.steel}>Objectif Top 50 : ~CHF 60 millions annuels.</span>
+          <span style={S.steel}>Objectif Top 50 : {fmtCHF(REVENUS_TOP50)} de revenus annuels.</span>
         </div>
 
         <button style={S.cta} onClick={onContinuer}>

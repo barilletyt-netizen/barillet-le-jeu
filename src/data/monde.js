@@ -12,28 +12,71 @@ export const INDES = [
   "Ostara Watch Co", "Cadran Bleu", "Maison Vaucher", "Heure Zéro", "Berthoud Frères",
 ];
 
-const SEUILS_RANG = [
+// Points d'ancrage revenus annuels → rang mondial. Le rang est interpolé entre
+// ces points, en échelle logarithmique : deux marques aux revenus proches ont
+// des rangs proches, et un rang donné correspond toujours au même revenu.
+// (Playtest : les voisins étaient inventés indépendamment de cette table, d'où
+// un concurrent 92e avec 68 M alors que le joueur était 100e avec 50 M.)
+const ANCRAGES = [
   [600000000, 10], [200000000, 25], [60000000, 50], [25000000, 100],
-  [8000000, 200], [2500000, 400], [800000, 700], [250000, 1100], [50000, 1600], [0, 2200],
+  [8000000, 200], [2500000, 400], [800000, 700], [250000, 1100],
+  [50000, 1600], [10000, 2200],
 ];
 
+export const RANG_MAX = 2200;
+export const REVENUS_TOP50 = 60000000;
+
+const logInterp = (x, x0, x1, y0, y1) => {
+  const t = (Math.log(x) - Math.log(x0)) / (Math.log(x1) - Math.log(x0));
+  return Math.exp(Math.log(y0) + t * (Math.log(y1) - Math.log(y0)));
+};
+
+/** Rang mondial pour un chiffre d'affaires annuel. */
 export function rangPour(rev) {
-  for (const [seuil, rang] of SEUILS_RANG) if (rev >= seuil) return rang;
-  return 2200;
+  if (rev >= ANCRAGES[0][0]) return 1;
+  if (rev <= ANCRAGES[ANCRAGES.length - 1][0]) return RANG_MAX;
+  for (let i = 0; i < ANCRAGES.length - 1; i++) {
+    const [revHaut, rangHaut] = ANCRAGES[i];
+    const [revBas, rangBas] = ANCRAGES[i + 1];
+    if (rev <= revHaut && rev >= revBas) {
+      return Math.round(logInterp(rev, revBas, revHaut, rangBas, rangHaut));
+    }
+  }
+  return RANG_MAX;
 }
 
-// Deux concurrents fictifs juste au-dessus et deux juste en dessous, pour donner
-// au joueur un voisinage crédible plutôt qu'un rang nu.
+/** Chiffre d'affaires qu'il faut réaliser pour tenir ce rang. Inverse de rangPour. */
+export function revenusPourRang(rang) {
+  const r = Math.max(1, Math.min(RANG_MAX, rang));
+  if (r <= ANCRAGES[0][1]) return ANCRAGES[0][0];
+  for (let i = 0; i < ANCRAGES.length - 1; i++) {
+    const [revHaut, rangHaut] = ANCRAGES[i];
+    const [revBas, rangBas] = ANCRAGES[i + 1];
+    if (r >= rangHaut && r <= rangBas) {
+      return Math.round(logInterp(r, rangBas, rangHaut, revBas, revHaut));
+    }
+  }
+  return ANCRAGES[ANCRAGES.length - 1][0];
+}
+
+/**
+ * Deux concurrents juste au-dessus et deux juste en dessous. Leurs revenus sont
+ * dérivés de la même table que le rang du joueur : un voisin mieux classé gagne
+ * forcément plus, et personne n'est 92e avec plus de chiffre qu'un 50e.
+ */
 export function voisins(rang, revenus) {
   const pick = (i) => INDES[(rang * 7 + i * 13) % INDES.length];
+  const ligne = (r, i) => ({ rang: r, nom: pick(i), rev: revenusPourRang(r) });
+  const dessus = [
+    Math.max(1, rang - Math.max(3, Math.round(rang * 0.08))),
+    Math.max(1, rang - Math.max(1, Math.round(rang * 0.03))),
+  ];
+  const dessous = [
+    Math.min(RANG_MAX, rang + Math.max(1, Math.round(rang * 0.04))),
+    Math.min(RANG_MAX, rang + Math.max(3, Math.round(rang * 0.09))),
+  ];
   return {
-    dessus: [
-      { rang: Math.max(51, rang - Math.round(rang * 0.08)), nom: pick(1), rev: revenus * 1.35 },
-      { rang: Math.max(51, rang - Math.round(rang * 0.04)), nom: pick(2), rev: revenus * 1.15 },
-    ],
-    dessous: [
-      { rang: rang + Math.round(rang * 0.05), nom: pick(3), rev: revenus * 0.85 },
-      { rang: rang + Math.round(rang * 0.1), nom: pick(4), rev: revenus * 0.65 },
-    ],
+    dessus: dessus.map(ligne),
+    dessous: dessous.map((r, i) => ligne(r, i + 2)),
   };
 }

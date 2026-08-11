@@ -4,7 +4,7 @@ Simulation de gestion horlogère, tour par tour trimestriel. Vous fondez une mar
 et vous avez cinquante ans pour entrer au « Stanley Morgan Top 50 ».
 
 Jeu web (Vite + React), jouable sur mobile.
-Lore et design : [`docs/barillet-le-jeu-lore.md`](docs/barillet-le-jeu-lore.md) (v0.5).
+Lore et design : [`docs/barillet-le-jeu-lore.md`](docs/barillet-le-jeu-lore.md) (v0.6).
 Prototype d'origine conservé pour référence : `docs/barillet-proto-v3.jsx.txt`.
 
 ## Développement
@@ -56,8 +56,31 @@ localStorage (automatique en début de trimestre + bouton manuel), déploiement 
 - **Crédibilité rééquilibrée** : gains passifs au T1 de chaque année — +1 si le
   savoir-faire atteint 60, +1 tous les 5 ans d'existence de la marque.
 - **Horizon 2015 → 2065** (50 ans, 200 trimestres).
-- Sauvegarde en `barillet-save-v6` : les parties antérieures ne sont pas
+- Sauvegarde en `barillet-save-v7` : les parties antérieures ne sont pas
   migrées, le modèle a changé.
+
+### Retours du premier smoke test (v0.6)
+
+- **Le joueur fixe ses prix.** Plus aucun prix suggéré : la conception annonce le
+  coût de fabrication, la qualité et les heures par pièce. Une montre sans prix ne
+  se vend pas. L'étude de marché chiffre la demande à trois prix différents.
+- **Distribution par canaux** au lieu d'une jauge sur 100 : vente directe,
+  e-commerce, foires, détaillants agréés, boutique en propre — trois paliers
+  chacun. Chaque canal a une portée (volume) et une marge : les AD ouvrent le gros
+  volume mais prennent 45%, la boutique en propre garde tout et coûte une fortune.
+- **Matériaux à rechercher** (bronze → titane → céramique / or), en plus d'exiger
+  l'expert : on ne passe plus directement à l'or dès l'embauche.
+- **Jusqu'à 3 complications par montre**, heures et qualité cumulées.
+- **Chefs d'atelier** : au-delà de 5 personnes en production par chef, l'équipe ne
+  rend qu'une fraction de ses heures. **Licenciement** possible, avec indemnité.
+- **Impôt de 18%** sur le bénéfice annuel, prélevé au T4.
+- **Classement cohérent** : rang et revenus des concurrents dérivent d'une même
+  table interpolée. Fini le concurrent 92e avec plus de chiffre qu'un 50e.
+- **Volumes rééquilibrés** : la saturation d'un segment se mesure sur les ventes
+  récentes et se résorbe (au lieu de fermer le marché pour toujours), les pools
+  sont élargis, la notoriété monte moins vite, le facelift coûte 75% du budget R&D.
+  Une partie type démarre autour de 0,15 M la première année et met une dizaine
+  d'années à passer le million — au lieu de millions dès la 2e année.
 
 ## Structure
 

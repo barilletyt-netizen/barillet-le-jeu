@@ -1,5 +1,5 @@
 import { S } from "../styles.js";
-import { fmtCHF, fmtH, fmtNb } from "../engine/formules.js";
+import { fmtCHF, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
 
 export default function Rapport({ r, onContinuer }) {
   return (
@@ -57,9 +57,28 @@ export default function Rapport({ r, onContinuer }) {
           </div>
         ))}
 
+        {r.encadrement && r.encadrement.manque > 0 && (
+          <div style={{ ...S.panel, borderColor: "#D06050" }}>
+            <span style={S.red}>
+              ⚠ Atelier sous-encadré — {r.encadrement.manque} chef
+              {r.encadrement.manque > 1 ? "s" : ""} d'atelier manquant{r.encadrement.manque > 1 ? "s" : ""} :
+              l'équipe n'a rendu que {fmtPct(r.encadrement.efficacite)} de ses heures.
+            </span>
+          </div>
+        )}
+
         <div style={S.panel}>
           <div>
-            Revenus <span style={{ float: "right", ...S.green }}>{fmtCHF(r.revenus)}</span>
+            Ventes <span style={{ float: "right" }}>{fmtCHF(r.ventesBrutes)}</span>
+          </div>
+          {r.commissions > 0 && (
+            <div style={S.steel}>
+              dont commissions de distribution
+              <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.commissions)}</span>
+            </div>
+          )}
+          <div>
+            Revenus encaissés <span style={{ float: "right", ...S.green }}>{fmtCHF(r.revenus)}</span>
           </div>
           <div>
             Production <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.coutsProd)}</span>
@@ -70,11 +89,17 @@ export default function Rapport({ r, onContinuer }) {
           <div>
             Intérêts <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.interets)}</span>
           </div>
+          {r.impot > 0 && (
+            <div>
+              Impôt sur le bénéfice annuel{" "}
+              <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.impot)}</span>
+            </div>
+          )}
           <div style={{ borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6 }}>
             Résultat{" "}
-            <span style={{ float: "right", ...(r.resultat >= 0 ? S.green : S.red), fontSize: 21 }}>
-              {r.resultat >= 0 ? "+" : ""}
-              {fmtCHF(r.resultat)}
+            <span style={{ float: "right", ...(r.resultatNet >= 0 ? S.green : S.red), fontSize: 21 }}>
+              {r.resultatNet >= 0 ? "+" : ""}
+              {fmtCHF(r.resultatNet)}
             </span>
           </div>
           <div>

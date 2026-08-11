@@ -6,15 +6,15 @@ import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
 import {
-  ATELIER_COUT, ATELIER_HEURES, COUTS_H, EMPLOYES,
+  ATELIER_COUT, ATELIER_HEURES, CANAUX, COUTS_H, EMPLOYES, COMPLICATIONS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
 import { rangPour } from "./data/monde.js";
 import {
-  clamp, coutRD, coutUnitaire, dureeDev, estimerDemande, fmtCHF, fmtH,
-  gainChoc, gainDist, gainMarketing, heuresRD, niveauPourModele, num,
-  paletteComplication, qualiteNouveau,
+  clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtCHF, fmtH, fmtNb,
+  gainChoc, gainMarketing, grilleDePrix, heuresRD, indemnite, margeMoyenne,
+  nomComplications, num, paletteComplication, qualiteNouveau,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
@@ -106,11 +106,11 @@ export default function App() {
 
     const duree = dureeDev(nm.mvt, profil, g.employes);
     const nom = nm.nom || "Modèle " + (g.modeles.length + 1);
-    const compl = nm.compl || "aucune";
-    const complNiveau = niveauPourModele(g, compl);
+    // Les complications sont figées au niveau maîtrisé le jour de la création.
+    const compls = (nm.compls || []).map((id) => ({ id, niveau: g.complications[id] || 1 }));
     const detail = [
       MOUVEMENTS[nm.mvt].nom,
-      paletteComplication(compl, complNiveau).nom,
+      compls.length ? compls.map((c) => paletteComplication(c.id, c.niveau).nom).join(" + ") : "trois aiguilles",
       STYLES[nm.style].nom + " " + MATERIAUX[nm.mat].nom,
       SEGMENTS[nm.seg].nom,
     ].join(", ");
@@ -123,10 +123,11 @@ export default function App() {
         ...g.modeles,
         {
           nom, mvt: nm.mvt, seg: nm.seg, style: nm.style, materiau: nm.mat,
-          compl, complNiveau, finition: !!nm.finition,
-          prix: nm.prix,
+          compls, finition: !!nm.finition,
+          // Aucun prix imposé : le joueur le fixe quand le modèle sort d'étude.
+          prix: "",
           qual: qualiteNouveau(nm.mvt, {
-            pays, profil, savoir: g.savoir, compl, complNiveau, finition: !!nm.finition,
+            pays, profil, savoir: g.savoir, compls, finition: !!nm.finition,
           }),
           prod: 0, stock: 0, age: 0, statut: "dev", devRestant: duree,
         },
@@ -139,21 +140,27 @@ export default function App() {
     });
   }
 
-  // `palier` vient de complicationsRecherchables : il porte déjà l'id, le niveau
-  // visé et les coûts de ce niveau précis.
-  function rechercherComplication(palier) {
+  /**
+   * Une seule recherche à la fois, complication ou matériau. `palier` vient de
+   * complicationsRecherchables/materiauxRecherchables : il porte son type, son
+   * id, le niveau visé et les coûts de ce palier précis.
+   */
+  function rechercher(palier) {
     const heures = heuresRD(palier.rdHeures, g.employes);
     if (!assez(heures, palier.rd) || g.recherche) return;
     const duree = Math.max(1, palier.dev - (g.employes.ingenieur > 0 ? 1 : 0));
+    const intitule =
+      palier.type === "materiau"
+        ? "travail du " + palier.famille.toLowerCase()
+        : palier.famille + " niveau " + palier.niveau + " (« " + palier.nom + " »)";
     setG({
       ...g,
       cash: g.cash - palier.rd,
       heures: g.heures - heures,
-      recherche: { id: palier.id, niveau: palier.niveau, restant: duree },
+      recherche: { type: palier.type, id: palier.id, niveau: palier.niveau || 1, restant: duree },
       messages: [
         ...g.messages,
-        "Recherche lancée : " + palier.famille + " niveau " + palier.niveau + " (« " + palier.nom + " »). " +
-        duree + " trim., " + fmtH(heures) + " et " + fmtCHF(palier.rd) + ".",
+        "Recherche lancée : " + intitule + ". " + duree + " trim., " + fmtH(heures) + " et " + fmtCHF(palier.rd) + ".",
       ],
     });
   }
@@ -169,6 +176,41 @@ export default function App() {
       messages: [
         ...g.messages,
         e.nom + " embauché·e : " + e.desc + " Savoir-faire +" + e.savoir + ", coûts fixes +" + fmtCHF(e.fixes) + "/trimestre.",
+      ],
+    });
+  }
+
+  // Se séparer d'un collaborateur : indemnité immédiate, salaire économisé ensuite.
+  function licencier(type) {
+    const e = EMPLOYES[type];
+    if (g.employes[type] <= 0 || !assez(COUTS_H.licenciement)) return;
+    const cout = indemnite(type);
+    setG({
+      ...g,
+      heures: g.heures - COUTS_H.licenciement,
+      cash: g.cash - cout,
+      employes: { ...g.employes, [type]: g.employes[type] - 1 },
+      messages: [
+        ...g.messages,
+        "Départ d'un " + e.nom.toLowerCase() + " : indemnité de " + fmtCHF(cout) + ", puis " +
+        fmtCHF(e.fixes) + " de coûts fixes en moins chaque trimestre.",
+      ],
+    });
+  }
+
+  // Ouvrir ou monter d'un palier un canal de distribution.
+  function ouvrirCanal(palier) {
+    if (palier.manque.length || !assez(palier.heures, palier.cout)) return;
+    setG({
+      ...g,
+      heures: g.heures - palier.heures,
+      cash: g.cash - palier.cout,
+      canaux: { ...g.canaux, [palier.id]: palier.niveau },
+      messages: [
+        ...g.messages,
+        CANAUX[palier.id].nom + " — « " + palier.nom + " » ouvert : portée " + palier.portee +
+        ", marge " + Math.round(CANAUX[palier.id].marge * 100) + "%, coûts fixes +" +
+        fmtCHF(palier.fixes) + "/trimestre.",
       ],
     });
   }
@@ -194,19 +236,19 @@ export default function App() {
         messages: [...g.messages, "Relations presse : crédibilité +2, notoriété +1."] });
     }
 
-    if (type === "distribution" && assez(COUTS_H.distribution, 12000)) {
-      const gain = gainDist(g);
-      setG({ ...g, heures: g.heures - COUTS_H.distribution, cash: g.cash - 12000, dist: clamp(g.dist + gain, 0, 100),
-        messages: [...g.messages, "Distribution : réseau de vente +" + gain + "."] });
-    }
-
     if (type === "etude" && assez(COUTS_H.etude, 5000)) {
+      // L'étude ne dit plus « le » prix : elle chiffre la demande à trois prix.
       const lignes = g.modeles
         .filter((m) => m.statut === "actif")
-        .map((m) => m.nom + " : ~" + estimerDemande(m, g) + " pièces");
+        .map((m) => {
+          const grille = grilleDePrix(m, g)
+            .map((x) => fmtCHF(x.prix) + " → ~" + fmtNb(x.demande) + " pièces (" + fmtCHF(x.ca) + ")")
+            .join(" · ");
+          return m.nom + " : " + grille;
+        });
       setG({ ...g, heures: g.heures - COUTS_H.etude, cash: g.cash - 5000,
-        messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre : " +
-          (lignes.length ? lignes.join(" · ") : "aucun modèle actif") + "."] });
+        messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre. " +
+          (lignes.length ? lignes.join(" | ") : "Aucun modèle en vente.")] });
     }
 
     if (type === "atelier" && assez(COUTS_H.atelier, ATELIER_COUT)) {
@@ -221,7 +263,7 @@ export default function App() {
       const modeles = g.modeles.map((m) => {
         if (m.stock > 0 && m.statut === "actif") {
           unites += m.stock;
-          cash += Math.round(m.stock * Math.max(50, num(m.prix)) * 0.65);
+          cash += Math.round(m.stock * Math.max(50, num(m.prix)) * 0.65 * margeMoyenne(g.canaux));
           return { ...m, stock: 0 };
         }
         return m;
@@ -254,7 +296,7 @@ export default function App() {
 
   function facelift(i) {
     const m = g.modeles[i];
-    const cout = Math.round(coutRD(m.mvt, profil) * 0.4);
+    const cout = coutFacelift(m, profil);
     if (!assez(COUTS_H.facelift, cout)) return;
     setG({ ...g, heures: g.heures - COUTS_H.facelift, cash: g.cash - cout,
       modeles: g.modeles.map((x, j) => (j === i ? { ...x, age: 0 } : x)),
@@ -266,7 +308,7 @@ export default function App() {
     const cout = 50 * coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
     if (!assez(COUTS_H.edition, cout)) return;
     const vendues = Math.round(50 * clamp(0.25 + g.des / 80, 0.2, 1));
-    const ca = Math.round(vendues * Math.max(50, num(m.prix)) * 1.6);
+    const ca = Math.round(vendues * Math.max(50, num(m.prix)) * 1.6 * margeMoyenne(g.canaux));
     setG({ ...g, heures: g.heures - COUTS_H.edition, cash: g.cash - cout + ca,
       des: clamp(g.des + 8, 0, 100), cred: clamp(g.cred - 1, 0, 100),
       revenusAnnee: g.revenusAnnee + ca,
@@ -277,13 +319,17 @@ export default function App() {
   function opportunite(accepte) {
     const opp = OPPORTUNITES.find((o) => o.id === g.opportunite);
     if (!opp) return;
+    // Acceptée ou déclinée, l'opportunité rejoint la mémoire courte : elle ne
+    // sera pas reproposée tout de suite (playtest : voyage de presse un
+    // trimestre sur deux).
+    const memoire = [opp.id, ...(g.oppRecentes || [])].slice(0, 3);
     if (!accepte) {
-      setG({ ...g, opportunite: null });
+      setG({ ...g, opportunite: null, oppRecentes: memoire });
       return;
     }
     if (!assez(opp.heures, opp.cout)) return;
 
-    const etat = { ...g, heures: g.heures - opp.heures, cash: g.cash - opp.cout, opportunite: null };
+    const etat = { ...g, heures: g.heures - opp.heures, cash: g.cash - opp.cout, opportunite: null, oppRecentes: memoire };
     let msg = "";
 
     if (opp.id === "salon") {
@@ -311,15 +357,15 @@ export default function App() {
       etat.modeles = g.modeles.map((m) => {
         if (m.stock > 0 && m.statut === "actif") {
           unites += m.stock;
-          cash += Math.round(m.stock * Math.max(50, num(m.prix)) * 0.75);
+          cash += Math.round(m.stock * Math.max(50, num(m.prix)) * 0.75 * margeMoyenne(g.canaux));
           return { ...m, stock: 0 };
         }
         return m;
       });
       etat.cash += cash;
       etat.revenusAnnee = g.revenusAnnee + cash;
-      etat.dist = clamp(g.dist + 5, 0, 100);
-      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtCHF(cash) + ". Distribution +5.";
+      etat.des = clamp(g.des - 1, 0, 100);
+      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtCHF(cash) + ". Désirabilité −1 : écouler en gros se voit.";
     }
 
     if (opp.id === "voyagepresse") {
@@ -464,8 +510,9 @@ export default function App() {
       <Jeu
         g={g} ctx={ctx} marque={marque} saveMsg={saveMsg}
         actions={{
-          action, creerModele, rechercherComplication, embaucher, facelift, edition,
-          opportunite, setProd, setPrix, finTrimestre, passerAnnee, sauvegarder,
+          action, creerModele, rechercher, embaucher, licencier, ouvrirCanal,
+          facelift, edition, opportunite, setProd, setPrix,
+          finTrimestre, passerAnnee, sauvegarder,
         }}
       />
     );
