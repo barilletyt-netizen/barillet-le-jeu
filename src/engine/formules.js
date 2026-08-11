@@ -4,13 +4,28 @@ import {
   ENCADREMENT_PAR_CHEF, ENCADREMENT_PLANCHER, INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
 } from "../data/config.js";
 import { multEvenements } from "../data/evenements.js";
+import { devise, enDevise } from "./devise.js";
 
 // fr-CH sépare les milliers par une espace fine ou insécable selon le moteur :
 // on normalise vers l'apostrophe suisse.
 const SEP = /[\s\u202f\u00a0\u2009]/g;
 export const fmtNb = (n) => Math.round(n).toLocaleString("fr-CH").replace(SEP, "'");
-export const fmtCHF = (n) => "CHF " + fmtNb(n);
-export const fmtM = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + " Mds" : n + " M");
+
+/**
+ * Montant dans la devise d'affichage. Le moteur ne manipule que des CHF ; la
+ * conversion est purement cosmétique (voir engine/devise.js).
+ */
+export function fmtArgent(chf) {
+  const d = devise();
+  return d.avant + fmtNb(enDevise(chf)) + d.apres;
+}
+
+// Les revenus des géants du classement sont déjà exprimés en millions.
+export const fmtM = (n) => {
+  const d = devise();
+  const v = n * d.taux;
+  return v >= 1000 ? (v / 1000).toFixed(1) + " Mds" : Math.round(v) + " M";
+};
 export const fmtH = (n) => fmtNb(n) + " h";
 export const fmtPct = (n) => Math.round(n * 100) + "%";
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -187,6 +202,37 @@ export function coutsFixes({ employes, ateliers, canaux }) {
 export const indemnite = (type) => EMPLOYES[type].fixes * INDEMNITE_TRIMESTRES;
 
 export const tauxInteret = (profil) => (profil === "financier" ? 0.04 : 0.06);
+
+// ---- Trésorerie et alerte de faillite ------------------------------------
+
+/** Seuil sous lequel la caisse passe en rouge : deux trimestres de coûts fixes. */
+export const seuilAlerte = (g) => Math.max(30000, coutsFixes(g) * 2);
+
+/** Caisse en dessous de laquelle la partie s'arrête. */
+export const SEUIL_FAILLITE = -50000;
+
+/**
+ * Diagnostic de trésorerie, pour la barre de statut et l'avertissement.
+ * La projection extrapole le dernier trimestre connu : c'est volontairement
+ * simple, le joueur doit pouvoir refaire le calcul de tête.
+ * Playtest vague 1 : les trois testeurs sont morts sans voir venir la faillite.
+ */
+export function tresorerie(g) {
+  const seuil = seuilAlerte(g);
+  const dernier = g.journal.length ? g.journal[g.journal.length - 1].resultat : 0;
+  const projection = g.cash + dernier * 2;
+  // Marge avant la faillite, en trimestres, au rythme actuel.
+  const trimestres =
+    dernier < 0 ? Math.max(0, Math.floor((g.cash - SEUIL_FAILLITE) / -dernier)) : null;
+  return {
+    seuil,
+    dernier,
+    projection,
+    trimestres,
+    basse: g.cash < seuil,
+    danger: dernier < 0 && projection < 0,
+  };
+}
 
 // ---- Recherches (complications et matériaux) ----------------------------
 

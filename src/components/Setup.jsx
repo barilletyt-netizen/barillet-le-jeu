@@ -1,5 +1,6 @@
 import { S } from "../styles.js";
 import { ORIGINES, PAYS, PROFILS } from "../data/config.js";
+import { nomDeMarque } from "../data/noms.js";
 
 export default function Setup({ pays, profil, origine, marque, set, onDemarrer }) {
   const pret = pays && profil && origine;
@@ -9,12 +10,22 @@ export default function Setup({ pays, profil, origine, marque, set, onDemarrer }
         <div style={S.h1}>Création</div>
 
         <div style={S.h2}>NOM DE LA MARQUE</div>
-        <input
-          style={S.input}
-          value={marque}
-          onChange={(e) => set.marque(e.target.value)}
-          placeholder="Ex. Vallorbe & Fils"
-        />
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            style={S.input}
+            value={marque}
+            onChange={(e) => set.marque(e.target.value)}
+            placeholder="Ex. Vallorbe & Fils"
+          />
+          <button
+            style={{ ...S.ghost, marginTop: 0, width: 52 }}
+            title="Proposer un autre nom"
+            onClick={() => set.marque(nomDeMarque())}
+          >
+            🎲
+          </button>
+        </div>
+        <div style={{ ...S.steel, marginTop: 4 }}>Proposition modifiable — écrivez le vôtre si vous préférez.</div>
 
         <div style={S.h2}>PAYS DE DÉPART</div>
         {Object.entries(PAYS).map(([k, p]) => (

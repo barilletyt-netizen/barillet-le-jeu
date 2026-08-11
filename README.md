@@ -82,6 +82,30 @@ localStorage (automatique en début de trimestre + bouton manuel), déploiement 
   Une partie type démarre autour de 0,15 M la première année et met une dizaine
   d'années à passer le million — au lieu de millions dès la 2e année.
 
+### Retours de beta, vague 1 (v0.6.1)
+
+Trois testeurs externes, tous en faillite rapide sans l'avoir vue venir.
+
+- **Barre de statut persistante** en bas d'écran (public mobile) : heures, caisse,
+  trimestre. Les heures se décomptent avec une micro-animation et l'écart s'affiche
+  brièvement (« −80 h »). La caisse passe en rouge sous le seuil d'alerte.
+- **Avertissement de faillite** : « ⚠ À ce rythme, faillite dans ~N trimestres »
+  dès que la caisse projetée passe sous zéro, avec un niveau intermédiaire quand la
+  trésorerie descend sous deux trimestres de coûts fixes. Même seuil que le rouge
+  de la barre.
+- **Immédiat contre fin de trimestre** : témoin « ✓ fait » sur chaque action jouée
+  (avec le compte si elle est répétée), remis à zéro au tour suivant ; et le bouton
+  de fin de trimestre précise que les ventes, coûts et production se calculent alors.
+- **Générateur de noms** : marque et modèles pré-remplis avec des propositions
+  d'inspiration jurassienne, toujours modifiables, avec un bouton 🎲 pour relancer.
+- **Devise d'affichage selon le pays** : € en France, ¥ au Japon, ¥ CNY en Chine.
+  Cosmétique uniquement — `src/engine/devise.js` convertit à l'affichage, le moteur
+  ne connaît que le franc.
+- **Témoin « sauvegarde auto ✓ »** dans la barre de statut à chaque autosave.
+
+Le format de sauvegarde reste `barillet-save-v7`, inchangé : les parties de
+testeurs en cours restent lisibles.
+
 ## Structure
 
 ```

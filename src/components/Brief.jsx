@@ -1,7 +1,7 @@
 import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN, HEURES_FONDATEUR } from "../data/config.js";
 import { REVENUS_TOP50 } from "../data/monde.js";
-import { fmtCHF } from "../engine/formules.js";
+import { fmtArgent } from "../engine/formules.js";
 
 /**
  * Écran d'accueil de partie. Version minimale de la page d'introduction prévue
@@ -29,7 +29,7 @@ export default function Brief({ onContinuer, onRetour }) {
           Vous fondez une marque horlogère en {ANNEE_DEBUT}. Vous avez {ANNEE_FIN - ANNEE_DEBUT} ans — soit{" "}
           {(ANNEE_FIN - ANNEE_DEBUT) * 4} trimestres — pour la faire entrer au{" "}
           <span style={S.gold}>Stanley Morgan Top 50</span>, le classement mondial de l'industrie. Il y faut{" "}
-          {fmtCHF(REVENUS_TOP50)} de revenus annuels. Vous commencez très loin de là.
+          {fmtArgent(REVENUS_TOP50)} de revenus annuels. Vous commencez très loin de là.
         </div>
 
         <div style={S.h2}>LES RÈGLES</div>
@@ -62,7 +62,7 @@ export default function Brief({ onContinuer, onRetour }) {
           </Regle>
 
           <Regle titre="La faillite est définitive">
-            Sous −50'000 CHF de caisse, la partie s'arrête. Il n'y a pas de retour en arrière : l'emprunt est
+            Sous −50'000 CHF de caisse, la partie s'arrête (le seuil est en francs, quelle que soit la devise d'affichage). Il n'y a pas de retour en arrière : l'emprunt est
             là pour ça, servez-vous-en avant d'être au fond.
           </Regle>
         </div>

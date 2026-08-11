@@ -5,7 +5,7 @@ import {
   CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX,
 } from "../data/config.js";
 import {
-  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, encadrement, fmtCHF,
+  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, encadrement, fmtArgent,
   fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
@@ -39,7 +39,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     journal: [], opportunite: null, oppRecentes: [],
     messages: [
       "T1 " + ANNEE_DEBUT + " — " + (marque || "Votre marque") + " est née. Capital : " +
-      fmtCHF(capital) + (o.dette ? " (dette : " + fmtCHF(o.dette) + ")" : "") +
+      fmtArgent(capital) + (o.dette ? " (dette : " + fmtArgent(o.dette) + ")" : "") +
       ". Vous disposez de " + HEURES_FONDATEUR + " h par trimestre.",
     ],
   };

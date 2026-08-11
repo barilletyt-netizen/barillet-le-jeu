@@ -52,4 +52,25 @@ export const S = {
     borderRadius: 4, width: 90, textAlign: "right",
   },
   jauge: { fontSize: 16, color: "#9DA8A6" },
+
+  // ---- Barre de statut persistante (bas d'écran, mobile d'abord) ----------
+  barre: {
+    position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 50,
+    background: "#121A13", borderTop: "2px solid #2A3A2C",
+    // Encoche des iPhone : la barre ne doit pas passer sous le trait système.
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
+  },
+  barreContenu: {
+    maxWidth: 560, margin: "0 auto", padding: "7px 14px",
+    display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "center",
+  },
+  barreLabel: { fontSize: 13, color: "#7A8A7C", letterSpacing: 0.5, lineHeight: 1.2 },
+  barreValeur: { fontSize: 21, lineHeight: 1.1 },
+  barreDelta: {
+    position: "absolute", top: -14, left: 0,
+    fontSize: 16, color: "#D06050",
+    animation: "barillet-monte 1200ms ease-out forwards",
+  },
+  // Réserve la hauteur de la barre pour que le dernier bouton reste atteignable.
+  espaceBarre: { height: 78 },
 };

@@ -1,23 +1,25 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { S } from "../styles.js";
 import Jauge from "./Jauge.jsx";
+import BarreStatut from "./BarreStatut.jsx";
 import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
-  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, COUTS_H, HEURES_FONDATEUR,
+  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
   HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
 } from "../data/config.js";
 import { OPPORTUNITES } from "../data/evenements.js";
 import {
   canauxOuvrables, chargeHeures, complicationsDispo, complicationsRecherchables,
   complicationsVerrouillees, coutFacelift, coutRD, coutUnitaire, dureeDev, encadrement,
-  fmtCHF, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
+  fmtArgent, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
   materiauxRecherchables, nbEmployes, nomComplications, num, paletteComplication,
-  porteeTotale, qualiteNouveau,
+  porteeTotale, qualiteNouveau, tresorerie,
 } from "../engine/formules.js";
+import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
 
-export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
+export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const { pays, profil } = ctx;
 
   const [showJournal, setShowJournal] = useState(false);
@@ -26,8 +28,32 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const [panneau, setPanneau] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
-    compls: [], finition: false, nom: "",
+    compls: [], finition: false, nom: nomDeModele(),
   });
+
+  // Retour visuel « fait ✓ » : le testeur mobile ne savait pas si son clic avait
+  // pris effet tout de suite ou serait appliqué à la fin du trimestre.
+  const [faites, setFaites] = useState({});
+  const tour = g.annee + "-" + g.t;
+  const tourPrecedent = useRef(tour);
+  useEffect(() => {
+    if (tourPrecedent.current !== tour) {
+      tourPrecedent.current = tour;
+      setFaites({});
+    }
+  }, [tour]);
+
+  const marquer = (cle) => setFaites((f) => ({ ...f, [cle]: (f[cle] || 0) + 1 }));
+  const fait = (cle) =>
+    faites[cle] ? (
+      <span style={S.green}> ✓ fait{faites[cle] > 1 ? " ×" + faites[cle] : ""}</span>
+    ) : null;
+
+  // Une action immédiate : on la joue et on la marque d'un coup.
+  const jouer = (cle, fn) => () => {
+    fn();
+    marquer(cle);
+  };
 
   const opp = g.opportunite ? OPPORTUNITES.find((o) => o.id === g.opportunite) : null;
   const actifs = g.modeles.filter((m) => m.statut === "actif");
@@ -49,6 +75,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const canaux = canauxOuvrables(g);
   const portee = porteeTotale(g.canaux);
   const marge = margeMoyenne(g.canaux);
+  const tres = tresorerie(g);
 
   // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
   // guider le joueur, pas un prix suggéré.
@@ -63,8 +90,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
 
   function lancerRD() {
     actions.creerModele(nm);
+    marquer("rd");
     setPanneau(null);
-    setNm({ ...nm, nom: "", compls: [] });
+    // Le champ se remplit d'une nouvelle proposition pour le modèle suivant.
+    setNm({ ...nm, nom: nomDeModele(), compls: [] });
   }
 
   function basculerCompl(id) {
@@ -94,14 +123,37 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           <div>
             Caisse
             <br />
-            <span style={{ ...(g.cash < 30000 ? S.red : S.gold), fontSize: 22 }}>{fmtCHF(g.cash)}</span>
+            <span style={{ ...(tres.basse ? S.red : S.gold), fontSize: 22 }}>{fmtArgent(g.cash)}</span>
           </div>
           <div>
             Dette
             <br />
-            <span style={{ ...(g.dette > 0 ? S.red : S.steel), fontSize: 22 }}>{fmtCHF(g.dette)}</span>
+            <span style={{ ...(g.dette > 0 ? S.red : S.steel), fontSize: 22 }}>{fmtArgent(g.dette)}</span>
           </div>
         </div>
+
+        {/* Vague 1 de beta : trois testeurs sur trois sont morts sans voir venir
+            la faillite. La mort reste possible, mais elle est annoncée. */}
+        {tres.danger && (
+          <div style={{ ...S.panel, borderColor: "#D06050", background: "#1E1413" }}>
+            <span style={{ ...S.red, fontSize: 21 }}>
+              ⚠ À ce rythme, faillite dans ~{tres.trimestres} trimestre{tres.trimestres > 1 ? "s" : ""}.
+            </span>
+            <br />
+            <span style={S.steel}>
+              Dernier trimestre : {fmtArgent(tres.dernier)}. Caisse projetée dans deux trimestres :{" "}
+              <span style={S.red}>{fmtArgent(tres.projection)}</span>. Un emprunt, des soldes ou une baisse
+              des coûts fixes peuvent encore renverser la tendance.
+            </span>
+          </div>
+        )}
+        {!tres.danger && tres.basse && (
+          <div style={{ ...S.panel, borderColor: "#E0B44A" }}>
+            <span style={{ color: "#E0B44A" }}>
+              ⚠ Trésorerie basse — moins de deux trimestres de coûts fixes en caisse.
+            </span>
+          </div>
+        )}
 
         {/* Le budget d'heures est la ressource centrale : il passe avant les jauges. */}
         <div style={{ ...S.panel, borderColor: "#C9A227" }}>
@@ -180,7 +232,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             <br />
             <span style={S.steel}>
               {fmtH(opp.heures)}
-              {opp.cout > 0 ? " + " + fmtCHF(opp.cout) : ""}
+              {opp.cout > 0 ? " + " + fmtArgent(opp.cout) : ""}
             </span>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => actions.opportunite(false)}>
@@ -265,7 +317,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   <div style={S.steel}>
                     Coût/pièce
                     <br />
-                    <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtCHF(coutU(m))}</span>
+                    <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtArgent(coutU(m))}</span>
                   </div>
                   <div style={S.steel}>
                     Heures
@@ -290,7 +342,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                     <>
                       Marge unitaire encaissée :{" "}
                       <span style={{ color: num(m.prix) * marge > coutU(m) ? "#8FBF7F" : "#D06050" }}>
-                        {fmtCHF(num(m.prix) * marge - coutU(m))}
+                        {fmtArgent(num(m.prix) * marge - coutU(m))}
                       </span>{" "}
                       (prix × {fmtPct(marge)} de marge canal − coût)
                     </>
@@ -308,17 +360,26 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         <div style={S.h3}>PRODUIT</div>
         {panneau !== "rd" && (
           <button style={S.action(ok(heuresRDModele))} onClick={() => ok(heuresRDModele) && setPanneau("rd")}>
-            ⌚ Nouvelle R&D <span style={S.steel}>({fmtH(heuresRDModele)} + coût, 1 à 6 trim.)</span>
+            ⌚ Nouvelle R&D <span style={S.steel}>({fmtH(heuresRDModele)} + coût, 1 à 6 trim.)</span>{fait("rd")}
           </button>
         )}
         {panneau === "rd" && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
-            <input
-              style={{ ...S.input, marginBottom: 8 }}
-              value={nm.nom}
-              onChange={(e) => setNm({ ...nm, nom: e.target.value })}
-              placeholder="Nom du modèle"
-            />
+            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+              <input
+                style={S.input}
+                value={nm.nom}
+                onChange={(e) => setNm({ ...nm, nom: e.target.value })}
+                placeholder="Nom du modèle"
+              />
+              <button
+                style={{ ...S.ghost, marginTop: 0, width: 52 }}
+                title="Proposer un autre nom"
+                onClick={() => setNm({ ...nm, nom: nomDeModele() })}
+              >
+                🎲
+              </button>
+            </div>
             {Object.entries(MOUVEMENTS).map(([k, mv]) => {
               const bloque = k === "manufacture" && profil !== "ingenieur";
               return (
@@ -330,7 +391,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 >
                   <span style={S.gold}>{mv.nom}</span>{" "}
                   <span style={S.steel}>
-                    — {fmtCHF(coutRD(k, profil))}, {dureeDev(k, profil, g.employes)} trim., {mv.heures} h/pièce{" "}
+                    — {fmtArgent(coutRD(k, profil))}, {dureeDev(k, profil, g.employes)} trim., {mv.heures} h/pièce{" "}
                     {bloque ? "⚙ ingénieur requis" : ""}
                   </span>
                 </button>
@@ -402,7 +463,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             {Object.entries(SEGMENTS).map(([k, sg]) => (
               <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
                 <span style={S.gold}>{sg.nom}</span>{" "}
-                <span style={S.steel}>— {sg.desc} Repère de prix : {fmtCHF(sg.ideal)}.</span>
+                <span style={S.steel}>— {sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
               </button>
             ))}
 
@@ -410,7 +471,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 10 }}>
               <span style={S.steel}>Cette montre vous coûtera</span>
               <br />
-              <span style={{ ...S.gold, fontSize: 22 }}>{fmtCHF(coutApercu)}</span>
+              <span style={{ ...S.gold, fontSize: 22 }}>{fmtArgent(coutApercu)}</span>
               <span style={S.steel}> par pièce · qualité {qualApercu}/10 · {heuresParPiece(apercu)} h/pièce</span>
               <br />
               <span style={S.steel}>
@@ -435,14 +496,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           onClick={() => actifs.length > 0 && ok(COUTS_H.facelift) && setPicker(picker === "facelift" ? null : "facelift")}
         >
           ✨ Facelift d'un modèle{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.facelift)} + 75% du coût R&D) — restaure la fraîcheur</span>
+          <span style={S.steel}>({fmtH(COUTS_H.facelift)} + 75% du coût R&D) — restaure la fraîcheur</span>{fait("facelift")}
         </button>
         <button
           style={S.action(ok(COUTS_H.edition) && actifs.length > 0)}
           onClick={() => actifs.length > 0 && ok(COUTS_H.edition) && setPicker(picker === "edition" ? null : "edition")}
         >
           💎 Édition limitée ×50{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.edition)} + prod.) — désirabilité +8, crédibilité −1</span>
+          <span style={S.steel}>({fmtH(COUTS_H.edition)} + prod.) — désirabilité +8, crédibilité −1</span>{fait("edition")}
         </button>
         {picker && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
@@ -455,14 +516,15 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                     style={S.btn(false)}
                     onClick={() => {
                       picker === "facelift" ? actions.facelift(i) : actions.edition(i);
+                      marquer(picker);
                       setPicker(null);
                     }}
                   >
                     {m.nom}{" "}
                     <span style={S.steel}>
                       {picker === "facelift"
-                        ? "— " + fmtCHF(coutFacelift(m, profil))
-                        : "— " + fmtCHF(50 * coutU(m)) + " de production"}
+                        ? "— " + fmtArgent(coutFacelift(m, profil))
+                        : "— " + fmtArgent(50 * coutU(m)) + " de production"}
                     </span>
                   </button>
                 )
@@ -485,7 +547,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         </div>
         {panneau !== "canaux" && canaux.length > 0 && (
           <button style={S.action(true)} onClick={() => setPanneau("canaux")}>
-            🏪 Développer la distribution <span style={S.steel}>— ouvrir ou agrandir un canal</span>
+            🏪 Développer la distribution <span style={S.steel}>— ouvrir ou agrandir un canal</span>{fait("canal")}
           </button>
         )}
         {panneau === "canaux" && (
@@ -499,6 +561,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   disabled={!jouable}
                   onClick={() => {
                     actions.ouvrirCanal(c);
+                    marquer("canal");
                     setPanneau(null);
                   }}
                 >
@@ -510,7 +573,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   </span>
                   <br />
                   <span style={S.steel}>
-                    {fmtH(c.heures)} + {fmtCHF(c.cout)}, puis {fmtCHF(c.fixes)}/trim · portée +{c.portee}, marge{" "}
+                    {fmtH(c.heures)} + {fmtArgent(c.cout)}, puis {fmtArgent(c.fixes)}/trim · portée +{c.portee}, marge{" "}
                     {fmtPct(c.canal.marge)}
                     {c.manque.length ? " · ⚠ demande " + c.manque.join(" et ") : ""}
                   </span>
@@ -543,7 +606,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         {panneau !== "embauche" && (
           <button style={S.action(ok(COUTS_H.embauche))} onClick={() => ok(COUTS_H.embauche) && setPanneau("embauche")}>
             👥 Embaucher{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.embauche)}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>
+            <span style={S.steel}>({fmtH(COUTS_H.embauche)}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>{fait("embauche")}
           </button>
         )}
         {panneau === "embauche" && (
@@ -556,7 +619,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 </span>
                 <br />
                 <span style={S.steel}>
-                  Agrandissez l'atelier ({fmtCHF(ATELIER_COUT)}, +{ATELIER_HEURES} h de postes) avant d'embaucher,
+                  Agrandissez l'atelier ({fmtArgent(ATELIER_COUT)}, +{ATELIER_HEURES} h de postes) avant d'embaucher,
                   ou vous paierez un salaire pour rien.
                 </span>
               </div>
@@ -567,11 +630,12 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                 style={S.btn(false)}
                 onClick={() => {
                   actions.embaucher(k);
+                  marquer("embauche");
                   setPanneau(null);
                 }}
               >
                 {e.icon} <span style={S.gold}>{e.nom}</span>{" "}
-                <span style={S.steel}>— {fmtCHF(e.fixes)}/trim · {e.desc}</span>
+                <span style={S.steel}>— {fmtArgent(e.fixes)}/trim · {e.desc}</span>
                 {e.production && (
                   <>
                     <br />
@@ -593,7 +657,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
         {nbEmployes(g.employes) > 0 && panneau !== "equipe" && (
           <button style={S.action(ok(COUTS_H.licenciement))} onClick={() => setPanneau("equipe")}>
             👋 Se séparer d'un collaborateur{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.licenciement)} + indemnité) — allège les coûts fixes</span>
+            <span style={S.steel}>({fmtH(COUTS_H.licenciement)} + indemnité) — allège les coûts fixes</span>{fait("licenciement")}
           </button>
         )}
         {panneau === "equipe" && (
@@ -607,12 +671,13 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   disabled={!ok(COUTS_H.licenciement)}
                   onClick={() => {
                     actions.licencier(k);
+                    marquer("licenciement");
                     setPanneau(null);
                   }}
                 >
                   {EMPLOYES[k].icon} <span style={S.gold}>{EMPLOYES[k].nom}</span>{" "}
                   <span style={S.steel}>
-                    (×{n}) — indemnité {fmtCHF(indemnite(k))}, puis {fmtCHF(EMPLOYES[k].fixes)}/trim économisés
+                    (×{n}) — indemnité {fmtArgent(indemnite(k))}, puis {fmtArgent(EMPLOYES[k].fixes)}/trim économisés
                   </span>
                 </button>
               ))}
@@ -646,6 +711,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   disabled={!jouable}
                   onClick={() => {
                     actions.rechercher(c);
+                    marquer("recherche");
                     setPanneau(null);
                   }}
                 >
@@ -658,7 +724,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   </span>
                   <br />
                   <span style={S.steel}>
-                    {fmtH(h)} + {fmtCHF(c.rd)}, {c.dev} trim.
+                    {fmtH(h)} + {fmtArgent(c.rd)}, {c.dev} trim.
                     {c.type === "complication"
                       ? " · +" + c.heures + " h/pièce, qualité +" + c.qual + ", prix acceptable ×" + c.prixMult
                       : ""}
@@ -679,66 +745,71 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
           </div>
         )}
 
-        <button style={S.action(ok(COUTS_H.atelier, ATELIER_COUT))} onClick={() => actions.action("atelier")}>
+        <button style={S.action(ok(COUTS_H.atelier, ATELIER_COUT))} onClick={jouer("atelier", () => actions.action("atelier"))}>
           🏭 Agrandir l'atelier{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.atelier)}, {fmtCHF(ATELIER_COUT)}) — +{ATELIER_HEURES} h de postes, fixes +
-            {fmtCHF(ATELIER_FIXES)}/trim
-          </span>
+            ({fmtH(COUTS_H.atelier)}, {fmtArgent(ATELIER_COUT)}) — +{ATELIER_HEURES} h de postes, fixes +
+            {fmtArgent(ATELIER_FIXES)}/trim
+          </span>{fait("atelier")}
         </button>
 
         <div style={S.h3}>IMAGE</div>
-        <button style={S.action(ok(COUTS_H.marketing, 15000))} onClick={() => actions.action("marketing")}>
+        <button style={S.action(ok(COUTS_H.marketing, COUTS_CHF.marketing))} onClick={jouer("marketing", () => actions.action("marketing"))}>
           📣 Marketing{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.marketing)}, 15'000) — notoriété +{gainMarketing(g, pays)}</span>
+          <span style={S.steel}>({fmtH(COUTS_H.marketing)}, {fmtArgent(COUTS_CHF.marketing)}) — notoriété +{gainMarketing(g, pays)}</span>{fait("marketing")}
         </button>
-        <button style={S.action(ok(COUTS_H.choc, 30000))} onClick={() => actions.action("choc")}>
+        <button style={S.action(ok(COUTS_H.choc, COUTS_CHF.choc))} onClick={jouer("choc", () => actions.action("choc"))}>
           💥 Campagne choc{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.choc)}, 30'000) — notoriété +{gainChoc(g, pays)}, crédibilité −2, désirabilité −1
-          </span>
+            ({fmtH(COUTS_H.choc)}, {fmtArgent(COUTS_CHF.choc)}) — notoriété +{gainChoc(g, pays)}, crédibilité −2, désirabilité −1
+          </span>{fait("choc")}
         </button>
-        <button style={S.action(ok(COUTS_H.presse))} onClick={() => actions.action("presse")}>
-          📰 Relations presse <span style={S.steel}>({fmtH(COUTS_H.presse)}) — crédibilité +2</span>
+        <button style={S.action(ok(COUTS_H.presse))} onClick={jouer("presse", () => actions.action("presse"))}>
+          📰 Relations presse <span style={S.steel}>({fmtH(COUTS_H.presse)}) — crédibilité +2</span>{fait("presse")}
         </button>
-        <button style={S.action(ok(COUTS_H.etude, 5000))} onClick={() => actions.action("etude")}>
+        <button style={S.action(ok(COUTS_H.etude, COUTS_CHF.etude))} onClick={jouer("etude", () => actions.action("etude"))}>
           🔍 Étude de marché{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.etude)}, 5'000) — la demande à trois prix différents</span>
+          <span style={S.steel}>({fmtH(COUTS_H.etude)}, {fmtArgent(COUTS_CHF.etude)}) — la demande à trois prix différents</span>{fait("etude")}
         </button>
 
         <div style={S.h3}>COMMERCE</div>
         <button
           style={S.action(ok(COUTS_H.soldes) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
-          onClick={() => actions.action("soldes")}
+          onClick={jouer("soldes", () => actions.action("soldes"))}
         >
-          🏷 Soldes <span style={S.steel}>({fmtH(COUTS_H.soldes)}) — tout le stock à −35%, désirabilité −8</span>
+          🏷 Soldes <span style={S.steel}>({fmtH(COUTS_H.soldes)}) — tout le stock à −35%, désirabilité −8</span>{fait("soldes")}
         </button>
         {!g.kickstarterFait && (
           <button
             style={S.action(ok(COUTS_H.kickstarter) && g.modeles.length > 0)}
-            onClick={() => actions.action("kickstarter")}
+            onClick={jouer("kickstarter", () => actions.action("kickstarter"))}
           >
             🚀 Kickstarter{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.kickstarter)}, une fois) — cash + notoriété + désirabilité</span>
+            <span style={S.steel}>({fmtH(COUTS_H.kickstarter)}, une fois) — cash + notoriété + désirabilité</span>{fait("kickstarter")}
           </button>
         )}
 
         <div style={S.h3}>FINANCE</div>
-        <button style={S.action(ok(COUTS_H.emprunt))} onClick={() => actions.action("emprunt")}>
+        <button style={S.action(ok(COUTS_H.emprunt))} onClick={jouer("emprunt", () => actions.action("emprunt"))}>
           🏦 Emprunt{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.emprunt)}) — +150'000, taux {profil === "financier" ? "4" : "6"}%
-          </span>
+            ({fmtH(COUTS_H.emprunt)}) — +{fmtArgent(COUTS_CHF.emprunt)}, taux {profil === "financier" ? "4" : "6"}%
+          </span>{fait("emprunt")}
         </button>
         {g.dette > 0 && (
-          <button style={S.action(g.cash > 0)} onClick={() => actions.action("rembourser")}>
-            💰 Rembourser <span style={S.steel}>(0 h) — jusqu'à 50'000 de dette</span>
+          <button style={S.action(g.cash > 0)} onClick={jouer("rembourser", () => actions.action("rembourser"))}>
+            💰 Rembourser <span style={S.steel}>(0 h) — jusqu'à {fmtArgent(COUTS_CHF.remboursement)} de dette</span>{fait("rembourser")}
           </button>
         )}
 
+        {/* Les testeurs ne savaient pas ce qui était immédiat et ce qui attendait
+            la fin du trimestre : on le dit sur le bouton qui déclenche le calcul. */}
         <button style={S.cta} onClick={actions.finTrimestre}>
           FIN DU TRIMESTRE ▸
         </button>
+        <div style={{ ...S.steel, textAlign: "center", marginTop: 4 }}>
+          Les ventes, les coûts et la production se calculent maintenant.
+        </div>
         <button style={S.ghost} onClick={actions.passerAnnee}>
           ▸▸ Passer à la fin de l'année (sans autres actions)
         </button>
@@ -789,18 +860,24 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
                   <span style={S.steel}>
                     T{j.t} {j.annee}
                   </span>{" "}
-                  · CA {fmtCHF(j.revenus)} ·
+                  · CA {fmtArgent(j.revenus)} ·
                   <span style={j.resultat >= 0 ? S.green : S.red}>
                     {" "}
                     {j.resultat >= 0 ? "+" : ""}
-                    {fmtCHF(j.resultat)}
+                    {fmtArgent(j.resultat)}
                   </span>
-                  <span style={S.steel}> · Caisse {fmtCHF(j.cash)}</span>
+                  <span style={S.steel}> · Caisse {fmtArgent(j.cash)}</span>
                 </div>
               ))}
           </div>
         )}
+
+        {/* Réserve la place de la barre fixe pour que le dernier bouton reste
+            atteignable au pouce. */}
+        <div style={S.espaceBarre} />
       </div>
+
+      <BarreStatut g={g} autosaveAt={autosaveAt} />
     </div>
   );
 }

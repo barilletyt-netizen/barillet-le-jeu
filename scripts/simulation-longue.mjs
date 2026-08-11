@@ -317,15 +317,15 @@ for (const p of parties) {
     const [an, a] = derniere || [null, null];
     console.log(
       `   ✅ graine ${String(seed).padStart(5)} · ${String(r.trimestres).padStart(3)} trim. · ` +
-      `fin « ${r.finPar} » ${an} · CA ${F.fmtCHF(a.ca).padStart(13)} · ` +
-      `résultat ${F.fmtCHF(a.res).padStart(13)} · ${F.fmtNb(a.pieces).padStart(7)} pièces · ` +
+      `fin « ${r.finPar} » ${an} · CA ${F.fmtArgent(a.ca).padStart(13)} · ` +
+      `résultat ${F.fmtArgent(a.res).padStart(13)} · ${F.fmtNb(a.pieces).padStart(7)} pièces · ` +
       `équipe ${String(a.equipe).padStart(2)} · rang ${M.rangPour(a.ca)}`
     );
     if (TRACE) {
       console.log("      année |          CA |    résultat |  pièces | équipe | portée | modèles | rang");
       for (const [annee, x] of r.annees) {
         console.log(
-          `      ${annee}  | ${F.fmtCHF(x.ca).padStart(11)} | ${F.fmtCHF(x.res).padStart(11)} | ` +
+          `      ${annee}  | ${F.fmtArgent(x.ca).padStart(11)} | ${F.fmtArgent(x.res).padStart(11)} | ` +
           `${F.fmtNb(x.pieces).padStart(7)} | ${String(x.equipe).padStart(6)} | ${x.portee.toFixed(1).padStart(6)} | ` +
           `${String(x.modeles).padStart(7)} | ${M.rangPour(x.ca)}`
         );
