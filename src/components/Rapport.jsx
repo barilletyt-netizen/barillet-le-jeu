@@ -1,5 +1,5 @@
 import { S } from "../styles.js";
-import { fmtCHF, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
+import { fmtArgent, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
 
 export default function Rapport({ r, onContinuer }) {
   return (
@@ -53,7 +53,7 @@ export default function Rapport({ r, onContinuer }) {
             <span>Vendues {fmtNb(l.vendues)}</span>
             <span style={S.steel}> · Stock {fmtNb(l.stock)}</span>
             <br />
-            <span style={S.green}>{fmtCHF(l.ca)} de chiffre d'affaires</span>
+            <span style={S.green}>{fmtArgent(l.ca)} de chiffre d'affaires</span>
           </div>
         ))}
 
@@ -69,41 +69,41 @@ export default function Rapport({ r, onContinuer }) {
 
         <div style={S.panel}>
           <div>
-            Ventes <span style={{ float: "right" }}>{fmtCHF(r.ventesBrutes)}</span>
+            Ventes <span style={{ float: "right" }}>{fmtArgent(r.ventesBrutes)}</span>
           </div>
           {r.commissions > 0 && (
             <div style={S.steel}>
               dont commissions de distribution
-              <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.commissions)}</span>
+              <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.commissions)}</span>
             </div>
           )}
           <div>
-            Revenus encaissés <span style={{ float: "right", ...S.green }}>{fmtCHF(r.revenus)}</span>
+            Revenus encaissés <span style={{ float: "right", ...S.green }}>{fmtArgent(r.revenus)}</span>
           </div>
           <div>
-            Production <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.coutsProd)}</span>
+            Production <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.coutsProd)}</span>
           </div>
           <div>
-            Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.fixes)}</span>
+            Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.fixes)}</span>
           </div>
           <div>
-            Intérêts <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.interets)}</span>
+            Intérêts <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.interets)}</span>
           </div>
           {r.impot > 0 && (
             <div>
               Impôt sur le bénéfice annuel{" "}
-              <span style={{ float: "right", ...S.red }}>−{fmtCHF(r.impot)}</span>
+              <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.impot)}</span>
             </div>
           )}
           <div style={{ borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6 }}>
             Résultat{" "}
             <span style={{ float: "right", ...(r.resultatNet >= 0 ? S.green : S.red), fontSize: 21 }}>
               {r.resultatNet >= 0 ? "+" : ""}
-              {fmtCHF(r.resultatNet)}
+              {fmtArgent(r.resultatNet)}
             </span>
           </div>
           <div>
-            Caisse <span style={{ float: "right", ...S.gold }}>{fmtCHF(r.cash)}</span>
+            Caisse <span style={{ float: "right", ...S.gold }}>{fmtArgent(r.cash)}</span>
           </div>
           <div style={{ ...S.steel, marginTop: 6 }}>
             Atelier : {fmtH(r.heuresUtilisees)} produites sur {fmtH(r.heuresDispo)} disponibles (vous{" "}

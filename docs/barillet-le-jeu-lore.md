@@ -1,5 +1,5 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.6 (août 2026)
+## Document de lore et de design — v0.6.1 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
@@ -108,8 +108,10 @@
 **Conséquence design voulue** : en début de partie, chaque heure de com est une montre non produite. La première embauche est un tournant. C'est le cœur émotionnel du jeu.
 
 ### Autres règles de boucle
-- **Économie 100% en CHF interne** (décision finale). Affichage possible d'autres devises en pure cosmétique.
-- Faillite = game over.
+- **Économie 100% en CHF interne** (décision finale). **Devise d'affichage selon le pays de départ** (implémenté en vague 1 de beta) : € en France, ¥ au Japon, ¥ CNY en Chine, à taux fixes grossiers. Purement cosmétique — le moteur, les seuils et le classement restent en francs. Le seuil de faillite (−50'000 CHF) est explicitement annoncé comme tel dans la page d'introduction.
+- Faillite = game over, **mais annoncée**. Retour de beta : les trois testeurs sont morts sans la voir venir. Une alerte apparaît dès que la caisse projetée (caisse + résultat du dernier trimestre × 2) passe sous zéro, avec le nombre de trimestres restants au rythme actuel. Un second niveau, plus doux, signale une trésorerie sous deux trimestres de coûts fixes. La mort reste possible, jamais surprenante.
+- **Barre de statut persistante** en bas d'écran : heures restantes, caisse, trimestre. Rien d'autre — les jauges restent dans le corps de la page. Les heures se décomptent visiblement au moment de l'action.
+- **Immédiat contre fin de trimestre** : toute action jouée porte un témoin « fait ✓ » jusqu'à la fin du tour, et le bouton de fin de trimestre annonce que les ventes, les coûts et la production se calculent à ce moment-là.
 
 ### Les 6 jauges (validées)
 1. **Notoriété** — décline ~5%/trim, marketing à rendement décroissant

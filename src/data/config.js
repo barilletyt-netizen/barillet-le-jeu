@@ -37,6 +37,16 @@ export const COUTS_H = {
 // trop peu, on relançait un modèle indéfiniment pour rien).
 export const FACELIFT_PART_RD = 0.75;
 
+// Montants en CHF des actions. Partagés entre la logique et les libellés de
+// l'UI, pour qu'un changement de tarif ne laisse pas un texte périmé derrière.
+export const COUTS_CHF = {
+  marketing: 15000,
+  choc: 30000,
+  etude: 5000,
+  emprunt: 150000,
+  remboursement: 50000,
+};
+
 // Heures d'établi nécessaires pour gagner 1 point de savoir-faire.
 export const HEURES_PAR_SAVOIR = 150;
 

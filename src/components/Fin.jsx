@@ -1,6 +1,6 @@
 import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN } from "../data/config.js";
-import { fmtCHF } from "../engine/formules.js";
+import { fmtArgent } from "../engine/formules.js";
 
 const TITRES = { faillite: "FAILLITE", top50: "TOP 50 !", temps: ANNEE_FIN + " — BILAN" };
 const ICONES = { faillite: "💀", top50: "👑", temps: "⌛" };
@@ -11,11 +11,11 @@ export default function Fin({ f, marque, onRejouer }) {
     faillite:
       f.annee + ". Les créanciers ont saisi l'atelier. " + nom + " rejoint le cimetière des marques oubliées.",
     top50:
-      f.annee + ". " + nom + " entre au Stanley Morgan Top 50 avec " + fmtCHF(f.revenus) +
+      f.annee + ". " + nom + " entre au Stanley Morgan Top 50 avec " + fmtArgent(f.revenus) +
       " de revenus. L'industrie s'incline.",
     temps:
       (ANNEE_FIN - ANNEE_DEBUT) + " ans se sont écoulés. " + nom + " termine autour du rang #" + f.rang +
-      " avec " + fmtCHF(f.revenus) + " de revenus annuels. " +
+      " avec " + fmtArgent(f.revenus) + " de revenus annuels. " +
       (f.rang <= 200 ? "Une marque indépendante respectée." : "Le Top 50 reste un rêve lointain."),
   };
 

@@ -7,18 +7,20 @@ import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
 import {
-  ATELIER_COUT, ATELIER_HEURES, CANAUX, COUTS_H, EMPLOYES, COMPLICATIONS,
+  ATELIER_COUT, ATELIER_FIXES, ATELIER_HEURES, CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
 import { rangPour } from "./data/monde.js";
 import {
-  clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtCHF, fmtH, fmtNb,
+  clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
   gainChoc, gainMarketing, grilleDePrix, heuresRD, indemnite, margeMoyenne,
   nomComplications, num, paletteComplication, qualiteNouveau,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { hasard } from "./engine/alea.js";
+import { setDevise } from "./engine/devise.js";
+import { nomDeMarque } from "./data/noms.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
 
 export default function App() {
@@ -26,7 +28,8 @@ export default function App() {
   const [pays, setPays] = useState(null);
   const [profil, setProfil] = useState(null);
   const [origine, setOrigine] = useState(null);
-  const [marque, setMarque] = useState("");
+  // Champ pré-rempli : les champs vides freinaient les testeurs pressés.
+  const [marque, setMarque] = useState(nomDeMarque);
 
   const [g, setG] = useState(null);
   const [rapport, setRapport] = useState(null);
@@ -34,6 +37,8 @@ export default function App() {
   const [finInfo, setFinInfo] = useState(null);
   const [saveMsg, setSaveMsg] = useState("");
   const [sauvegardeExiste, setSauvegardeExiste] = useState(false);
+  // Horodatage du dernier autosave, pour le témoin de la barre de statut.
+  const [autosaveAt, setAutosaveAt] = useState(0);
 
   const ctx = { pays, profil };
 
@@ -50,7 +55,10 @@ export default function App() {
   // Sauvegarde silencieuse en début de trimestre : on ne perd jamais plus d'un tour.
   function persister(etat, ident = { pays, profil, origine, marque }) {
     const ok = sauvegarderPartie({ g: etat, ...ident });
-    if (ok) setSauvegardeExiste(true);
+    if (ok) {
+      setSauvegardeExiste(true);
+      setAutosaveAt(Date.now());
+    }
     return ok;
   }
 
@@ -69,12 +77,15 @@ export default function App() {
     setProfil(s.profil);
     setOrigine(s.origine);
     setMarque(s.marque);
+    setDevise(s.pays);
     setPhase("play");
   }
 
   // ---- Cycle de vie de la partie -----------------------------------------
 
   function demarrer() {
+    // L'économie reste en CHF ; seule la devise d'affichage suit le pays.
+    setDevise(pays);
     const etat = etatInitial({ pays, profil, origine, marque });
     setG(etat);
     persister(etat);
@@ -97,7 +108,8 @@ export default function App() {
     setPays(null);
     setProfil(null);
     setOrigine(null);
-    setMarque("");
+    setMarque(nomDeMarque());
+    setDevise(null);
     setSauvegardeExiste(existeSauvegarde());
   }
 
@@ -144,7 +156,7 @@ export default function App() {
       messages: [
         ...g.messages,
         "R&D lancée : « " + nom + " » (" + detail + (nm.finition ? ", finition maison" : "") +
-        "). Prêt dans " + duree + " trim. " + fmtH(heures) + " et " + fmtCHF(cout) + ".",
+        "). Prêt dans " + duree + " trim. " + fmtH(heures) + " et " + fmtArgent(cout) + ".",
       ],
     });
   }
@@ -169,7 +181,7 @@ export default function App() {
       recherche: { type: palier.type, id: palier.id, niveau: palier.niveau || 1, restant: duree },
       messages: [
         ...g.messages,
-        "Recherche lancée : " + intitule + ". " + duree + " trim., " + fmtH(heures) + " et " + fmtCHF(palier.rd) + ".",
+        "Recherche lancée : " + intitule + ". " + duree + " trim., " + fmtH(heures) + " et " + fmtArgent(palier.rd) + ".",
       ],
     });
   }
@@ -184,7 +196,7 @@ export default function App() {
       savoir: clamp(g.savoir + e.savoir, 0, 100),
       messages: [
         ...g.messages,
-        e.nom + " embauché·e : " + e.desc + " Savoir-faire +" + e.savoir + ", coûts fixes +" + fmtCHF(e.fixes) + "/trimestre.",
+        e.nom + " embauché·e : " + e.desc + " Savoir-faire +" + e.savoir + ", coûts fixes +" + fmtArgent(e.fixes) + "/trimestre.",
       ],
     });
   }
@@ -201,8 +213,8 @@ export default function App() {
       employes: { ...g.employes, [type]: g.employes[type] - 1 },
       messages: [
         ...g.messages,
-        "Départ d'un " + e.nom.toLowerCase() + " : indemnité de " + fmtCHF(cout) + ", puis " +
-        fmtCHF(e.fixes) + " de coûts fixes en moins chaque trimestre.",
+        "Départ d'un " + e.nom.toLowerCase() + " : indemnité de " + fmtArgent(cout) + ", puis " +
+        fmtArgent(e.fixes) + " de coûts fixes en moins chaque trimestre.",
       ],
     });
   }
@@ -219,7 +231,7 @@ export default function App() {
         ...g.messages,
         CANAUX[palier.id].nom + " — « " + palier.nom + " » ouvert : portée " + palier.portee +
         ", marge " + Math.round(CANAUX[palier.id].marge * 100) + "%, coûts fixes +" +
-        fmtCHF(palier.fixes) + "/trimestre.",
+        fmtArgent(palier.fixes) + "/trimestre.",
       ],
     });
   }
@@ -227,15 +239,15 @@ export default function App() {
   function action(type) {
     if (!g) return;
 
-    if (type === "marketing" && assez(COUTS_H.marketing, 15000)) {
+    if (type === "marketing" && assez(COUTS_H.marketing, COUTS_CHF.marketing)) {
       const gain = gainMarketing(g, pays);
-      setG({ ...g, heures: g.heures - COUTS_H.marketing, cash: g.cash - 15000, noto: clamp(g.noto + gain, 0, 100),
+      setG({ ...g, heures: g.heures - COUTS_H.marketing, cash: g.cash - COUTS_CHF.marketing, noto: clamp(g.noto + gain, 0, 100),
         messages: [...g.messages, "Marketing : notoriété +" + gain + "."] });
     }
 
-    if (type === "choc" && assez(COUTS_H.choc, 30000)) {
+    if (type === "choc" && assez(COUTS_H.choc, COUTS_CHF.choc)) {
       const gain = gainChoc(g, pays);
-      setG({ ...g, heures: g.heures - COUTS_H.choc, cash: g.cash - 30000,
+      setG({ ...g, heures: g.heures - COUTS_H.choc, cash: g.cash - COUTS_CHF.choc,
         noto: clamp(g.noto + gain, 0, 100), cred: clamp(g.cred - 2, 0, 100), des: clamp(g.des - 1, 0, 100),
         messages: [...g.messages, "Campagne choc : notoriété +" + gain + ", mais crédibilité −2 et désirabilité −1. Le buzz a un prix."] });
     }
@@ -245,17 +257,17 @@ export default function App() {
         messages: [...g.messages, "Relations presse : crédibilité +2, notoriété +1."] });
     }
 
-    if (type === "etude" && assez(COUTS_H.etude, 5000)) {
+    if (type === "etude" && assez(COUTS_H.etude, COUTS_CHF.etude)) {
       // L'étude ne dit plus « le » prix : elle chiffre la demande à trois prix.
       const lignes = g.modeles
         .filter((m) => m.statut === "actif")
         .map((m) => {
           const grille = grilleDePrix(m, g)
-            .map((x) => fmtCHF(x.prix) + " → ~" + fmtNb(x.demande) + " pièces (" + fmtCHF(x.ca) + ")")
+            .map((x) => fmtArgent(x.prix) + " → ~" + fmtNb(x.demande) + " pièces (" + fmtArgent(x.ca) + ")")
             .join(" · ");
           return m.nom + " : " + grille;
         });
-      setG({ ...g, heures: g.heures - COUTS_H.etude, cash: g.cash - 5000,
+      setG({ ...g, heures: g.heures - COUTS_H.etude, cash: g.cash - COUTS_CHF.etude,
         messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre. " +
           (lignes.length ? lignes.join(" | ") : "Aucun modèle en vente.")] });
     }
@@ -264,7 +276,7 @@ export default function App() {
       setG({ ...g, heures: g.heures - COUTS_H.atelier, cash: g.cash - ATELIER_COUT,
         ateliers: g.ateliers + 1, capacite: g.capacite + ATELIER_HEURES,
         messages: [...g.messages, "Atelier agrandi : +" + ATELIER_HEURES +
-          " h de postes de travail par trimestre, coûts fixes +CHF 6'000/trimestre."] });
+          " h de postes de travail par trimestre, coûts fixes +" + fmtArgent(ATELIER_FIXES) + "/trimestre."] });
     }
 
     if (type === "soldes" && assez(COUTS_H.soldes)) {
@@ -280,7 +292,7 @@ export default function App() {
       if (unites === 0) return;
       setG({ ...g, heures: g.heures - COUTS_H.soldes, cash: g.cash + cash, modeles, des: clamp(g.des - 8, 0, 100),
         revenusAnnee: g.revenusAnnee + cash,
-        messages: [...g.messages, "Soldes : " + unites + " pièces écoulées à −35% → +" + fmtCHF(cash) +
+        messages: [...g.messages, "Soldes : " + unites + " pièces écoulées à −35% → +" + fmtArgent(cash) +
           ". Désirabilité −8 : brader laisse des traces."] });
     }
 
@@ -288,18 +300,18 @@ export default function App() {
       const leve = Math.round(20000 + g.noto * 2500 + g.reseau * 8000);
       setG({ ...g, heures: g.heures - COUTS_H.kickstarter, kickstarterFait: true, cash: g.cash + leve,
         noto: clamp(g.noto + 8, 0, 100), des: clamp(g.des + 4, 0, 100),
-        messages: [...g.messages, "Kickstarter réussi : " + fmtCHF(leve) + " levés, notoriété +8, désirabilité +4."] });
+        messages: [...g.messages, "Kickstarter réussi : " + fmtArgent(leve) + " levés, notoriété +8, désirabilité +4."] });
     }
 
     if (type === "emprunt" && assez(COUTS_H.emprunt)) {
-      setG({ ...g, heures: g.heures - COUTS_H.emprunt, cash: g.cash + 150000, dette: g.dette + 150000,
-        messages: [...g.messages, "Emprunt : +CHF 150'000 (taux " + (profil === "financier" ? "4" : "6") + "%/an)."] });
+      setG({ ...g, heures: g.heures - COUTS_H.emprunt, cash: g.cash + COUTS_CHF.emprunt, dette: g.dette + COUTS_CHF.emprunt,
+        messages: [...g.messages, "Emprunt : +" + fmtArgent(COUTS_CHF.emprunt) + " (taux " + (profil === "financier" ? "4" : "6") + "%/an)."] });
     }
 
     if (type === "rembourser" && g.dette > 0 && g.cash > 0) {
-      const montant = Math.min(50000, g.dette, g.cash);
+      const montant = Math.min(COUTS_CHF.remboursement, g.dette, g.cash);
       setG({ ...g, cash: g.cash - montant, dette: g.dette - montant,
-        messages: [...g.messages, "Remboursement : −" + fmtCHF(montant) + " de dette."] });
+        messages: [...g.messages, "Remboursement : −" + fmtArgent(montant) + " de dette."] });
     }
   }
 
@@ -309,7 +321,7 @@ export default function App() {
     if (!assez(COUTS_H.facelift, cout)) return;
     setG({ ...g, heures: g.heures - COUTS_H.facelift, cash: g.cash - cout,
       modeles: g.modeles.map((x, j) => (j === i ? { ...x, age: 0 } : x)),
-      messages: [...g.messages, "Facelift de « " + m.nom + " » : fraîcheur restaurée. Coût : " + fmtCHF(cout) + "."] });
+      messages: [...g.messages, "Facelift de « " + m.nom + " » : fraîcheur restaurée. Coût : " + fmtArgent(cout) + "."] });
   }
 
   function edition(i) {
@@ -322,7 +334,7 @@ export default function App() {
       des: clamp(g.des + 8, 0, 100), cred: clamp(g.cred - 1, 0, 100),
       revenusAnnee: g.revenusAnnee + ca,
       messages: [...g.messages, "Édition limitée « " + m.nom + " » ×50 : " + vendues + " vendues à prix fort → +" +
-        fmtCHF(ca - cout) + " net. Désirabilité +8, crédibilité −1 (le marketing de la rareté)."] });
+        fmtArgent(ca - cout) + " net. Désirabilité +8, crédibilité −1 (le marketing de la rareté)."] });
   }
 
   function opportunite(accepte) {
@@ -374,7 +386,7 @@ export default function App() {
       etat.cash += cash;
       etat.revenusAnnee = g.revenusAnnee + cash;
       etat.des = clamp(g.des - 1, 0, 100);
-      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtCHF(cash) + ". Désirabilité −1 : écouler en gros se voit.";
+      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtArgent(cash) + ". Désirabilité −1 : écouler en gros se voit.";
     }
 
     if (opp.id === "voyagepresse") {
@@ -521,7 +533,7 @@ export default function App() {
   if (phase === "play" && g) {
     return (
       <Jeu
-        g={g} ctx={ctx} marque={marque} saveMsg={saveMsg}
+        g={g} ctx={ctx} marque={marque} saveMsg={saveMsg} autosaveAt={autosaveAt}
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal,
           facelift, edition, opportunite, setProd, setPrix,

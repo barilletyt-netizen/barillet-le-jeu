@@ -1,6 +1,6 @@
 import { S } from "../styles.js";
 import { CLASSEMENT_MONDE, REVENUS_TOP50, voisins } from "../data/monde.js";
-import { fmtCHF, fmtM } from "../engine/formules.js";
+import { fmtArgent, fmtM } from "../engine/formules.js";
 
 export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
   const v = voisins(b.rang, b.revenus);
@@ -30,21 +30,21 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
               <span>
                 <span style={S.steel}>#~{x.rang}</span> {x.nom}
               </span>
-              <span style={S.steel}>{fmtCHF(x.rev)}</span>
+              <span style={S.steel}>{fmtArgent(x.rev)}</span>
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 14px", background: "#243626", margin: "0 -14px" }}>
             <span>
               <span style={S.gold}>#~{b.rang}</span> {marque || "Votre marque"}
             </span>
-            <span style={S.gold}>{fmtCHF(b.revenus)}</span>
+            <span style={S.gold}>{fmtArgent(b.revenus)}</span>
           </div>
           {v.dessous.map((x, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
               <span>
                 <span style={S.steel}>#~{x.rang}</span> {x.nom}
               </span>
-              <span style={S.steel}>{fmtCHF(x.rev)}</span>
+              <span style={S.steel}>{fmtArgent(x.rev)}</span>
             </div>
           ))}
         </div>
@@ -53,11 +53,11 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
           <div style={S.panel}>
             {trims.map((j, i) => (
               <div key={i} style={{ padding: "3px 0", borderBottom: "1px solid #1E2A20", fontSize: 17 }}>
-                <span style={S.steel}>T{j.t}</span> · CA {fmtCHF(j.revenus)} ·
+                <span style={S.steel}>T{j.t}</span> · CA {fmtArgent(j.revenus)} ·
                 <span style={j.resultat >= 0 ? S.green : S.red}>
                   {" "}
                   {j.resultat >= 0 ? "+" : ""}
-                  {fmtCHF(j.resultat)}
+                  {fmtArgent(j.resultat)}
                 </span>
               </div>
             ))}
@@ -65,7 +65,7 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
         )}
 
         <div style={S.panel}>
-          Revenus annuels : <span style={S.gold}>{fmtCHF(b.revenus)}</span>
+          Revenus annuels : <span style={S.gold}>{fmtArgent(b.revenus)}</span>
           {b.prec > 0 && (
             <span style={b.revenus >= b.prec ? S.green : S.red}>
               {" "}
@@ -74,7 +74,7 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
             </span>
           )}
           <br />
-          <span style={S.steel}>Objectif Top 50 : {fmtCHF(REVENUS_TOP50)} de revenus annuels.</span>
+          <span style={S.steel}>Objectif Top 50 : {fmtArgent(REVENUS_TOP50)} de revenus annuels.</span>
         </div>
 
         <button style={S.cta} onClick={onContinuer}>
