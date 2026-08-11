@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Intro from "./components/Intro.jsx";
+import Brief from "./components/Brief.jsx";
 import Setup from "./components/Setup.jsx";
 import Jeu from "./components/Jeu.jsx";
 import Rapport from "./components/Rapport.jsx";
@@ -17,6 +18,7 @@ import {
   nomComplications, num, paletteComplication, qualiteNouveau,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
+import { hasard } from "./engine/alea.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
 
 export default function App() {
@@ -77,6 +79,13 @@ export default function App() {
     setG(etat);
     persister(etat);
     setPhase("play");
+  }
+
+  // Repartir de zéro depuis une partie en cours : un testeur doit pouvoir
+  // enchaîner une partie héritier et une partie self-made sans recharger.
+  function abandonner() {
+    rejouer();
+    setPhase("brief");
   }
 
   function rejouer() {
@@ -340,7 +349,7 @@ export default function App() {
     }
 
     if (opp.id === "youtubeur") {
-      if (Math.random() < 0.62) {
+      if (hasard() < 0.62) {
         etat.cred = clamp(g.cred + 5, 0, 100);
         etat.noto = clamp(g.noto + 4, 0, 100);
         etat.des = clamp(g.des + 3, 0, 100);
@@ -369,7 +378,7 @@ export default function App() {
     }
 
     if (opp.id === "voyagepresse") {
-      if (Math.random() < 0.88) {
+      if (hasard() < 0.88) {
         etat.cred = clamp(g.cred + 5, 0, 100);
         msg = "Voyage de presse réussi : crédibilité +5.";
       } else {
@@ -489,10 +498,14 @@ export default function App() {
       <Intro
         sauvegardeExiste={sauvegardeExiste}
         saveMsg={saveMsg}
-        onNouvelle={() => setPhase("setup")}
+        onNouvelle={() => setPhase("brief")}
         onCharger={charger}
       />
     );
+  }
+
+  if (phase === "brief") {
+    return <Brief onContinuer={() => setPhase("setup")} onRetour={() => setPhase("intro")} />;
   }
 
   if (phase === "setup") {
@@ -512,7 +525,7 @@ export default function App() {
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal,
           facelift, edition, opportunite, setProd, setPrix,
-          finTrimestre, passerAnnee, sauvegarder,
+          finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}
       />
     );

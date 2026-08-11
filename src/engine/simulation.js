@@ -8,8 +8,7 @@ import {
   chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, encadrement, fmtCHF,
   fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
 } from "./formules.js";
-
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+import { hasard, tirer as pick } from "./alea.js";
 
 const SEGMENTS_VIDE = { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 };
 
@@ -55,7 +54,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
  */
 export function tirerOpportunite(etat) {
   if (etat.modeles.length === 0) return null;
-  if (Math.random() > 0.4) return null;
+  if (hasard() > 0.4) return null;
   const recentes = etat.oppRecentes || [];
   let dispo = OPPORTUNITES.filter((o) => o.req(etat) && !recentes.includes(o.id));
   if (dispo.length === 0) dispo = OPPORTUNITES.filter((o) => o.req(etat));
@@ -63,7 +62,7 @@ export function tirerOpportunite(etat) {
 }
 
 export function tirerAlea(gs) {
-  if (Math.random() > 0.4) return null;
+  if (hasard() > 0.4) return null;
   return pick(poolAleas(gs));
 }
 
@@ -155,7 +154,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     // l'aléa comptent dès ce trimestre.
     const etatDemande = { ...gs, noto, cred, des, saturation };
     let d = demandeBase(m, etatDemande, mDemande);
-    if (d > 0) d *= 0.85 + Math.random() * 0.3;
+    if (d > 0) d *= 0.85 + hasard() * 0.3;
 
     const dispo = m.stock + prodEff;
     const vendues = Math.min(Math.round(d), dispo);

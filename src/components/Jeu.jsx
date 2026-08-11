@@ -15,11 +15,13 @@ import {
   materiauxRecherchables, nbEmployes, nomComplications, num, paletteComplication,
   porteeTotale, qualiteNouveau,
 } from "../engine/formules.js";
+import { ETIQUETTE } from "../version.js";
 
 export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
   const { pays, profil } = ctx;
 
   const [showJournal, setShowJournal] = useState(false);
+  const [confirmeAbandon, setConfirmeAbandon] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
   const [panneau, setPanneau] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
@@ -749,7 +751,32 @@ export default function Jeu({ g, ctx, marque, saveMsg, actions }) {
             Sauvegarder
           </button>
         </div>
+        {/* Un testeur doit pouvoir enchaîner deux parties sans recharger la page. */}
+        {confirmeAbandon ? (
+          <div style={{ ...S.panel, borderColor: "#D06050", marginTop: 8 }}>
+            <span style={S.red}>Abandonner cette partie et en recommencer une ?</span>
+            <br />
+            <span style={S.steel}>
+              T{g.t} {g.annee} — la sauvegarde reste en place, vous pourrez la reprendre depuis l'accueil.
+            </span>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => setConfirmeAbandon(false)}>
+                Annuler
+              </button>
+              <button style={{ ...S.cta, marginTop: 0 }} onClick={actions.abandonner}>
+                NOUVELLE PARTIE
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button style={S.ghost} onClick={() => setConfirmeAbandon(true)}>
+            Nouvelle partie
+          </button>
+        )}
         {saveMsg && <div style={{ ...S.steel, textAlign: "center", marginTop: 6 }}>{saveMsg}</div>}
+        <div style={{ ...S.steel, textAlign: "center", marginTop: 14, fontSize: 14, opacity: 0.6 }}>
+          {ETIQUETTE}
+        </div>
 
         {showJournal && (
           <div style={{ ...S.panel, marginTop: 10 }}>
