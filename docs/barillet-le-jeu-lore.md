@@ -1,5 +1,5 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.6.1 (août 2026)
+## Document de lore et de design — v0.6.2 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
@@ -103,6 +103,8 @@
 - **Expert matériaux** : débloque bronze / or / titane / céramique (remplace les anciens modules matériaux), réduit les coûts matière
 - Plus tard (départements) : commercial, marketing, IT — convertissent des tâches du fondateur en tâches déléguées
 
+**L'atelier s'agrandit par tranches de quatre postes.** Retour de beta : agrandir poste par poste était fastidieux. Une extension ouvre quatre postes d'un coup, à prix unitaire dégressif. L'atelier de départ accueille déjà le fondateur et un compagnon, pour que la première embauche serve immédiatement.
+
 **Atelier = postes de travail.** La capacité d'atelier reste un plafond d'heures : on ne peut pas produire plus d'heures qu'il n'y a de postes, même avec des employés. Embaucher sans agrandir ne sert à rien — et inversement. **Ce plafond doit être dit explicitement dans l'UI** (playtest : le joueur embauchait sans comprendre pourquoi rien ne changeait) : le panneau d'embauche annonce les heures réellement utilisables, et le bandeau d'heures signale la main-d'œuvre perdue.
 
 **Conséquence design voulue** : en début de partie, chaque heure de com est une montre non produite. La première embauche est un tournant. C'est le cœur émotionnel du jeu.
@@ -110,7 +112,8 @@
 ### Autres règles de boucle
 - **Économie 100% en CHF interne** (décision finale). **Devise d'affichage selon le pays de départ** (implémenté en vague 1 de beta) : € en France, ¥ au Japon, ¥ CNY en Chine, à taux fixes grossiers. Purement cosmétique — le moteur, les seuils et le classement restent en francs. Le seuil de faillite (−50'000 CHF) est explicitement annoncé comme tel dans la page d'introduction.
 - Faillite = game over, **mais annoncée**. Retour de beta : les trois testeurs sont morts sans la voir venir. Une alerte apparaît dès que la caisse projetée (caisse + résultat du dernier trimestre × 2) passe sous zéro, avec le nombre de trimestres restants au rythme actuel. Un second niveau, plus doux, signale une trésorerie sous deux trimestres de coûts fixes. La mort reste possible, jamais surprenante.
-- **Barre de statut persistante** en bas d'écran : heures restantes, caisse, trimestre. Rien d'autre — les jauges restent dans le corps de la page. Les heures se décomptent visiblement au moment de l'action.
+- **Barre de statut persistante** en bas d'écran : heures libres, caisse, trimestre. Rien d'autre — les jauges restent dans le corps de la page.
+- **Le compteur d'heures est un solde unique** : heures du fondateur encore disponibles + heures d'atelier (corrigées de l'encadrement) − production déjà planifiée. Retour de beta : n'afficher que les heures du fondateur, et ne rien déduire quand on programme la production, rendait le budget illisible. Le détail du calcul est affiché sous le solde pour qu'il reste vérifiable de tête.
 - **Immédiat contre fin de trimestre** : toute action jouée porte un témoin « fait ✓ » jusqu'à la fin du tour, et le bouton de fin de trimestre annonce que les ventes, les coûts et la production se calculent à ce moment-là.
 
 ### Les 6 jauges (validées)

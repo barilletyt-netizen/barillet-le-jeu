@@ -7,7 +7,8 @@ import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
 import {
-  ATELIER_COUT, ATELIER_FIXES, ATELIER_HEURES, CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
+  ATELIER_COUT, ATELIER_FIXES, ATELIER_HEURES, POSTES_PAR_EXTENSION,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
@@ -275,8 +276,9 @@ export default function App() {
     if (type === "atelier" && assez(COUTS_H.atelier, ATELIER_COUT)) {
       setG({ ...g, heures: g.heures - COUTS_H.atelier, cash: g.cash - ATELIER_COUT,
         ateliers: g.ateliers + 1, capacite: g.capacite + ATELIER_HEURES,
-        messages: [...g.messages, "Atelier agrandi : +" + ATELIER_HEURES +
-          " h de postes de travail par trimestre, coûts fixes +" + fmtArgent(ATELIER_FIXES) + "/trimestre."] });
+        messages: [...g.messages, "Atelier agrandi : " + POSTES_PAR_EXTENSION +
+          " postes de plus, soit +" + ATELIER_HEURES + " h par trimestre. Coûts fixes +" +
+          fmtArgent(ATELIER_FIXES) + "/trimestre."] });
     }
 
     if (type === "soldes" && assez(COUTS_H.soldes)) {

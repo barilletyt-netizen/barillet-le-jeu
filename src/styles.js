@@ -71,6 +71,10 @@ export const S = {
     fontSize: 16, color: "#D06050",
     animation: "barillet-monte 1200ms ease-out forwards",
   },
+  barreDetail: {
+    maxWidth: 560, margin: "0 auto", padding: "0 14px 7px",
+    fontSize: 14, color: "#7A8A7C", lineHeight: 1.3,
+  },
   // Réserve la hauteur de la barre pour que le dernier bouton reste atteignable.
-  espaceBarre: { height: 78 },
+  espaceBarre: { height: 104 },
 };

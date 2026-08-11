@@ -142,12 +142,23 @@ function batisseur(g, ctx, seuilInvest = 250000) {
   const enc = F.encadrement(g.employes);
   if (enc.manque > 0 && g.cash > 150000 && g.heures >= C.COUTS_H.embauche) g = embaucher(g, "chef");
 
+  // Croissance : on embauche tant qu'il reste des postes libres, et on n'achète
+  // une extension que si on peut réellement la payer — l'ancienne version
+  // ignorait le prix et se ruinait toute seule.
   const demande = totalDemande(g);
   let boucle = 0;
-  while (demande > F.heuresProductionDispo(g) * 1.05 && g.cash > seuilInvest && g.heures >= 100 && boucle++ < 6) {
-    g = embaucher(g, "horloger");
-    g = { ...g, heures: g.heures - C.COUTS_H.atelier, cash: g.cash - C.ATELIER_COUT,
-      ateliers: g.ateliers + 1, capacite: g.capacite + C.ATELIER_HEURES };
+  while (demande > F.heuresProductionDispo(g) * 1.05 && g.heures >= C.COUTS_H.embauche && boucle++ < 8) {
+    const postesLibres = g.capacite - g.heures - F.heuresEmployes(g.employes) * F.encadrement(g.employes).efficacite;
+    if (postesLibres >= C.HEURES_EMPLOYE * 0.5 && g.cash > seuilInvest) {
+      g = embaucher(g, "horloger");
+      continue;
+    }
+    if (g.cash > C.ATELIER_COUT + seuilInvest && g.heures >= C.COUTS_H.atelier) {
+      g = { ...g, heures: g.heures - C.COUTS_H.atelier, cash: g.cash - C.ATELIER_COUT,
+        ateliers: g.ateliers + 1, capacite: g.capacite + C.ATELIER_HEURES };
+      continue;
+    }
+    break;
   }
   if (F.heuresProductionDispo(g) >= demande * 0.9) {
     for (const c of F.canauxOuvrables(g)) {

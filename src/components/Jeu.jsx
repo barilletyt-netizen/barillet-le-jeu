@@ -4,7 +4,8 @@ import Jauge from "./Jauge.jsx";
 import BarreStatut from "./BarreStatut.jsx";
 import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
-  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
+  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, POSTES_PAR_EXTENSION,
+  COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
   HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
 } from "../data/config.js";
 import { OPPORTUNITES } from "../data/evenements.js";
@@ -13,7 +14,7 @@ import {
   complicationsVerrouillees, coutFacelift, coutRD, coutUnitaire, dureeDev, encadrement,
   fmtArgent, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
-  materiauxRecherchables, nbEmployes, nomComplications, num, paletteComplication,
+  materiauxRecherchables, nbEmployes, nbProduction, nomComplications, num, paletteComplication,
   porteeTotale, qualiteNouveau, tresorerie,
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
@@ -76,6 +77,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const portee = porteeTotale(g.canaux);
   const marge = margeMoyenne(g.canaux);
   const tres = tresorerie(g);
+  const libres = dispoProd - charge;
 
   // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
   // guider le joueur, pas un prix suggéré.
@@ -155,30 +157,53 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        {/* L'encadrement manquant se voit dès l'embauche, pas seulement dans le
+            rapport de fin de trimestre. */}
+        {enc.manque > 0 && (
+          <div style={{ ...S.panel, borderColor: "#D06050" }}>
+            <span style={S.red}>
+              ⚠ Atelier sous-encadré — il manque {enc.manque} chef{enc.manque > 1 ? "s" : ""} d'atelier.
+            </span>
+            <br />
+            <span style={S.steel}>
+              {enc.chefs} chef{enc.chefs > 1 ? "s" : ""} pour {nbProduction(g.employes)} personnes en production
+              (1 pour {ENCADREMENT_PAR_CHEF}). L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures, soit{" "}
+              {fmtH(Math.round(mainOeuvreEquipe * (1 - enc.efficacite)))} perdues ce trimestre.
+            </span>
+          </div>
+        )}
+
         {/* Le budget d'heures est la ressource centrale : il passe avant les jauges. */}
         <div style={{ ...S.panel, borderColor: "#C9A227" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={S.jauge}>Vos heures ce trimestre</span>
-            <span style={{ ...S.gold, fontSize: 24 }}>
-              {g.heures}
-              <span style={S.steel}>/{HEURES_FONDATEUR} h</span>
+            <span style={S.jauge}>Heures libres ce trimestre</span>
+            <span style={{ ...(libres < 0 ? S.red : S.gold), fontSize: 24 }}>
+              {fmtH(libres)}
+              <span style={S.steel}> sur {fmtH(dispoProd)}</span>
             </span>
           </div>
           <div style={{ background: "#0E140F", border: "1px solid #2A3A2C", height: 10, marginTop: 6 }}>
-            <div style={{ background: "#C9A227", height: "100%", width: (100 * g.heures) / HEURES_FONDATEUR + "%" }} />
+            <div
+              style={{
+                background: libres < 0 ? "#D06050" : "#C9A227",
+                height: "100%",
+                width: (dispoProd > 0 ? Math.max(0, Math.min(100, (100 * libres) / dispoProd)) : 0) + "%",
+              }}
+            />
+          </div>
+          {/* Le détail du calcul, pour que le solde soit vérifiable de tête. */}
+          <div style={{ ...S.steel, marginTop: 8 }}>
+            Vos heures {fmtH(g.heures)} sur {fmtH(HEURES_FONDATEUR)}
+            {mainOeuvreEquipe > 0
+              ? " + atelier " + fmtH(Math.round(mainOeuvreEquipe * enc.efficacite)) +
+                (enc.efficacite < 1 ? " (encadrement " + fmtPct(enc.efficacite) + ")" : "")
+              : ""}
+            {dispoProd >= g.capacite ? " — plafonné par vos postes (" + fmtH(g.capacite) + ")" : ""}
+            <br />− production planifiée {fmtH(charge)} = <span style={libres < 0 ? S.red : S.green}>{fmtH(libres)}</span> libres
           </div>
           <div style={{ ...S.steel, marginTop: 6 }}>
-            Les heures que vous ne dépensez pas partent à l'établi : elles produisent des montres et font
-            monter le savoir-faire.
-          </div>
-          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
-            <span style={S.steel}>
-              Atelier : <span style={{ color: charge > dispoProd ? "#D06050" : "#EDE6D6" }}>{fmtH(charge)}</span> planifiées
-              sur {fmtH(dispoProd)} disponibles
-            </span>
-            <span style={S.steel}>
-              (vous {fmtH(g.heures)} + équipe {fmtH(mainOeuvreEquipe)}, postes {fmtH(g.capacite)})
-            </span>
+            Les heures libres partent à l'établi en fin de trimestre : elles font monter le savoir-faire.
+            Attention, une action prise après avoir réglé la production mange les mêmes heures.
           </div>
           {heuresPerdues > 0 && (
             <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
@@ -186,12 +211,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               pour qu'elles servent à quelque chose.
             </div>
           )}
-          {enc.manque > 0 && (
-            <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
-              ⚠ Atelier sous-encadré : {enc.manque} chef{enc.manque > 1 ? "s" : ""} d'atelier manquant
-              {enc.manque > 1 ? "s" : ""}. L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures.
-            </div>
-          )}
+
         </div>
 
         <div style={{ ...S.panel, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -619,35 +639,58 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                 </span>
                 <br />
                 <span style={S.steel}>
-                  Agrandissez l'atelier ({fmtArgent(ATELIER_COUT)}, +{ATELIER_HEURES} h de postes) avant d'embaucher,
-                  ou vous paierez un salaire pour rien.
+                  Une extension ({fmtArgent(ATELIER_COUT)}) ouvre {POSTES_PAR_EXTENSION} postes d'un coup, soit{" "}
+                  {fmtH(ATELIER_HEURES)} : de quoi accueillir plusieurs embauches d'affilée.
                 </span>
               </div>
             )}
-            {Object.entries(EMPLOYES).map(([k, e]) => (
-              <button
-                key={k}
-                style={S.btn(false)}
-                onClick={() => {
-                  actions.embaucher(k);
-                  marquer("embauche");
-                  setPanneau(null);
-                }}
-              >
-                {e.icon} <span style={S.gold}>{e.nom}</span>{" "}
-                <span style={S.steel}>— {fmtArgent(e.fixes)}/trim · {e.desc}</span>
-                {e.production && (
-                  <>
-                    <br />
-                    <span style={{ ...S.steel, color: gainEmbauche > 0 ? "#8FBF7F" : "#D06050" }}>
-                      {gainEmbauche > 0
-                        ? "→ " + fmtH(gainEmbauche) + " réellement utilisables avec vos postes actuels"
-                        : "→ 0 h utilisable : vos postes d'atelier sont saturés"}
-                    </span>
-                  </>
-                )}
-              </button>
-            ))}
+            {Object.entries(EMPLOYES).map(([k, e]) => {
+              // Encadrement tel qu'il serait APRÈS cette embauche : le joueur doit
+              // voir la conséquence avant de cliquer, pas au rapport suivant.
+              const apres = encadrement({ ...g.employes, [k]: g.employes[k] + 1 });
+              return (
+                <button
+                  key={k}
+                  style={S.btn(false)}
+                  onClick={() => {
+                    actions.embaucher(k);
+                    marquer("embauche");
+                    setPanneau(null);
+                  }}
+                >
+                  {e.icon} <span style={S.gold}>{e.nom}</span>{" "}
+                  <span style={S.steel}>— {fmtArgent(e.fixes)}/trim · {e.desc}</span>
+                  {e.production && (
+                    <>
+                      <br />
+                      <span style={{ ...S.steel, color: gainEmbauche > 0 ? "#8FBF7F" : "#D06050" }}>
+                        {gainEmbauche > 0
+                          ? "→ " + fmtH(gainEmbauche) + " réellement utilisables avec vos postes actuels"
+                          : "→ 0 h utilisable : vos postes d'atelier sont saturés"}
+                      </span>
+                      {apres.manque > enc.manque && (
+                        <>
+                          <br />
+                          <span style={S.red}>
+                            → demandera un chef d'atelier de plus ({apres.chefs}/{apres.requis}), sinon l'équipe
+                            tombe à {fmtPct(apres.efficacite)} de ses heures
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {k === "chef" && enc.manque > 0 && (
+                    <>
+                      <br />
+                      <span style={S.green}>
+                        → comble un encadrement manquant : l'équipe passe de {fmtPct(enc.efficacite)} à{" "}
+                        {fmtPct(apres.efficacite)} de ses heures
+                      </span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
             <button style={S.ghost} onClick={() => setPanneau(null)}>
               Annuler
             </button>
@@ -748,8 +791,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         <button style={S.action(ok(COUTS_H.atelier, ATELIER_COUT))} onClick={jouer("atelier", () => actions.action("atelier"))}>
           🏭 Agrandir l'atelier{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.atelier)}, {fmtArgent(ATELIER_COUT)}) — +{ATELIER_HEURES} h de postes, fixes +
-            {fmtArgent(ATELIER_FIXES)}/trim
+            ({fmtH(COUTS_H.atelier)}, {fmtArgent(ATELIER_COUT)}) — {POSTES_PAR_EXTENSION} postes de plus, soit +
+            {fmtH(ATELIER_HEURES)}/trim · fixes +{fmtArgent(ATELIER_FIXES)}/trim
           </span>{fait("atelier")}
         </button>
 

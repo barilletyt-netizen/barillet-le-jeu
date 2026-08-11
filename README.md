@@ -106,6 +106,23 @@ Trois testeurs externes, tous en faillite rapide sans l'avoir vue venir.
 Le format de sauvegarde reste `barillet-save-v7`, inchangé : les parties de
 testeurs en cours restent lisibles.
 
+### Retours de beta, vague 2 (v0.6.2)
+
+- **Le compteur d'heures est devenu un solde unique** : `heures du fondateur
+  restantes + heures d'atelier (corrigées de l'encadrement) − production
+  planifiée`. Programmer 200 pièces de quartz fait passer le solde de 360 h à
+  160 h, immédiatement. Le détail du calcul s'affiche sous le solde et dans la
+  barre, pour qu'il reste vérifiable.
+- **L'atelier s'agrandit par tranches de 4 postes** (200'000 CHF, +1'800 h,
+  14'000 CHF/trim) au lieu d'un poste à la fois, et l'atelier de départ passe à
+  810 h : le fondateur plus un compagnon, pour que la première embauche serve
+  tout de suite.
+- **L'encadrement se voit avant de cliquer** : le panneau d'embauche annonce si
+  ce recrutement va demander un chef d'atelier de plus et à quelle efficacité
+  l'équipe tomberait, et l'entrée « chef d'atelier » chiffre le gain. L'alerte
+  de sous-encadrement est passée en bandeau, au même rang que l'alerte de
+  faillite, avec les heures perdues du trimestre.
+
 ## Structure
 
 ```

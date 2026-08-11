@@ -1,31 +1,38 @@
 import { useEffect, useRef, useState } from "react";
 import { S } from "../styles.js";
-import { HEURES_FONDATEUR } from "../data/config.js";
-import { fmtArgent, fmtH, tresorerie } from "../engine/formules.js";
+import {
+  chargeHeures, fmtArgent, fmtH, heuresEmployes, heuresProductionDispo, encadrement, tresorerie,
+} from "../engine/formules.js";
 
 /**
  * Barre de statut persistante, collée en bas (public principal : mobile).
  *
- * Trois informations seulement — heures, caisse, trimestre — parce que le
- * problème remonté en beta est la perte de vue de ces trois chiffres pendant la
- * navigation dans les panneaux, pas un manque d'information générale. Les jauges
- * restent dans le corps de la page.
+ * Le chiffre mis en avant est le solde d'heures **réellement libres** : les
+ * heures du fondateur encore disponibles, plus celles de l'atelier, moins la
+ * production déjà planifiée. Retour de beta : la barre n'affichait que les
+ * heures du fondateur et ne bougeait pas quand on programmait la production —
+ * impossible de savoir ce qu'il restait.
  */
 export default function BarreStatut({ g, autosaveAt }) {
   const tres = tresorerie(g);
 
-  // Le décompte d'heures doit se voir au moment où l'action est prise.
+  const dispo = heuresProductionDispo(g);
+  const planifie = chargeHeures(g.modeles);
+  const libres = dispo - planifie;
+  const equipe = Math.round(heuresEmployes(g.employes) * encadrement(g.employes).efficacite);
+
+  // Le solde doit réagir à la seconde où l'on agit ou où l'on planifie.
   const [delta, setDelta] = useState(null);
-  const precedent = useRef(g.heures);
+  const precedent = useRef(libres);
   useEffect(() => {
     const avant = precedent.current;
-    precedent.current = g.heures;
-    if (g.heures < avant) {
-      setDelta(g.heures - avant);
+    precedent.current = libres;
+    if (libres !== avant) {
+      setDelta(libres - avant);
       const id = setTimeout(() => setDelta(null), 1200);
       return () => clearTimeout(id);
     }
-  }, [g.heures]);
+  }, [libres]);
 
   // « sauvegarde auto ✓ » : les testeurs demandaient si le jeu sauvegardait.
   const [sauve, setSauve] = useState(false);
@@ -36,26 +43,30 @@ export default function BarreStatut({ g, autosaveAt }) {
     return () => clearTimeout(id);
   }, [autosaveAt]);
 
-  const part = Math.max(0, Math.min(100, (100 * g.heures) / HEURES_FONDATEUR));
-  const couleurHeures = g.heures === 0 ? "#D06050" : g.heures < HEURES_FONDATEUR * 0.25 ? "#E0B44A" : "#C9A227";
+  const part = dispo > 0 ? Math.max(0, Math.min(100, (100 * libres) / dispo)) : 0;
+  const couleur = libres < 0 ? "#D06050" : libres < dispo * 0.15 ? "#E0B44A" : "#C9A227";
 
   return (
     <div style={S.barre}>
-      {/* Jauge d'heures en fond, pour lire le budget restant d'un coup d'œil. */}
       <div style={{ height: 3, background: "#0E140F" }}>
-        <div style={{ height: "100%", width: part + "%", background: couleurHeures, transition: "width 320ms ease-out" }} />
+        <div style={{ height: "100%", width: part + "%", background: couleur, transition: "width 320ms ease-out" }} />
       </div>
 
       <div style={S.barreContenu}>
         <div style={{ position: "relative" }}>
-          <div style={S.barreLabel}>Heures</div>
+          <div style={S.barreLabel}>Heures libres</div>
           <div
-            key={g.heures}
-            style={{ ...S.barreValeur, color: couleurHeures, animation: delta ? "barillet-pulse 600ms ease-out" : "none" }}
+            key={libres}
+            style={{ ...S.barreValeur, color: couleur, animation: delta ? "barillet-pulse 600ms ease-out" : "none" }}
           >
-            {fmtH(g.heures)}
+            {fmtH(libres)}
           </div>
-          {delta !== null && <div style={S.barreDelta}>{delta} h</div>}
+          {delta !== null && (
+            <div style={{ ...S.barreDelta, color: delta < 0 ? "#D06050" : "#8FBF7F" }}>
+              {delta > 0 ? "+" : ""}
+              {delta} h
+            </div>
+          )}
         </div>
 
         <div>
@@ -69,6 +80,21 @@ export default function BarreStatut({ g, autosaveAt }) {
             T{g.t} {g.annee}
           </div>
         </div>
+      </div>
+
+      {/* La décomposition, pour que le solde ne soit jamais un chiffre magique. */}
+      <div style={S.barreDetail}>
+        {libres < 0 ? (
+          <span style={S.red}>
+            ⚠ Vous avez planifié {fmtH(-libres)} de trop : la production sera réduite au prorata.
+          </span>
+        ) : (
+          <>
+            vous {fmtH(g.heures)}
+            {equipe > 0 ? " + atelier " + fmtH(equipe) : ""} − production planifiée {fmtH(planifie)}
+            {dispo >= g.capacite ? " · postes pleins (" + fmtH(g.capacite) + ")" : ""}
+          </>
+        )}
       </div>
     </div>
   );

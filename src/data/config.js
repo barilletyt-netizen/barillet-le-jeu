@@ -290,10 +290,23 @@ export const IMPOT_TAUX = 0.18;
 
 // ---- Atelier et coûts fixes ---------------------------------------------
 // L'atelier est un plafond d'heures : embaucher sans agrandir ne sert à rien.
-export const CAPACITE_DEPART = 500;
-export const ATELIER_COUT = 120000;
-export const ATELIER_HEURES = 450;
-export const ATELIER_FIXES = 6000;
+//
+// Retour de beta : agrandir poste par poste était fastidieux — « on doit mettre
+// directement un bureau pour 4 personnes plutôt qu'une seule ». Une extension
+// ouvre donc quatre postes d'un coup, à un prix unitaire dégressif (85'000 le
+// poste contre 120'000 avant — on construit une halle, pas un établi de plus).
+// En contrepartie l'atelier de départ accueille déjà le fondateur et un
+// compagnon : la première embauche sert tout de suite, et l'extension n'arrive
+// qu'au moment de passer à l'échelle.
+//
+// Le prix a été calé par simulation : à 340'000, l'extension devenait un mur
+// infranchissable pour les départs modestes et personne ne dépassait 670'000 de
+// CA sur cinquante ans. À 200'000 la marche reste haute mais se franchit.
+export const POSTES_PAR_EXTENSION = 4;
+export const CAPACITE_DEPART = 810;
+export const ATELIER_COUT = 200000;
+export const ATELIER_HEURES = 1800;
+export const ATELIER_FIXES = 14000;
 export const FIXES_BASE = 12000;
 
 // ---- Crédibilité (rééquilibrage S2) -------------------------------------
