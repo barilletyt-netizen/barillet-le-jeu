@@ -24,6 +24,21 @@ const ANCRAGES = [
 ];
 
 export const RANG_MAX = 2200;
+
+// Le marché grossit : ce qui suffisait à entrer au Top 50 en 2015 ne suffit plus
+// vingt ans plus tard. Version minimale du classement vivant (le reste en S3) :
+// toute la table d'ancrage est indexée sur cette croissance.
+// ~60 M en 2015, ~152 M en 2040, ~390 M en 2065.
+export const CROISSANCE_MARCHE = 0.038;
+const ANNEE_REFERENCE = 2015;
+
+export const facteurMarche = (annee = ANNEE_REFERENCE) =>
+  Math.pow(1 + CROISSANCE_MARCHE, Math.max(0, (annee || ANNEE_REFERENCE) - ANNEE_REFERENCE));
+
+/** Revenus annuels qu'il faut atteindre pour entrer au Top 50 cette année-là. */
+export const revenusTop50 = (annee = ANNEE_REFERENCE) => Math.round(60000000 * facteurMarche(annee));
+
+// Conservé pour l'affichage hors partie (page d'introduction).
 export const REVENUS_TOP50 = 60000000;
 
 const logInterp = (x, x0, x1, y0, y1) => {
@@ -31,8 +46,10 @@ const logInterp = (x, x0, x1, y0, y1) => {
   return Math.exp(Math.log(y0) + t * (Math.log(y1) - Math.log(y0)));
 };
 
-/** Rang mondial pour un chiffre d'affaires annuel. */
-export function rangPour(rev) {
+/** Rang mondial pour un chiffre d'affaires annuel, à l'année donnée. */
+export function rangPour(revBrut, annee = ANNEE_REFERENCE) {
+  // On ramène le chiffre au barème de 2015 : c'est la barre qui monte.
+  const rev = revBrut / facteurMarche(annee);
   if (rev >= ANCRAGES[0][0]) return 1;
   if (rev <= ANCRAGES[ANCRAGES.length - 1][0]) return RANG_MAX;
   for (let i = 0; i < ANCRAGES.length - 1; i++) {
@@ -46,17 +63,18 @@ export function rangPour(rev) {
 }
 
 /** Chiffre d'affaires qu'il faut réaliser pour tenir ce rang. Inverse de rangPour. */
-export function revenusPourRang(rang) {
+export function revenusPourRang(rang, annee = ANNEE_REFERENCE) {
+  const f = facteurMarche(annee);
   const r = Math.max(1, Math.min(RANG_MAX, rang));
-  if (r <= ANCRAGES[0][1]) return ANCRAGES[0][0];
+  if (r <= ANCRAGES[0][1]) return Math.round(ANCRAGES[0][0] * f);
   for (let i = 0; i < ANCRAGES.length - 1; i++) {
     const [revHaut, rangHaut] = ANCRAGES[i];
     const [revBas, rangBas] = ANCRAGES[i + 1];
     if (r >= rangHaut && r <= rangBas) {
-      return Math.round(logInterp(r, rangBas, rangHaut, revBas, revHaut));
+      return Math.round(logInterp(r, rangBas, rangHaut, revBas, revHaut) * f);
     }
   }
-  return ANCRAGES[ANCRAGES.length - 1][0];
+  return Math.round(ANCRAGES[ANCRAGES.length - 1][0] * f);
 }
 
 /**
@@ -64,9 +82,9 @@ export function revenusPourRang(rang) {
  * dérivés de la même table que le rang du joueur : un voisin mieux classé gagne
  * forcément plus, et personne n'est 92e avec plus de chiffre qu'un 50e.
  */
-export function voisins(rang, revenus) {
+export function voisins(rang, revenus, annee = ANNEE_REFERENCE) {
   const pick = (i) => INDES[(rang * 7 + i * 13) % INDES.length];
-  const ligne = (r, i) => ({ rang: r, nom: pick(i), rev: revenusPourRang(r) });
+  const ligne = (r, i) => ({ rang: r, nom: pick(i), rev: revenusPourRang(r, annee) });
   const dessus = [
     Math.max(1, rang - Math.max(3, Math.round(rang * 0.08))),
     Math.max(1, rang - Math.max(1, Math.round(rang * 0.03))),

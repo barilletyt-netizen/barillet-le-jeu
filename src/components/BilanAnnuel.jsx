@@ -1,9 +1,9 @@
 import { S } from "../styles.js";
-import { CLASSEMENT_MONDE, REVENUS_TOP50, voisins } from "../data/monde.js";
+import { CLASSEMENT_MONDE, revenusTop50, voisins } from "../data/monde.js";
 import { fmtArgent, fmtM } from "../engine/formules.js";
 
 export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
-  const v = voisins(b.rang, b.revenus);
+  const v = voisins(b.rang, b.revenus, b.annee);
   const trims = journal.filter((j) => j.annee === b.annee);
 
   return (
@@ -74,7 +74,10 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
             </span>
           )}
           <br />
-          <span style={S.steel}>Objectif Top 50 : {fmtArgent(REVENUS_TOP50)} de revenus annuels.</span>
+          <span style={S.steel}>
+            Objectif Top 50 en {b.annee} : {fmtArgent(revenusTop50(b.annee))} de revenus annuels.
+            {b.annee > 2015 ? " La barre monte d'environ 4% par an — le marché grossit aussi." : ""}
+          </span>
         </div>
 
         <button style={S.cta} onClick={onContinuer}>

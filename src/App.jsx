@@ -431,7 +431,7 @@ export default function App() {
     }
     setRapport(rap);
     if (g.t >= 4) {
-      const rang = rangPour(gs2.revenusAnnee);
+      const rang = rangPour(gs2.revenusAnnee, g.annee);
       setBilanAnnuel({
         annee: g.annee, revenus: gs2.revenusAnnee, rang,
         prec: g.revenusAnneePrec, meilleurRang: Math.min(rang, g.meilleurRang),
@@ -453,7 +453,7 @@ export default function App() {
         return;
       }
       if (etat.t >= 4) {
-        const rang = rangPour(gs2.revenusAnnee);
+        const rang = rangPour(gs2.revenusAnnee, etat.annee);
         setBilanAnnuel({
           annee: etat.annee, revenus: gs2.revenusAnnee, rang,
           prec: etat.revenusAnneePrec, meilleurRang: Math.min(rang, etat.meilleurRang),
