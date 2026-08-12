@@ -346,7 +346,9 @@ export function materiauxRecherchables(g) {
 
 // ---- Image --------------------------------------------------------------
 // Playtest : la notoriété montait trop vite, la demande suivait sans effort.
-export const gainMarketing = (g, pays) => Math.max(1, Math.round((5 - g.noto / 20) * PAYS[pays].mktMult));
+// Ralenti d'un cran de plus post-S3 : se faire un nom prend des années, et
+// c'est ce qui étire la rampe des deux premières décennies.
+export const gainMarketing = (g, pays) => Math.max(1, Math.round((4 - g.noto / 22) * PAYS[pays].mktMult));
 export const gainChoc = (g, pays) => Math.max(3, Math.round((9 - g.noto / 14) * PAYS[pays].mktMult));
 
 // ---- Demande ------------------------------------------------------------

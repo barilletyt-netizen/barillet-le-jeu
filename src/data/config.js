@@ -293,6 +293,9 @@ export const SATURATION_DECROISSANCE = 0.75;
 // Chaque canal a 3 paliers. `portee` multiplie le volume accessible, `marge` est
 // la part du prix qui revient à la marque : les détaillants agréés ouvrent le
 // volume mais prennent leur commission.
+// Le ticket d'entrée des premiers paliers a été relevé après S3 : se faire
+// distribuer prend du temps et de l'argent, et c'est ce qui étire la rampe des
+// premières années sans toucher au plafond de fin de partie.
 export const CANAUX = {
   direct: {
     nom: "Vente directe", icon: "🤝", marge: 1.0,
@@ -307,7 +310,7 @@ export const CANAUX = {
     nom: "E-commerce", icon: "💻", marge: 0.92,
     desc: "Votre boutique en ligne. Frais de paiement et logistique.",
     paliers: [
-      { nom: "Site vitrine", portee: 0.6, cout: 25000, fixes: 3000, heures: 60 },
+      { nom: "Site vitrine", portee: 0.6, cout: 35000, fixes: 3000, heures: 60 },
       { nom: "Boutique en ligne", portee: 1.2, cout: 80000, fixes: 8000, heures: 60 },
       { nom: "Plateforme internationale", portee: 2.0, cout: 250000, fixes: 20000, heures: 80 },
     ],
@@ -316,7 +319,7 @@ export const CANAUX = {
     nom: "Foires et salons", icon: "🎪", marge: 0.95, bonusCred: 1,
     desc: "Stands et salons. Coûte cher en fixe, entretient la crédibilité.",
     paliers: [
-      { nom: "Salons régionaux", portee: 0.4, cout: 20000, fixes: 8000, heures: 80 },
+      { nom: "Salons régionaux", portee: 0.4, cout: 30000, fixes: 8000, heures: 80 },
       { nom: "Circuit européen", portee: 0.8, cout: 60000, fixes: 18000, heures: 80 },
       { nom: "Salons mondiaux", portee: 1.4, cout: 150000, fixes: 40000, heures: 100 },
     ],
@@ -325,7 +328,7 @@ export const CANAUX = {
     nom: "Détaillants agréés", icon: "🏬", marge: 0.55, reqCred: 6,
     desc: "Le volume, mais 45% du prix part chez le revendeur.",
     paliers: [
-      { nom: "Quelques revendeurs", portee: 1.5, cout: 15000, fixes: 4000, heures: 80 },
+      { nom: "Quelques revendeurs", portee: 1.5, cout: 30000, fixes: 4000, heures: 80 },
       { nom: "Réseau national", portee: 3.0, cout: 60000, fixes: 10000, heures: 80 },
       { nom: "Réseau mondial", portee: 5.0, cout: 200000, fixes: 25000, heures: 100 },
     ],

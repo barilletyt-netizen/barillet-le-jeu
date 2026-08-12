@@ -211,6 +211,8 @@ Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-
 | Demande de base, haut de gamme | connaisseurs 750 → 2 100, bling 280 → 800 | Le haut de gamme était dix fois moins demandé à l'unité ; écart de CA 15× → 5,9× |
 | Pools haut de gamme | rendus à 90 000 / 30 000 | Compensation levée : le frein est le temps d'atelier, plus un marché rétréci artificiellement |
 | Seuil Top 50 | 60 M en 2015, +3,0 %/an | Calé aux bots (voir ci-dessous) |
+| Gain de notoriété | (4 − noto/22) au lieu de (5 − noto/20) | Se faire un nom prend des années : étire la rampe des deux premières décennies |
+| Premiers paliers de distribution | e-commerce 35 k, salons 30 k, détaillants 30 k | Même intention : le ticket d'entrée de la distribution retarde le décollage sans toucher au plafond |
 
 ### État de validation
 
@@ -224,7 +226,9 @@ Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-
 
 **Pourquoi (a) résiste, et ce n'est pas une question de seuil.** Les quatre bots atteignent leur plafond vers 2035-2040 puis restent plats trente ans (Volumiste : 98 M en 2035, 130 M en 2065). Face à une courbe plate, aucun seuil exponentiel ne peut créer de couloir : mesuré, à 2,8 %/an une stratégie entre dès 2036, à 3,0 %/an plus personne n'entre. Il n'existe pas de valeur intermédiaire.
 
-**Prochain chantier** : allonger la rampe de croissance au-delà de 2040. Deux pistes à trancher —
+**Où en est la rampe après le freinage du début (v0.9.1).** Le Volumiste passe désormais par 11 M en 2020, 28 M en 2025, 59 M en 2030, 97 M en 2035, et culmine au **rang 55** vers 2035-2040 — au pied du Top 50 sans y entrer. Un joueur humain, qui fait environ deux fois mieux qu'un bot, entre donc dans le classement ; le bot n'y arrive pas tout à fait. C'est le couloir recherché, atteint par le bas plutôt que par le calendrier.
+
+**Ce qui reste ouvert** : l'entrée se jouerait vers 2035-2040 plutôt que 2050-2065, et la courbe redescend ensuite parce que le seuil monte plus vite que la marque. Deux pistes si l'on veut vraiment déplacer la fenêtre —
 1. *Ralentir le début* pour que le plafond soit atteint vers 2055 plutôt que 2035 (cohérent avec l'intention « une à deux années avant le décollage », mais le début a déjà été durci deux fois) ;
 2. *Faire croître le marché lui-même* (pools indexés sur la croissance), pour que le plafond monte avec le temps et qu'il faille surpasser le marché, pas seulement le rejoindre.
 
