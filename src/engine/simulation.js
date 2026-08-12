@@ -9,6 +9,8 @@ import {
   fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
+import { mondeInitial, evoluerMonde, breveConcurrent } from "./monde.js";
+import { recitTrimestre } from "./recit.js";
 
 const SEGMENTS_VIDE = { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 };
 
@@ -37,6 +39,10 @@ export function etatInitial({ pays, profil, origine, marque }) {
     saturation: { ...SEGMENTS_VIDE }, // ventes récentes, se résorbent chaque trimestre
     segVendues: { ...SEGMENTS_VIDE }, // cumul, pour les statistiques
     journal: [], opportunite: null, oppRecentes: [],
+    // Actions prises pendant le trimestre en cours : matière première du récit.
+    actionsTour: [],
+    monde: mondeInitial(),
+    faitsMonde: [],
     messages: [
       "T1 " + ANNEE_DEBUT + " — " + (marque || "Votre marque") + " est née. Capital : " +
       fmtArgent(capital) + (o.dette ? " (dette : " + fmtArgent(o.dette) + ")" : "") +
@@ -246,6 +252,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
 
   const faillite = cash < -50000;
 
+  // Le récit se construit après coup, une fois les chiffres connus.
+  const breve = breveConcurrent(gs.monde || mondeInitial(), gs.faitsMonde || []);
+
   const rap = {
     annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
     coutsProd, fixes, interets, impot, resultat, resultatNet: resultat - impot,
@@ -256,6 +265,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     heuresEquipe: heuresEmployes(employes),
     encadrement: enc, capacite: gs.capacite,
   };
+  rap.recit = recitTrimestre(rap, gs, gs.actionsTour || [], breve);
 
   const gs2 = {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,

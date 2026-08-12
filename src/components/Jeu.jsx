@@ -46,6 +46,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   }, [tour]);
 
   const marquer = (cle) => setFaites((f) => ({ ...f, [cle]: (f[cle] || 0) + 1 }));
+  // Identifiants normalisés (« atelier-petit » → « atelier ») pour le récit.
+  const actionsPrises = () => [...new Set(Object.keys(faites).map((k) => k.split("-")[0]))];
   const fait = (cle) =>
     faites[cle] ? (
       <span style={S.green}> ✓ fait{faites[cle] > 1 ? " ×" + faites[cle] : ""}</span>
@@ -945,13 +947,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
 
         {/* Les testeurs ne savaient pas ce qui était immédiat et ce qui attendait
             la fin du trimestre : on le dit sur le bouton qui déclenche le calcul. */}
-        <button style={S.cta} onClick={actions.finTrimestre}>
+        {/* Les actions du trimestre alimentent le récit : on les transmet au moteur. */}
+        <button style={S.cta} onClick={() => actions.finTrimestre(actionsPrises())}>
           FIN DU TRIMESTRE ▸
         </button>
         <div style={{ ...S.steel, textAlign: "center", marginTop: 4 }}>
           Les ventes, les coûts et la production se calculent maintenant.
         </div>
-        <button style={S.ghost} onClick={actions.passerAnnee}>
+        <button style={S.ghost} onClick={() => actions.passerAnnee(actionsPrises())}>
           ▸▸ Passer à la fin de l'année (sans autres actions)
         </button>
 

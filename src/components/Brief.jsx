@@ -32,6 +32,25 @@ export default function Brief({ onContinuer, onRetour }) {
           {fmtArgent(REVENUS_TOP50)} de revenus annuels. Vous commencez très loin de là.
         </div>
 
+        <div style={S.h2}>OÙ VOUS ARRIVEZ</div>
+        <div style={S.panel}>
+          <span style={S.steel}>
+            <span style={S.gold}>Janvier 2015.</span> La Banque nationale vient d'abandonner le taux plancher :
+            le franc s'envole de 20% en une matinée et toute l'industrie suisse se réveille avec des coûts
+            insupportables. Les grands groupes encaissent, les petits ferment.
+            <br />
+            <br />
+            Au même moment, une montre connectée américaine s'apprête à sortir et personne ne sait encore si
+            elle balaiera l'entrée de gamme ou si elle passera comme une mode. Les salons sont pleins, le
+            marché chinois ralentit, et la profession n'ose pas le dire tout haut.
+            <br />
+            <br />
+            C'est le moment que vous choisissez pour fonder votre marque. Vous n'êtes personne, vous n'avez
+            pas de nom, pas de réseau et pas d'atelier — juste un établi et le temps que vous voudrez bien y
+            passer.
+          </span>
+        </div>
+
         <div style={S.h2}>LES RÈGLES</div>
         <div style={S.panel}>
           <Regle titre="Un tour = un trimestre">

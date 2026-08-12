@@ -9,6 +9,21 @@ export default function Rapport({ r, onContinuer }) {
           Rapport T{r.t} {r.annee}
         </div>
 
+        {/* La chronique d'abord : c'est elle qui donne le sens des chiffres qui suivent. */}
+        {r.recit && r.recit.length > 0 && (
+          <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 12 }}>
+            {r.recit.map((p, i) => (
+              <div key={i} style={{ marginBottom: i === r.recit.length - 1 ? 0 : 10, lineHeight: 1.45 }}>
+                {i === r.recit.length - 1 && r.recit.length > 1 ? (
+                  <span style={S.steel}>{p}</span>
+                ) : (
+                  p
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {r.evt && (
           <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>
             <span style={S.gold}>⚡ {r.evt.titre}</span>

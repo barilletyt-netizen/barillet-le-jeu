@@ -1,9 +1,11 @@
 import { S } from "../styles.js";
-import { CLASSEMENT_MONDE, revenusTop50, voisins } from "../data/monde.js";
+import { revenusTop50 } from "../data/monde.js";
+import { voisinsVivants } from "../engine/monde.js";
 import { fmtArgent, fmtM } from "../engine/formules.js";
 
-export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
-  const v = voisins(b.rang, b.revenus, b.annee);
+export default function BilanAnnuel({ b, marque, journal, monde, onContinuer }) {
+  const v = voisinsVivants(monde, b.rang, b.annee);
+  const geants = monde.geants;
   const trims = journal.filter((j) => j.annee === b.annee);
 
   return (
@@ -16,19 +18,24 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
         </div>
 
         <div style={{ ...S.panel, marginTop: 16 }}>
-          {CLASSEMENT_MONDE.map((c, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+          {geants.map((c, i) => (
+            <div key={c.nom} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
               <span>
                 <span style={S.steel}>#{i + 1}</span> {c.nom}
+                {/* Une flèche suffit à rendre le classement vivant. */}
+                {c.tendance > 0.05 && <span style={S.green}> ▲</span>}
+                {c.tendance < -0.05 && <span style={S.red}> ▼</span>}
               </span>
               <span style={S.steel}>{fmtM(c.rev)}</span>
             </div>
           ))}
           <div style={{ ...S.steel, textAlign: "center", padding: "4px 0" }}>· · ·</div>
-          {v.dessus.map((x, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+          {v.dessus.map((x) => (
+            <div key={x.nom} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
               <span>
                 <span style={S.steel}>#~{x.rang}</span> {x.nom}
+                {x.tendance > 20 && <span style={S.green}> ▲{x.tendance}</span>}
+                {x.tendance < -20 && <span style={S.red}> ▼{-x.tendance}</span>}
               </span>
               <span style={S.steel}>{fmtArgent(x.rev)}</span>
             </div>
@@ -39,10 +46,12 @@ export default function BilanAnnuel({ b, marque, journal, onContinuer }) {
             </span>
             <span style={S.gold}>{fmtArgent(b.revenus)}</span>
           </div>
-          {v.dessous.map((x, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
+          {v.dessous.map((x) => (
+            <div key={x.nom} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid #1E2A20" }}>
               <span>
                 <span style={S.steel}>#~{x.rang}</span> {x.nom}
+                {x.tendance > 20 && <span style={S.green}> ▲{x.tendance}</span>}
+                {x.tendance < -20 && <span style={S.red}> ▼{-x.tendance}</span>}
               </span>
               <span style={S.steel}>{fmtArgent(x.rev)}</span>
             </div>

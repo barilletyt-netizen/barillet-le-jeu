@@ -291,7 +291,7 @@ Mécanique : reviews = bonus/malus, jamais fatal. Presse achetable (voyages, mon
 21. Pénurie d'acier / de composants
 22. Un concurrent copie votre best-seller (fraîcheur −)
 
-## 8. Couche narrative (priorité anti-austérité — S3)
+## 8. Couche narrative (S3 — livrée)
 
 - **Récit trimestriel** : 1–2 paragraphes générés par gabarits, qui racontent le trimestre en intégrant (a) les actions prises par le joueur, (b) l'aléa/événement, (c) le résultat commercial, (d) une brève du monde. Ton : chronique horlogère, sérieux avec clins d'œil.
 - **Nouvelles des concurrents** : chaque trimestre, 1–2 brèves du monde (« Rolodex ouvre une boutique à Shanghai », « Ublot signe un footballeur », « Ferrand-Roux en difficulté — rachat possible »).
@@ -338,7 +338,7 @@ Simulation sérieuse avec clins d'œil. L'humour vit dans les noms, les événem
 - **S1 — portage ✅** : repo `barillet-le-jeu`, projet Vite + React, self-made à 10'000, capacité en heures, sauvegarde localStorage, déploiement GitHub Pages.
 - **S2 — moteur ✅** : système d'heures (fondateur + employés spécialisés), complications, rééquilibrage crédibilité, horizon → 2065.
 - **S2.5 — retours du premier smoke test ✅** : prix libre, canaux de distribution, recherche des matériaux, complications cumulables, encadrement, licenciements, impôts, cohérence du classement, rééquilibrage des volumes.
-- **S3 — narratif** : récit trimestriel, brèves concurrents, classement vivant, page d'intro.
+- **S3 — narratif ✅** : récit trimestriel, brèves concurrents, classement vivant, page d'introduction.
 - **S4 — rythme** : objectifs quinquennaux, événements 2026–2065, aléas complets, les 20 YouTubeurs.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, intégration audio.
 - **S6 — polish & beta** : équilibrage complet (une partie 2015–2065 testée), écrans de fin, build itch.io + GitHub Pages.

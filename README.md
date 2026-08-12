@@ -160,6 +160,20 @@ stratégie doit entrer au Top 50 entre 2050 et 2065 — reste ouvert : les bots
 plafonnent vers 2035 et restent plats, si bien qu'aucun seuil ne peut créer de
 couloir. Détail et pistes dans le lore, section équilibrage.
 
+### S3 — couche narrative (v0.9)
+
+- **Récit trimestriel** en tête du rapport : ce que vous avez fait de votre temps,
+  l'événement du trimestre, le résultat commercial, une brève de l'industrie.
+  Assemblé par gabarits (`src/engine/recit.js`), ton de chronique horlogère, sans
+  flatterie automatique — un mauvais trimestre se dit franchement.
+- **Classement vivant** (`src/engine/monde.js`) : les géants voient leurs revenus
+  dériver chaque année et peuvent se doubler ; les indépendants gardent leur
+  identité et gagnent ou perdent des places, avec flèche de tendance. Leurs
+  revenus restent déduits de la table des rangs, donc toujours cohérents.
+- **Brèves des concurrents** tirées en priorité des faits réels de l'année.
+- **Contexte 2015** dans la page d'introduction : taux plancher, Apple Watch,
+  ralentissement chinois.
+
 ## Structure
 
 ```

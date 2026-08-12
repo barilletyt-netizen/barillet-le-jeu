@@ -22,6 +22,7 @@ import {
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { hasard } from "./engine/alea.js";
+import { evoluerMonde } from "./engine/monde.js";
 import { setDevise } from "./engine/devise.js";
 import { nomDeMarque } from "./data/noms.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
@@ -436,8 +437,8 @@ export default function App() {
 
   // ---- Fin de trimestre ---------------------------------------------------
 
-  function finTrimestre() {
-    const { gs2, rap, faillite } = simulateQuarter(g, g.heures, ctx);
+  function finTrimestre(actionsPrises = []) {
+    const { gs2, rap, faillite } = simulateQuarter({ ...g, actionsTour: actionsPrises }, g.heures, ctx);
     if (faillite) {
       setFinInfo({ type: "faillite", annee: g.annee, revenus: gs2.revenusAnnee });
       setPhase("fin");
@@ -456,8 +457,8 @@ export default function App() {
   }
 
   // Enchaîne les trimestres restants de l'année sans repasser par le joueur.
-  function passerAnnee() {
-    let etat = g;
+  function passerAnnee(actionsPrises = []) {
+    let etat = { ...g, actionsTour: actionsPrises };
     let heures = g.heures;
     for (;;) {
       const { gs2, faillite } = simulateQuarter(etat, heures, ctx);
@@ -477,7 +478,8 @@ export default function App() {
         setPhase("annuel");
         return;
       }
-      etat = { ...gs2, t: etat.t + 1 };
+      // Les trimestres enchaînés automatiquement n'ont pas d'action du joueur.
+      etat = { ...gs2, t: etat.t + 1, actionsTour: [] };
       heures = HEURES_FONDATEUR;
     }
   }
@@ -487,7 +489,7 @@ export default function App() {
       setPhase("annuel");
       return;
     }
-    const etat = { ...g, t: g.t + 1, heures: HEURES_FONDATEUR };
+    const etat = { ...g, t: g.t + 1, heures: HEURES_FONDATEUR, actionsTour: [] };
     etat.opportunite = tirerOpportunite(etat);
     etat.messages = ["T" + etat.t + " " + etat.annee + " — à vous de jouer.", ...g.messages];
     setG(etat);
@@ -513,8 +515,13 @@ export default function App() {
       return;
     }
 
+    // Le monde bouge entre deux années : les géants se doublent, les
+    // indépendants montent et descendent, et ça alimente les brèves.
+    const { monde, faits } = evoluerMonde(g.monde, g.annee);
+
     const etat = {
-      ...g, annee: nouvelleAnnee, t: 1, heures: HEURES_FONDATEUR,
+      ...g, annee: nouvelleAnnee, t: 1, heures: HEURES_FONDATEUR, actionsTour: [],
+      monde, faitsMonde: faits,
       revenusAnneePrec: g.revenusAnnee, revenusAnnee: 0, meilleurRang,
       messages: ["T1 " + nouvelleAnnee + " — nouvelle année."],
     };
@@ -571,7 +578,7 @@ export default function App() {
 
   if (phase === "annuel" && bilanAnnuel) {
     return (
-      <BilanAnnuel b={bilanAnnuel} marque={marque} journal={g.journal} onContinuer={continuerApresAnnuel} />
+      <BilanAnnuel b={bilanAnnuel} marque={marque} journal={g.journal} monde={g.monde} onContinuer={continuerApresAnnuel} />
     );
   }
 
