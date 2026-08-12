@@ -6,7 +6,11 @@
 // Drapeau unique : à true, l'application ne sert que l'écran de fermeture. Le
 // jeu reste intégralement dans le code, rien n'est supprimé — repasser à false
 // suffit à rouvrir (beta de novembre).
-export const BETA_FERMEE = true;
+//
+// ATTENTION : `main` sert le panneau de fermeture (true). Sur la branche de
+// chantier il est à false pour pouvoir jouer et tester. Au moment de rouvrir,
+// c'est la seule ligne à vérifier.
+export const BETA_FERMEE = false;
 
 // Liens de l'écran de fermeture. Laisser à null tant que l'URL exacte n'est pas
 // confirmée : le texte s'affiche alors sans lien mort.
@@ -118,11 +122,15 @@ export const EMPLOYES = {
   },
   chef: {
     nom: "Chef d'atelier", icon: "📋", production: false, fixes: 14000, savoir: 1,
-    desc: "Encadre jusqu'à " + 5 + " personnes en production. Sans lui, l'atelier perd en efficacité.",
+    desc: "Encadre 5 personnes de production de plus, au-delà des 3 que vous gérez vous-même.",
   },
 };
 
-// Encadrement : au-delà de ce ratio, il faut des chefs d'atelier.
+// Encadrement. Le fondateur gère lui-même ses premiers employés : le chef
+// d'atelier est un palier de croissance, pas un prérequis à la première
+// embauche (retour de beta : la pénalité tombait dès le premier horloger et
+// rendait le démarrage incompréhensible).
+export const ENCADREMENT_SANS_CHEF = 3;
 export const ENCADREMENT_PAR_CHEF = 5;
 // Efficacité plancher quand personne n'encadre l'atelier.
 export const ENCADREMENT_PLANCHER = 0.55;

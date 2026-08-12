@@ -15,7 +15,8 @@ import {
   fmtArgent, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
   materiauxRecherchables, nbEmployes, nbProduction, nomComplications, num, paletteComplication,
-  porteeTotale, qualiteNouveau, tresorerie,
+  porteeTotale, qualiteNouveau, tresorerie, conseilFinancable, detailFixes, coutsFixes,
+  MARGE_CONSEIL_TRIMESTRES,
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
@@ -78,6 +79,11 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const marge = margeMoyenne(g.canaux);
   const tres = tresorerie(g);
   const libres = dispoProd - charge;
+  const fixes = coutsFixes(g);
+  // Un conseil ne pousse à une dépense que si le joueur garde de quoi tenir.
+  const peut = (montant) => conseilFinancable(g, montant);
+  const [voirFixes, setVoirFixes] = useState(false);
+  const sansProduction = actifs.filter((m) => num(m.prod) <= 0);
 
   // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
   // guider le joueur, pas un prix suggéré.
@@ -166,8 +172,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             </span>
             <br />
             <span style={S.steel}>
-              {enc.chefs} chef{enc.chefs > 1 ? "s" : ""} pour {nbProduction(g.employes)} personnes en production
-              (1 pour {ENCADREMENT_PAR_CHEF}). L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures, soit{" "}
+              {enc.chefs} chef{enc.chefs > 1 ? "s" : ""} pour {nbProduction(g.employes)} personnes en production.
+              Vous en encadrez {enc.sansChef} vous-même, il faut un chef par tranche de {ENCADREMENT_PAR_CHEF}
+              au-delà. L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures, soit{" "}
               {fmtH(Math.round(mainOeuvreEquipe * (1 - enc.efficacite)))} perdues ce trimestre.
             </span>
           </div>
@@ -202,13 +209,17 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             <br />− production planifiée {fmtH(charge)} = <span style={libres < 0 ? S.red : S.green}>{fmtH(libres)}</span> libres
           </div>
           <div style={{ ...S.steel, marginTop: 6 }}>
-            Les heures libres partent à l'établi en fin de trimestre : elles font monter le savoir-faire.
-            Attention, une action prise après avoir réglé la production mange les mêmes heures.
+            Ce solde est le temps disponible pour produire : <span style={S.gold}>fixez la quantité sur chaque
+            modèle</span> de votre collection. Ce qui reste part à l'établi en fin de trimestre et fait monter
+            le savoir-faire. Attention, une action prise après avoir réglé la production mange les mêmes heures.
           </div>
           {heuresPerdues > 0 && (
             <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
-              ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées. Agrandissez l'atelier
-              pour qu'elles servent à quelque chose.
+              ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées.{" "}
+              {peut(ATELIER_COUT)
+                ? "Agrandir l'atelier (" + fmtArgent(ATELIER_COUT) + ") les rendrait utiles."
+                : "Un agrandissement coûte " + fmtArgent(ATELIER_COUT) +
+                  " : hors de portée pour l'instant sans mettre la trésorerie en danger. Se séparer d'un collaborateur allègerait les coûts en attendant."}
             </div>
           )}
 
@@ -293,7 +304,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         {g.modeles.map((m, i) => (
           <div key={i} style={{ ...S.panel, opacity: m.statut === "dev" ? 0.75 : 1 }}>
             <div>
-              <span style={S.gold}>{m.nom}</span>{" "}
+              <span style={S.gold}>{m.nom}</span>
+              {m.statut === "actif" && num(m.prod) <= 0 && (
+                <span style={S.red}> ⚠ production non réglée</span>
+              )}{" "}
               <span style={S.steel}>
                 — {MOUVEMENTS[m.mvt].nom} · {nomComplications(m)} · {STYLES[m.style].nom} ·{" "}
                 {MATERIAUX[m.materiau].nom}
@@ -606,6 +620,38 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        <div style={S.h3}>COÛTS FIXES — {fmtArgent(fixes)}/trimestre</div>
+        <button style={S.action(true)} onClick={() => setVoirFixes(!voirFixes)}>
+          🧾 {voirFixes ? "Masquer le détail" : "D'où viennent mes coûts fixes ?"}{" "}
+          <span style={S.steel}>— ce qui se paie chaque trimestre, quoi qu'il arrive</span>
+        </button>
+        {voirFixes && (
+          <div style={S.panel}>
+            {detailFixes(g).map((l, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                <span style={S.steel}>
+                  {l.libelle}
+                  {l.detail ? <span style={{ opacity: 0.7 }}> ({l.detail})</span> : null}
+                </span>
+                <span>{fmtArgent(l.montant)}</span>
+              </div>
+            ))}
+            <div
+              style={{
+                display: "flex", justifyContent: "space-between",
+                borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6,
+              }}
+            >
+              <span style={S.gold}>Total par trimestre</span>
+              <span style={S.gold}>{fmtArgent(fixes)}</span>
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Se séparer d'un collaborateur ou fermer un canal fait baisser cette ligne dès le trimestre
+              suivant.
+            </div>
+          </div>
+        )}
+
         <div style={S.h3}>ATELIER & ÉQUIPE</div>
         <div style={{ ...S.panel, ...S.steel }}>
           {nbEmployes(g.employes) === 0
@@ -617,8 +663,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           {enc.requis > 0 && (
             <>
               <br />
-              Encadrement : {enc.chefs}/{enc.requis} chef{enc.requis > 1 ? "s" : ""} d'atelier (1 pour{" "}
-              {ENCADREMENT_PAR_CHEF} personnes en production) — efficacité {fmtPct(enc.efficacite)}.
+              Encadrement : {enc.chefs}/{enc.requis} chef{enc.requis > 1 ? "s" : ""} d'atelier. Vous encadrez
+              vous-même {enc.sansChef} personnes ; au-delà, un chef pour {ENCADREMENT_PAR_CHEF} — efficacité{" "}
+              {fmtPct(enc.efficacite)}.
             </>
           )}
         </div>
@@ -640,7 +687,11 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                 <br />
                 <span style={S.steel}>
                   Une extension ({fmtArgent(ATELIER_COUT)}) ouvre {POSTES_PAR_EXTENSION} postes d'un coup, soit{" "}
-                  {fmtH(ATELIER_HEURES)} : de quoi accueillir plusieurs embauches d'affilée.
+                  {fmtH(ATELIER_HEURES)}.{" "}
+                  {peut(ATELIER_COUT)
+                    ? "Votre trésorerie le permet."
+                    : "Votre trésorerie ne le permet pas sans descendre sous " + MARGE_CONSEIL_TRIMESTRES +
+                      " trimestres de coûts fixes — à vous de juger du risque."}
                 </span>
               </div>
             )}
@@ -843,6 +894,22 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           <button style={S.action(g.cash > 0)} onClick={jouer("rembourser", () => actions.action("rembourser"))}>
             💰 Rembourser <span style={S.steel}>(0 h) — jusqu'à {fmtArgent(COUTS_CHF.remboursement)} de dette</span>{fait("rembourser")}
           </button>
+        )}
+
+        {/* Dernier garde-fou avant de clore : un modèle sans production ne
+            fabrique rien, et c'est l'erreur la plus fréquente en beta. */}
+        {sansProduction.length > 0 && (
+          <div style={{ ...S.panel, borderColor: "#D06050" }}>
+            <span style={S.red}>
+              ⚠ {sansProduction.length === 1 ? "Un modèle n'a pas" : sansProduction.length + " modèles n'ont pas"} de
+              production réglée : {sansProduction.map((m) => m.nom).join(", ")}.
+            </span>
+            <br />
+            <span style={S.steel}>
+              {sansProduction.length === 1 ? "Il ne sortira" : "Ils ne sortiront"} aucune pièce ce trimestre.
+              Vous avez {fmtH(libres)} disponibles.
+            </span>
+          </div>
         )}
 
         {/* Les testeurs ne savaient pas ce qui était immédiat et ce qui attendait

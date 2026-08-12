@@ -123,6 +123,24 @@ testeurs en cours restent lisibles.
   de sous-encadrement est passée en bandeau, au même rang que l'alerte de
   faillite, avec les heures perdues du trimestre.
 
+### Phase A post-beta (v0.7.0)
+
+Les points 1 à 6 du patch UX étaient déjà livrés en v0.6.1/v0.6.2 (barre de statut,
+alerte de faillite, « fait ✓ », générateur de noms, devise par pays, témoin
+d'autosave). Nouveautés de cette phase :
+
+- **Le fondateur encadre ses 3 premiers employés** sans chef d'atelier. La
+  pénalité d'efficacité ne s'applique qu'au-delà : le chef devient un palier de
+  croissance, plus un prérequis à la première embauche.
+- **Les conseils vérifient la faisabilité** : aucun message ne recommande une
+  dépense qui ferait passer la trésorerie sous trois trimestres de coûts fixes.
+  Sous ce seuil, la formulation devient neutre et informative, sans injonction.
+- **Production explicite** : le bandeau d'heures dit que le solde sert à
+  produire, un badge « ⚠ production non réglée » marque tout modèle actif à
+  zéro, et un rappel apparaît avant de clore le trimestre.
+- **Coûts fixes décomposés** : panneau dépliable en jeu et détail ligne à ligne
+  dans le rapport (structure, salaires par poste, agrandissements, canaux).
+
 ## Structure
 
 ```

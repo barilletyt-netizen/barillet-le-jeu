@@ -1,7 +1,8 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
   EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE, COMPL_NIVEAU_REQUIS,
-  ENCADREMENT_PAR_CHEF, ENCADREMENT_PLANCHER, INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
+  ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
+  INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
 } from "../data/config.js";
 import { multEvenements } from "../data/evenements.js";
 import { devise, enDevise } from "./devise.js";
@@ -85,12 +86,15 @@ export const nbProduction = (employes) =>
  */
 export function encadrement(employes) {
   const prod = nbProduction(employes);
-  const requis = Math.ceil(prod / ENCADREMENT_PAR_CHEF);
   const chefs = employes.chef || 0;
-  if (requis === 0) return { requis: 0, chefs, efficacite: 1, manque: 0 };
+  // Les ENCADREMENT_SANS_CHEF premiers sont encadrés par le fondateur lui-même.
+  const aEncadrer = Math.max(0, prod - ENCADREMENT_SANS_CHEF);
+  const requis = Math.ceil(aEncadrer / ENCADREMENT_PAR_CHEF);
+  if (requis === 0) return { requis: 0, chefs, manque: 0, efficacite: 1, prod, sansChef: ENCADREMENT_SANS_CHEF };
   const couverture = Math.min(1, chefs / requis);
   return {
-    requis, chefs, manque: Math.max(0, requis - chefs),
+    requis, chefs, prod, sansChef: ENCADREMENT_SANS_CHEF,
+    manque: Math.max(0, requis - chefs),
     efficacite: ENCADREMENT_PLANCHER + (1 - ENCADREMENT_PLANCHER) * couverture,
   };
 }
@@ -197,6 +201,48 @@ export const masseSalariale = (employes) =>
 
 export function coutsFixes({ employes, ateliers, canaux }) {
   return FIXES_BASE + masseSalariale(employes) + ateliers * ATELIER_FIXES + fixesCanaux(canaux);
+}
+
+/**
+ * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
+ * coûts » reste une intention : le joueur ne sait pas où appuyer.
+ */
+export function detailFixes({ employes, ateliers, canaux }) {
+  const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
+  for (const [k, n] of Object.entries(employes)) {
+    if (n > 0) {
+      lignes.push({
+        libelle: EMPLOYES[k].nom + (n > 1 ? " ×" + n : ""),
+        montant: n * EMPLOYES[k].fixes,
+        detail: n > 1 ? fmtArgent(EMPLOYES[k].fixes) + " chacun" : null,
+      });
+    }
+  }
+  if (ateliers > 0) {
+    lignes.push({
+      libelle: "Agrandissements d'atelier" + (ateliers > 1 ? " ×" + ateliers : ""),
+      montant: ateliers * ATELIER_FIXES,
+    });
+  }
+  for (const [id, n] of Object.entries(canaux)) {
+    const p = paliersCanal(id, n);
+    if (p && p.fixes > 0) lignes.push({ libelle: CANAUX[id].nom + " — " + p.nom, montant: p.fixes });
+  }
+  return lignes;
+}
+
+// ---- Conseils ------------------------------------------------------------
+
+/** Trésorerie d'avance qu'un conseil de dépense doit laisser au joueur. */
+export const MARGE_CONSEIL_TRIMESTRES = 3;
+
+/**
+ * Un conseil ne doit jamais pousser à une dépense qui met le joueur en danger.
+ * Retour de beta : un testeur est mort en suivant littéralement la chaîne de
+ * recommandations. En dessous de ce seuil, l'UI passe en formulation neutre.
+ */
+export function conseilFinancable(g, montant) {
+  return g.cash - montant >= coutsFixes(g) * MARGE_CONSEIL_TRIMESTRES;
 }
 
 export const indemnite = (type) => EMPLOYES[type].fixes * INDEMNITE_TRIMESTRES;

@@ -5,7 +5,7 @@ import {
   CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX,
 } from "../data/config.js";
 import {
-  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, encadrement, fmtArgent,
+  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes, encadrement, fmtArgent,
   fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
@@ -208,7 +208,8 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
   const interets = Math.round((gs.dette * tauxInteret(profil)) / 4);
-  const fixes = coutsFixes({ employes, ateliers: gs.ateliers, canaux: gs.canaux });
+  const contexteFixes = { employes, ateliers: gs.ateliers, canaux: gs.canaux };
+  const fixes = coutsFixes(contexteFixes);
   const resultat = revenus - coutsProd - fixes - interets;
   cash += resultat;
 
@@ -249,6 +250,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
     coutsProd, fixes, interets, impot, resultat, resultatNet: resultat - impot,
     evt: evtHisto, alea, cash, capDepassee, gainsCred, gainSavoir,
+    detailFixes: detailFixes(contexteFixes),
     heuresUtilisees, heuresDemandees, heuresDispo,
     heuresFondateur: Math.max(0, heuresRestantes),
     heuresEquipe: heuresEmployes(employes),

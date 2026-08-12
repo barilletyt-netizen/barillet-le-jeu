@@ -1,5 +1,5 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.6.2 (août 2026)
+## Document de lore et de design — v0.7 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
@@ -139,8 +139,15 @@ Cinq canaux, trois paliers chacun. Chaque canal a une **portée** (volume access
 
 L'arbitrage central : les AD ouvrent le gros volume mais diluent la marge ; la boutique en propre garde tout mais coûte une fortune en fixe.
 
-### Encadrement (v0.6)
-Au-delà de **5 personnes en production par chef d'atelier**, l'atelier perd en efficacité (jusqu'à 55% seulement des heures rendues). Playtest : « plus on engage de personnel, plus à un moment il va falloir des chefs d'atelier pour gérer tout cela. » On peut aussi **se séparer d'un collaborateur** (indemnité de 2 trimestres de salaire).
+### Encadrement (v0.6, ajusté v0.7)
+Le fondateur encadre lui-même ses **3 premiers employés de production**. Au-delà, il faut **un chef d'atelier pour 5 personnes** supplémentaires, sinon l'atelier tombe à 55% des heures rendues. Playtest : « plus on engage de personnel, plus à un moment il va falloir des chefs d'atelier pour gérer tout cela » — mais faire tomber la pénalité dès le premier horloger rendait le démarrage incompréhensible. Le chef est un palier de croissance, pas un prérequis. On peut aussi **se séparer d'un collaborateur** (indemnité de 2 trimestres de salaire).
+
+### Règle d'écriture des conseils (v0.7)
+Aucun message d'aide ne recommande une dépense si le joueur ne peut pas la payer en gardant **trois trimestres de coûts fixes** d'avance. En dessous, la formulation passe en neutre et informatif, sans impératif. Retour de beta : un testeur est mort en suivant littéralement la chaîne de recommandations du jeu. Un conseil qui tue est un bug.
+
+### Backlog (noté, non implémenté)
+- **Combos et synergies** : boosts provisoires ou consommables déclenchés par des enchaînements d'actions précis (retour testeur). À traiter en S4 avec le déblocage progressif des actions — c'est la même mécanique de récompense de la maîtrise.
+- **Habillage** : référence citée par un testeur, *Game Dev Tycoon*, à verser au moodboard de S5.
 
 ### Fiscalité (v0.6)
 **Impôt de 18% sur le bénéfice annuel**, prélevé au bilan du T4.

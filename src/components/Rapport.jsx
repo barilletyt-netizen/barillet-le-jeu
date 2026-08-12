@@ -86,6 +86,14 @@ export default function Rapport({ r, onContinuer }) {
           <div>
             Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.fixes)}</span>
           </div>
+          {/* Décomposition : « couper des coûts » doit être actionnable. */}
+          {r.detailFixes &&
+            r.detailFixes.map((l, i) => (
+              <div key={i} style={{ ...S.steel, paddingLeft: 12 }}>
+                {l.libelle}
+                <span style={{ float: "right" }}>−{fmtArgent(l.montant)}</span>
+              </div>
+            ))}
           <div>
             Intérêts <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.interets)}</span>
           </div>
