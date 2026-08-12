@@ -10,7 +10,7 @@
 // ATTENTION : `main` sert le panneau de fermeture (true). Sur la branche de
 // chantier il est à false pour pouvoir jouer et tester. Au moment de rouvrir,
 // c'est la seule ligne à vérifier.
-export const BETA_FERMEE = false;
+export const BETA_FERMEE = true;
 
 // Liens de l'écran de fermeture. Un lien à null s'affiche en texte simple :
 // mieux vaut pas de lien qu'un lien mort sur une page publique.
@@ -143,11 +143,13 @@ export const EMPLOYES_VIDE = { horloger: 0, decorateur: 0, ingenieur: 0, materia
 
 // ---- Produit ------------------------------------------------------------
 
-// heures = heures d'atelier consommées par pièce produite.
+// heures = supplément d'atelier par pièce, en plus des heures de la gamme.
+// Un mouvement maison se termine et se règle à la main : il coûte du temps par
+// dessus le standard de finition du segment. Ébauche et quartz s'assemblent.
 export const MOUVEMENTS = {
-  quartz: { nom: "Quartz", cout: 20, qual: 2, rd: 8000, dev: 1, heures: 1, desc: "Mouvement à ~CHF 20. 1 trim. de dev. 1 h d'atelier/pièce." },
-  ebauche: { nom: "Mécanique (ébauche)", cout: 220, qual: 5, rd: 35000, dev: 3, heures: 3, desc: "Ébauche à ~CHF 220. 3 trim. de dev. 3 h d'atelier/pièce." },
-  manufacture: { nom: "Manufacture", cout: 2500, qual: 8, rd: 400000, dev: 6, heures: 10, desc: "Mouvement maison à ~CHF 2'500. 6 trim. 10 h/pièce. Ingénieur requis." },
+  quartz: { nom: "Quartz", cout: 20, qual: 2, rd: 8000, dev: 1, heures: 0, desc: "Mouvement à ~CHF 20. 1 trim. de dev." },
+  ebauche: { nom: "Mécanique (ébauche)", cout: 220, qual: 5, rd: 35000, dev: 3, heures: 0, desc: "Ébauche à ~CHF 220. 3 trim. de dev." },
+  manufacture: { nom: "Manufacture", cout: 2500, qual: 8, rd: 400000, dev: 6, heures: 6, desc: "Mouvement maison à ~CHF 2'500. 6 trim. +6 h/pièce. Ingénieur requis." },
 };
 
 export const STYLES = {
@@ -243,17 +245,19 @@ export const FINITION = { heures: 1, cout: 80, qual: 1, prixMult: 1.2 };
 // Playtest : les pools d'origine plafonnaient le quartz vers 1'500 pièces par
 // trimestre. Élargis pour qu'une marque de volume puisse exister.
 //
-// Équilibrage post-beta : le haut de gamme encaissait plus de chiffre avant
-// saturation que le grand public (135 M contre 96 M par an), tout en ne coûtant
-// presque aucune capacité — la stratégie « monter en gamme » était strictement
-// supérieure. Les pools connaisseurs et bling sont resserrés pour que le haut
-// de gamme soit un jeu de marge à plafond bas, et le volume un jeu de capacité
-// à plafond haut. Il n'y a pas quarante mille acheteurs de tourbillons.
+// Les pools du haut de gamme avaient été resserrés pour compenser sa
+// supériorité — compensation levée depuis que les heures par pièce portent
+// l'écart : le haut de gamme est désormais bridé par le temps d'atelier, pas
+// par un marché artificiellement rétréci. Une seule cause, un seul frein.
+// `heures` = temps d'atelier par pièce, porté par la gamme et non par le
+// mouvement. Échelle arbitrée sur le réel horloger, pas sur l'équilibrage : un
+// quartz d'entrée de gamme s'assemble en minutes, une pièce de haute horlogerie
+// finie main demande des dizaines d'heures. C'est le sujet même du jeu.
 export const SEGMENTS = {
-  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
-  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
-  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 45000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées. Marché étroit." },
-  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 14000, qualMin: 4, notoMin: 35, desc: "Prix élevés, marché minuscule. Il faut être connu." },
+  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, heures: 1, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix. 1 h de main-d'œuvre par pièce." },
+  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, heures: 2, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable. 2 h par pièce." },
+  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 2100, pool: 90000, heures: 12, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées. Marché étroit, 12 h par pièce." },
+  bling: { nom: "Bling-bling", ideal: 9000, base: 800, pool: 30000, heures: 30, qualMin: 4, notoMin: 35, desc: "Marché minuscule, finition d'exception : 30 h par pièce." },
 };
 
 // ---- Rendements des jauges ----------------------------------------------
@@ -265,11 +269,17 @@ export const SEGMENTS = {
 // doivent rester le déverrouillage des marges en début de partie. Aplatir le
 // haut de la courbe tame la stratégie « tout dans l'image » sans dévaloriser
 // les premiers investissements — au contraire, il les renforce.
-// Élasticité au-delà du prix acceptable. En dessous du prix acceptable la
-// demande reste linéaire ; au-dessus, elle est écrasée par une puissance.
-// Beta : « il suffit de marger comme un porc » — vendre 35% au-dessus du prix
-// acceptable ne coûtait presque rien en volume.
-export const ELASTICITE_PRIX = 2.6;
+// Élasticité au-delà du prix acceptable. En dessous, la demande reste linéaire ;
+// au-dessus, elle est écrasée par une puissance.
+// Beta : « il suffit de marger comme un porc » — vendre 35% au-dessus ne coûtait
+// presque rien en volume. Posée à 2,6, puis détendue à 1,6 : une fois les heures
+// par gamme en place, le haut de gamme était puni deux fois (par le temps
+// d'atelier et par le prix). Mesuré : l'écart entre stratégies passe de 48× à
+// 31× en relâchant ce seul curseur.
+export const ELASTICITE_PRIX =
+  typeof process !== "undefined" && process.env && process.env.BARILLET_ELASTICITE
+    ? Number(process.env.BARILLET_ELASTICITE)
+    : 1.6;
 
 export const CONCAVITE_NOTORIETE = 0.55;
 export const CONCAVITE_CREDIBILITE = 0.55;
@@ -340,22 +350,23 @@ export const IMPOT_TAUX = 0.18;
 // ---- Atelier et coûts fixes ---------------------------------------------
 // L'atelier est un plafond d'heures : embaucher sans agrandir ne sert à rien.
 //
-// Retour de beta : agrandir poste par poste était fastidieux — « on doit mettre
-// directement un bureau pour 4 personnes plutôt qu'une seule ». Une extension
-// ouvre donc quatre postes d'un coup, à un prix unitaire dégressif (85'000 le
-// poste contre 120'000 avant — on construit une halle, pas un établi de plus).
-// En contrepartie l'atelier de départ accueille déjà le fondateur et un
-// compagnon : la première embauche sert tout de suite, et l'extension n'arrive
-// qu'au moment de passer à l'échelle.
+// Deux paliers, parce qu'un seul enfermait les stratégies de volume. Mesure :
+// un volumiste dégage ~25'000 par trimestre et paie ~74'000 de frais fixes ; il
+// n'atteignait jamais les 350'000 nécessaires pour s'offrir la grande
+// extension, restait bloqué à un employé pendant cinquante ans et mourait avec
+// une demande de 3'800 pièces qu'il ne pouvait pas servir.
 //
-// Le prix a été calé par simulation : à 340'000, l'extension devenait un mur
-// infranchissable pour les départs modestes et personne ne dépassait 670'000 de
-// CA sur cinquante ans. À 200'000 la marche reste haute mais se franchit.
-export const POSTES_PAR_EXTENSION = 4;
+// Le petit palier permet de croître par petits pas ; le grand reste plus
+// avantageux au poste (50'000 contre 60'000, et 3'500 de fixes contre 5'000) :
+// s'offrir la grande halle reste la bonne affaire quand on en a les moyens.
+export const ATELIERS = {
+  petit: { nom: "Un poste de travail", postes: 1, heures: 450, cout: 60000, fixes: 5000, heuresAction: 30 },
+  grand: { nom: "Une halle de quatre postes", postes: 4, heures: 1800, cout: 200000, fixes: 14000, heuresAction: 60 },
+};
+
+// L'atelier de départ accueille le fondateur et un compagnon.
 export const CAPACITE_DEPART = 810;
-export const ATELIER_COUT = 200000;
-export const ATELIER_HEURES = 1800;
-export const ATELIER_FIXES = 14000;
+
 export const FIXES_BASE = 12000;
 
 // ---- Crédibilité (rééquilibrage S2) -------------------------------------

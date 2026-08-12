@@ -26,7 +26,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     capacite: CAPACITE_DEPART, // postes d'atelier, en heures par trimestre
     heures: HEURES_FONDATEUR, // heures du fondateur restantes ce trimestre
     employes: { ...EMPLOYES_VIDE },
-    ateliers: 0,
+    ateliers: 0, ateliersFixes: 0,
     canaux: { ...CANAUX_VIDE }, // id → palier ouvert
     complications: { aucune: 1 }, // id → niveau maîtrisé
     materiaux: { acier: true }, // id → maîtrisé
@@ -208,7 +208,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
   const interets = Math.round((gs.dette * tauxInteret(profil)) / 4);
-  const contexteFixes = { employes, ateliers: gs.ateliers, canaux: gs.canaux };
+  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus - coutsProd - fixes - interets;
   cash += resultat;

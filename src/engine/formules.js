@@ -1,6 +1,6 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
-  EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE, COMPL_NIVEAU_REQUIS,
+  EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS,
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
@@ -54,8 +54,14 @@ const produit = (arr, f) => arr.reduce((s, x) => s * f(x), 1);
 // ---- Heures d'atelier ---------------------------------------------------
 // quartz 1 h/pièce, ébauche 3 h, manufacture 10 h, plus complications et finition.
 
+/**
+ * Heures d'atelier par pièce. La gamme visée fixe le standard de finition
+ * (1 h en grand public, 30 h en haute horlogerie) ; le mouvement maison, les
+ * complications et la finition s'ajoutent par-dessus.
+ */
 export function heuresParPiece(m) {
   return (
+    SEGMENTS[m.seg].heures +
     MOUVEMENTS[m.mvt].heures +
     somme(paliersDe(m), (p) => p.heures) +
     (m.finition ? FINITION.heures : 0)
@@ -200,15 +206,15 @@ export function qualiteNouveau(mvtKey, { pays, profil, savoir, compls = [], fini
 export const masseSalariale = (employes) =>
   Object.entries(employes).reduce((s, [k, n]) => s + n * EMPLOYES[k].fixes, 0);
 
-export function coutsFixes({ employes, ateliers, canaux }) {
-  return FIXES_BASE + masseSalariale(employes) + ateliers * ATELIER_FIXES + fixesCanaux(canaux);
+export function coutsFixes({ employes, ateliersFixes = 0, canaux }) {
+  return FIXES_BASE + masseSalariale(employes) + ateliersFixes + fixesCanaux(canaux);
 }
 
 /**
  * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
  * coûts » reste une intention : le joueur ne sait pas où appuyer.
  */
-export function detailFixes({ employes, ateliers, canaux }) {
+export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux }) {
   const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
   for (const [k, n] of Object.entries(employes)) {
     if (n > 0) {
@@ -219,10 +225,10 @@ export function detailFixes({ employes, ateliers, canaux }) {
       });
     }
   }
-  if (ateliers > 0) {
+  if (ateliersFixes > 0) {
     lignes.push({
       libelle: "Agrandissements d'atelier" + (ateliers > 1 ? " ×" + ateliers : ""),
-      montant: ateliers * ATELIER_FIXES,
+      montant: ateliersFixes,
     });
   }
   for (const [id, n] of Object.entries(canaux)) {

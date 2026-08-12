@@ -124,11 +124,32 @@ function faceliftSiUtile(g, ctx, seuilCash) {
   };
 }
 
-/** Plancher de notoriété : même le plus radin des margeurs entretient un minimum. */
+/**
+ * Plancher de notoriété. La cible monte avec la trésorerie : une marque qui
+ * gagne de l'argent continue d'investir son image, elle ne s'arrête pas à un
+ * palier arbitraire.
+ */
 function entretenirImage(g, ctx, { notoCible, presseAussi = false }) {
-  if (g.noto < notoCible) g = marketing(g, ctx);
-  if (presseAussi && g.cred < 14) g = presse(g);
+  const cible = Math.min(100, notoCible + (g.cash > 3000000 ? 25 : g.cash > 800000 ? 12 : 0));
+  if (g.noto < cible) g = marketing(g, ctx);
+  if (presseAussi && g.cred < (g.cash > 2000000 ? 30 : 14)) g = presse(g);
   return g;
+}
+
+/**
+ * Élargit la gamme quand la trésorerie le permet largement. Chaque segment a
+ * son plafond de saturation : la seule façon de continuer à croître est
+ * d'ouvrir de nouvelles lignes, comme le ferait un joueur.
+ */
+function elargirGamme(g, ctx, plan) {
+  const rang = g.modeles.length;
+  const suivant = plan[rang];
+  if (!suivant) return g;
+  // Le premier modèle n'attend pas : sans produit, il n'y a pas de partie.
+  // Les suivants demandent une trésorerie croissante.
+  const seuil = rang === 0 ? 0 : 400000 * Math.pow(2.1, rang - 1);
+  if (g.cash < seuil) return g;
+  return lancerModele(g, ctx, suivant);
 }
 
 /** Capacité : embaucher tant qu'il reste des postes, agrandir quand ils manquent. */
@@ -139,9 +160,15 @@ function croitre(g, seuil) {
       g.capacite - g.heures - F.heuresEmployes(g.employes) * F.encadrement(g.employes).efficacite;
     if (F.encadrement(g.employes).manque > 0 && g.cash > seuil) { g = embaucher(g, "chef"); continue; }
     if (libres >= C.HEURES_EMPLOYE * 0.5 && g.cash > seuil) { g = embaucher(g, "horloger"); continue; }
-    if (g.cash > C.ATELIER_COUT + seuil && g.heures >= C.COUTS_H.atelier) {
-      g = { ...g, heures: g.heures - C.COUTS_H.atelier, cash: g.cash - C.ATELIER_COUT,
-        ateliers: g.ateliers + 1, capacite: g.capacite + C.ATELIER_HEURES };
+    // On prend la halle si on peut se la payer, sinon le petit palier : c'est
+    // ce qui permet à une stratégie de volume de monter par petits pas.
+    const grand = C.ATELIERS.grand, petit = C.ATELIERS.petit;
+    const choix =
+      g.cash > grand.cout + seuil ? grand : g.cash > petit.cout + seuil ? petit : null;
+    if (choix && g.heures >= choix.heuresAction) {
+      g = { ...g, heures: g.heures - choix.heuresAction, cash: g.cash - choix.cout,
+        ateliers: g.ateliers + 1, ateliersFixes: (g.ateliersFixes || 0) + choix.fixes,
+        capacite: g.capacite + choix.heures };
       continue;
     }
     break;
@@ -198,13 +225,19 @@ function margeur(g, ctx) {
   if (g.cash < 120000) g = emprunter(g);
   // Le margeur ne dépense en image que le strict nécessaire pour exister.
   g = entretenirImage(g, ctx, { notoCible: 28 });
-  if (g.modeles.length === 0) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "connaisseurs" });
-  if (g.modeles.length === 1 && g.cash > 600000) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "bling", mat: "acier" });
-  if (g.modeles.length === 2 && g.cash > 2000000 && (g.complications.chrono || 0) > 0) {
-    g = lancerModele(g, ctx, { mvt: "ebauche", seg: "bling", compls: ["chrono", "date"] });
-  }
-  g = tarifer(g, 1.35); // « marger comme un porc »
-  g = retarifer(g, 1.35);
+  g = elargirGamme(g, ctx, [
+    { mvt: "ebauche", seg: "connaisseurs" },
+    { mvt: "ebauche", seg: "bling" },
+    { mvt: "ebauche", seg: "bling", compls: ["chrono", "date"] },
+    { mvt: "ebauche", seg: "connaisseurs", style: "dress", compls: ["date"] },
+    { mvt: "ebauche", seg: "bling", style: "squelette", compls: ["chrono", "gmt"] },
+    { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse" },
+  ]);
+  // 1,20× le prix acceptable : le prix premium qu'un joueur avisé tient
+  // vraiment. Au-delà (1,35×), l'élasticité ne laisse plus rien à vendre —
+  // ce n'est plus une stratégie, c'est une erreur.
+  g = tarifer(g, 1.2);
+  g = retarifer(g, 1.2);
   g = faceliftSiUtile(g, ctx, 150000);
   g = rechercher(g, ctx);
   g = ouvrirCanal(g, { privilegieMarge: true });
@@ -217,9 +250,14 @@ function volumiste(g, ctx) {
   if (g.cash < 150000) g = emprunter(g);
   // Le volume a besoin d'être connu : la notoriété est son carburant.
   g = entretenirImage(g, ctx, { notoCible: 55 });
-  if (g.modeles.length === 0) g = lancerModele(g, ctx, { mvt: "quartz", seg: "grandpublic" });
-  if (g.modeles.length === 1 && g.cash > 400000) g = lancerModele(g, ctx, { mvt: "quartz", seg: "lifestyle" });
-  if (g.modeles.length === 2 && g.cash > 1200000) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "lifestyle" });
+  g = elargirGamme(g, ctx, [
+    { mvt: "quartz", seg: "grandpublic" },
+    { mvt: "quartz", seg: "lifestyle" },
+    { mvt: "quartz", seg: "grandpublic", style: "plongeuse" },
+    { mvt: "ebauche", seg: "lifestyle" },
+    { mvt: "quartz", seg: "grandpublic", style: "dress" },
+    { mvt: "quartz", seg: "lifestyle", style: "sport" },
+  ]);
   g = tarifer(g, 0.8);
   g = retarifer(g, 0.8);
   g = faceliftSiUtile(g, ctx, 120000);
@@ -232,11 +270,14 @@ function volumiste(g, ctx) {
 function prestigieux(g, ctx) {
   if (g.cash < 150000) g = emprunter(g);
   g = entretenirImage(g, ctx, { notoCible: 65, presseAussi: true });
-  if (g.modeles.length === 0) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "connaisseurs" });
-  if (g.modeles.length === 1 && g.cred > 12 && g.cash > 700000) {
-    g = lancerModele(g, ctx, { mvt: "ebauche", seg: "connaisseurs", style: "dress" });
-  }
-  if (g.modeles.length === 2 && g.cash > 2500000) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "bling" });
+  g = elargirGamme(g, ctx, [
+    { mvt: "ebauche", seg: "connaisseurs" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "dress" },
+    { mvt: "ebauche", seg: "bling" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse", compls: ["date"] },
+    { mvt: "ebauche", seg: "bling", style: "squelette", compls: ["chrono"] },
+    { mvt: "ebauche", seg: "lifestyle" },
+  ]);
   g = tarifer(g, 1.1);
   g = retarifer(g, 1.1);
   g = faceliftSiUtile(g, ctx, 200000);
@@ -250,9 +291,14 @@ function prestigieux(g, ctx) {
 function equilibre(g, ctx) {
   if (g.cash < 120000) g = emprunter(g);
   g = entretenirImage(g, ctx, { notoCible: 45, presseAussi: true });
-  if (g.modeles.length === 0) g = lancerModele(g, ctx, { mvt: "quartz", seg: "grandpublic" });
-  if (g.modeles.length === 1 && g.cash > 500000) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "lifestyle" });
-  if (g.modeles.length === 2 && g.cash > 1500000) g = lancerModele(g, ctx, { mvt: "ebauche", seg: "connaisseurs" });
+  g = elargirGamme(g, ctx, [
+    { mvt: "quartz", seg: "grandpublic" },
+    { mvt: "quartz", seg: "lifestyle" },
+    { mvt: "ebauche", seg: "connaisseurs" },
+    { mvt: "quartz", seg: "grandpublic", style: "plongeuse" },
+    { mvt: "ebauche", seg: "bling" },
+    { mvt: "ebauche", seg: "lifestyle", style: "dress" },
+  ]);
   g = tarifer(g, 1.0);
   g = retarifer(g, 1.0);
   g = faceliftSiUtile(g, ctx, 150000);

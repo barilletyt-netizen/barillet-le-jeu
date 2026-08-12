@@ -182,27 +182,51 @@ Quatre bots stratèges (`npm run bots`) jouent 2015-2065 sur dix graines reprodu
 - Des bots naïfs qui ne dépensent rien en image meurent tous : la demande dépend de la notoriété, donc on mesure alors la bêtise des bots, pas l'équilibrage. Tout bot doit entretenir un plancher de jauges, reprendre ses prix et faire ses facelifts.
 - Le verdict automatique passait au vert par vacuité : quand personne n'atteint le Top 50, « aucune stratégie ne domine » est trivialement vrai. Un critère de gagnabilité est indispensable.
 
+### Le temps de fabrication porte la gamme (refonte v0.8)
+
+Échelle arbitrée sur le réel horloger, pas sur l'équilibrage — c'est le sujet du jeu, autant qu'il soit crédible :
+
+| Gamme | Heures par pièce |
+|---|---|
+| Grand public | 1 h |
+| Lifestyle | 2 h |
+| Connaisseurs | 12 h |
+| Bling-bling | 30 h |
+
+Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-dessus. Un quartz s'assemble en une heure, un tourbillon manufacture finition maison en approche cinquante.
+
+**Ce que ça règle.** La marge par heure d'atelier — la ressource rare — passait de 199 CHF en grand public à 3 571 en bling, un facteur 18 : monter en gamme était strictement supérieur. Avec les heures portées par la gamme, l'écart tombe à **1,8×**. Le haut de gamme reste légèrement plus rentable à l'heure, ce qui est juste : c'est un métier de marge. Mais il ne peut plus produire en volume.
+
+**Conséquence voulue** : une gamme haute demande beaucoup plus de monde. C'est le sens du mot manufacture.
+
 ### Réglages posés
+
 | Curseur | Valeur | Raison |
 |---|---|---|
-| Seuil Top 50 croissant | +3,8 %/an (60 M en 2015 → 152 M en 2040 → 387 M en 2065) | La barre monte avec le marché |
-| Rendements des jauges | concaves, exposant 0,55 | Les premiers points de notoriété valent plus que les derniers : tame le « tout image » sans dévaloriser les débuts |
-| Élasticité prix | puissance 2,6 au-dessus du prix acceptable | « Marger comme un porc » doit se payer en volume |
-| Pools haut de gamme | connaisseurs 90 k → 45 k, bling 30 k → 14 k | Le haut de gamme encaissait plus de chiffre avant saturation que le grand public |
+| Heures par gamme | 1 / 2 / 12 / 30 h | Réel horloger. Ramène la marge par heure de 18× à 1,8× |
+| Atelier, petit palier | 1 poste, 60 000 CHF, +450 h, 5 000/trim | Sans lui, une stratégie de volume n'atteint jamais la halle et meurt : mesuré 10 faillites sur 10 |
+| Atelier, grande halle | 4 postes, 200 000 CHF, +1 800 h, 14 000/trim | Moins cher au poste : s'offrir la halle reste la bonne affaire |
+| Élasticité prix | 1,6 au-dessus du prix acceptable | Posée à 2,6, détendue une fois les heures en place : le haut de gamme était puni deux fois. Mesuré : écart entre stratégies 48× → 31× |
+| Rendements des jauges | concaves, exposant 0,55 | Les premiers points de notoriété valent plus que les derniers |
+| Demande de base, haut de gamme | connaisseurs 750 → 2 100, bling 280 → 800 | Le haut de gamme était dix fois moins demandé à l'unité ; écart de CA 15× → 5,9× |
+| Pools haut de gamme | rendus à 90 000 / 30 000 | Compensation levée : le frein est le temps d'atelier, plus un marché rétréci artificiellement |
+| Seuil Top 50 | 60 M en 2015, +3,0 %/an | Calé aux bots (voir ci-dessous) |
 
-### Diagnostic principal, non encore résolu
-La cause dominante du déséquilibre **n'est pas le poids des jauges** mais la **marge par heure d'atelier**, la ressource rare du jeu :
+### État de validation
 
-| Segment | h/pièce | Prix acceptable | Marge/pièce | **Marge par heure** |
-|---|---|---|---|---|
-| Grand public | 1 | 370 | 199 | **199** |
-| Lifestyle | 1 | 925 | 643 | **643** |
-| Connaisseurs | 3 | 5 373 | 3 958 | **1 319** |
-| Bling | 3 | 13 816 | 10 713 | **3 571** |
+| Critère | État |
+|---|---|
+| (b) aucune stratégie au Top 50 avant 2040 | ✅ |
+| (c) écart de CA < 3× entre stratégies viables | ✅ **2,1×** (contre 75× au départ) |
+| (d) le Volumiste n'est pas condamné | ✅ 0 faillite sur 10 (contre 10/10) |
+| (e) l'Équilibré dans le couloir médian | ✅ 2ᵉ sur 4 |
+| (a) la meilleure stratégie entre au Top 50 entre 2050 et 2065 | ❌ **aucune n'entre** |
 
-Un facteur **18** sur la grandeur qui commande la vitesse de croissance. Le haut de gamme est strictement supérieur par unité de ressource rare, et compose bien plus vite. Tant que cet écart existe, aucun réglage de jauges ou d'élasticité ne rapprochera les stratégies.
+**Pourquoi (a) résiste, et ce n'est pas une question de seuil.** Les quatre bots atteignent leur plafond vers 2035-2040 puis restent plats trente ans (Volumiste : 98 M en 2035, 130 M en 2065). Face à une courbe plate, aucun seuil exponentiel ne peut créer de couloir : mesuré, à 2,8 %/an une stratégie entre dès 2036, à 3,0 %/an plus personne n'entre. Il n'existe pas de valeur intermédiaire.
 
-**Piste retenue pour la prochaine itération** : faire croître les heures par pièce avec la gamme (ébauche et manufacture bien plus chères en heures qu'aujourd'hui), et/ou relever fortement le coût matière du haut de gamme. Une montre de connaisseur ne se fabrique pas en trois heures.
+**Prochain chantier** : allonger la rampe de croissance au-delà de 2040. Deux pistes à trancher —
+1. *Ralentir le début* pour que le plafond soit atteint vers 2055 plutôt que 2035 (cohérent avec l'intention « une à deux années avant le décollage », mais le début a déjà été durci deux fois) ;
+2. *Faire croître le marché lui-même* (pools indexés sur la croissance), pour que le plafond monte avec le temps et qu'il faille surpasser le marché, pas seulement le rejoindre.
 
 ## 4. Production & organisation
 (inchangé v0.3 : postes clés nommés avec stats + effectifs standard ; louer → construire ; Vallée de Joux/Neuchâtel = vivier, Paris = difficile ; départements Marketing/Finance/IT ; distribution directe/détaillants/boutiques/e-commerce ; fournisseurs avec stats, track record, coût, faillite possible ; verticalisation = accomplissement ultime, pas de simulation de label)

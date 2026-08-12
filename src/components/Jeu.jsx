@@ -4,7 +4,7 @@ import Jauge from "./Jauge.jsx";
 import BarreStatut from "./BarreStatut.jsx";
 import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
-  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, POSTES_PAR_EXTENSION,
+  ATELIERS,
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
   HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
 } from "../data/config.js";
@@ -88,7 +88,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
   // guider le joueur, pas un prix suggéré.
   const apercu = {
-    mvt: nm.mvt, materiau: nm.mat, finition: nm.finition,
+    // `seg` est indispensable : c'est la gamme qui porte les heures par pièce.
+    mvt: nm.mvt, seg: nm.seg, materiau: nm.mat, finition: nm.finition,
     compls: nm.compls.map((id) => ({ id, niveau: g.complications[id] || 1 })),
   };
   const coutApercu = coutUnitaire(apercu, { pays, savoir: g.savoir, employes: g.employes });
@@ -216,10 +217,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           {heuresPerdues > 0 && (
             <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
               ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées.{" "}
-              {peut(ATELIER_COUT)
-                ? "Agrandir l'atelier (" + fmtArgent(ATELIER_COUT) + ") les rendrait utiles."
-                : "Un agrandissement coûte " + fmtArgent(ATELIER_COUT) +
-                  " : hors de portée pour l'instant sans mettre la trésorerie en danger. Se séparer d'un collaborateur allègerait les coûts en attendant."}
+              {peut(ATELIERS.petit.cout)
+                ? "Un poste de plus (" + fmtArgent(ATELIERS.petit.cout) + ") les rendrait utiles."
+                : "Le plus petit agrandissement coûte " + fmtArgent(ATELIERS.petit.cout) +
+                  " : hors de portée sans mettre la trésorerie en danger. Se séparer d'un collaborateur allègerait les coûts en attendant."}
             </div>
           )}
 
@@ -493,25 +494,47 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               </div>
             )}
 
-            <div style={S.h3}>SEGMENT VISÉ</div>
-            {Object.entries(SEGMENTS).map(([k, sg]) => (
-              <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
-                <span style={S.gold}>{sg.nom}</span>{" "}
-                <span style={S.steel}>— {sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
-              </button>
-            ))}
+            <div style={S.h3}>SEGMENT VISÉ — c'est lui qui fixe le temps de fabrication</div>
+            {Object.entries(SEGMENTS).map(([k, sg]) => {
+              const facteur = sg.heures / SEGMENTS.grandpublic.heures;
+              return (
+                <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
+                  <span style={S.gold}>{sg.nom}</span>{" "}
+                  <span style={{ ...S.gold, fontSize: 21 }}>{sg.heures} h/pièce</span>
+                  {facteur > 1 && <span style={S.red}> ×{facteur} le grand public</span>}
+                  <br />
+                  <span style={S.steel}>{sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
+                </button>
+              );
+            })}
 
             {/* Pas de prix suggéré : on donne le coût, le joueur décide. */}
+            {/* Le temps de fabrication est la vraie contrainte du jeu : il doit
+                sauter aux yeux avant de lancer la R&D. */}
             <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 10 }}>
-              <span style={S.steel}>Cette montre vous coûtera</span>
-              <br />
-              <span style={{ ...S.gold, fontSize: 22 }}>{fmtArgent(coutApercu)}</span>
-              <span style={S.steel}> par pièce · qualité {qualApercu}/10 · {heuresParPiece(apercu)} h/pièce</span>
-              <br />
-              <span style={S.steel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                <span>
+                  <span style={S.steel}>Temps de fabrication</span>
+                  <br />
+                  <span style={{ ...S.gold, fontSize: 26 }}>{heuresParPiece(apercu)} h</span>
+                  <span style={S.steel}> par pièce</span>
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  <span style={S.steel}>Coût de revient</span>
+                  <br />
+                  <span style={{ ...S.gold, fontSize: 22 }}>{fmtArgent(coutApercu)}</span>
+                  <span style={S.steel}> · qualité {qualApercu}/10</span>
+                </span>
+              </div>
+              <div style={{ ...S.steel, marginTop: 8 }}>
+                Avec vos {fmtH(dispoProd)} disponibles ce trimestre, vous pourriez en produire{" "}
+                <span style={S.gold}>{fmtNb(Math.floor(dispoProd / heuresParPiece(apercu)))}</span> — contre{" "}
+                {fmtNb(Math.floor(dispoProd / SEGMENTS.grandpublic.heures))} pour un modèle grand public.
+              </div>
+              <div style={{ ...S.steel, marginTop: 6 }}>
                 Vous fixerez son prix vous-même quand elle sortira d'étude. L'étude de marché chiffre la demande
                 à plusieurs prix.
-              </span>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
@@ -686,12 +709,13 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                 </span>
                 <br />
                 <span style={S.steel}>
-                  Une extension ({fmtArgent(ATELIER_COUT)}) ouvre {POSTES_PAR_EXTENSION} postes d'un coup, soit{" "}
-                  {fmtH(ATELIER_HEURES)}.{" "}
-                  {peut(ATELIER_COUT)
-                    ? "Votre trésorerie le permet."
-                    : "Votre trésorerie ne le permet pas sans descendre sous " + MARGE_CONSEIL_TRIMESTRES +
-                      " trimestres de coûts fixes — à vous de juger du risque."}
+                  Un poste supplémentaire coûte {fmtArgent(ATELIERS.petit.cout)} ({fmtH(ATELIERS.petit.heures)}), une
+                  halle de {ATELIERS.grand.postes} postes {fmtArgent(ATELIERS.grand.cout)} ({fmtH(ATELIERS.grand.heures)}
+                  ) — moins cher au poste.{" "}
+                  {peut(ATELIERS.petit.cout)
+                    ? "Votre trésorerie permet au moins le petit palier."
+                    : "Votre trésorerie ne permet ni l'un ni l'autre sans descendre sous " +
+                      MARGE_CONSEIL_TRIMESTRES + " trimestres de coûts fixes."}
                 </span>
               </div>
             )}
@@ -839,13 +863,20 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
-        <button style={S.action(ok(COUTS_H.atelier, ATELIER_COUT))} onClick={jouer("atelier", () => actions.action("atelier"))}>
-          🏭 Agrandir l'atelier{" "}
-          <span style={S.steel}>
-            ({fmtH(COUTS_H.atelier)}, {fmtArgent(ATELIER_COUT)}) — {POSTES_PAR_EXTENSION} postes de plus, soit +
-            {fmtH(ATELIER_HEURES)}/trim · fixes +{fmtArgent(ATELIER_FIXES)}/trim
-          </span>{fait("atelier")}
-        </button>
+        {Object.entries(ATELIERS).map(([cle, a]) => (
+          <button
+            key={cle}
+            style={S.action(ok(a.heuresAction, a.cout))}
+            onClick={jouer("atelier-" + cle, () => actions.agrandirAtelier(cle))}
+          >
+            🏭 {a.nom}{" "}
+            <span style={S.steel}>
+              ({fmtH(a.heuresAction)}, {fmtArgent(a.cout)}) — +{fmtH(a.heures)}/trim · fixes +
+              {fmtArgent(a.fixes)}/trim · {fmtArgent(Math.round(a.cout / a.postes))} le poste
+            </span>
+            {fait("atelier-" + cle)}
+          </button>
+        ))}
 
         <div style={S.h3}>IMAGE</div>
         <button style={S.action(ok(COUTS_H.marketing, COUTS_CHF.marketing))} onClick={jouer("marketing", () => actions.action("marketing"))}>

@@ -28,12 +28,14 @@ export const RANG_MAX = 2200;
 // Le marché grossit : ce qui suffisait à entrer au Top 50 en 2015 ne suffit plus
 // vingt ans plus tard. Version minimale du classement vivant (le reste en S3) :
 // toute la table d'ancrage est indexée sur cette croissance.
-// ~60 M en 2015, ~152 M en 2040, ~390 M en 2065.
+// ~60 M en 2015, ~126 M en 2040, ~263 M en 2065. Valeur calée aux bots : au
+// dessous, une stratégie entre au Top 50 dès 2036 ; au-dessus, plus personne
+// n'entre. Voir la section équilibrage du lore.
 // Surchargeable en test : BARILLET_CROISSANCE=0.025 npm run bots
 export const CROISSANCE_MARCHE =
   typeof process !== "undefined" && process.env && process.env.BARILLET_CROISSANCE
     ? Number(process.env.BARILLET_CROISSANCE)
-    : 0.038;
+    : 0.030;
 const ANNEE_REFERENCE = 2015;
 
 export const facteurMarche = (annee = ANNEE_REFERENCE) =>

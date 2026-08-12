@@ -141,6 +141,25 @@ d'autosave). Nouveautés de cette phase :
 - **Coûts fixes décomposés** : panneau dépliable en jeu et détail ligne à ligne
   dans le rapport (structure, salaires par poste, agrandissements, canaux).
 
+### Refonte des heures par gamme (v0.8)
+
+Le temps de fabrication est désormais porté par la gamme visée — 1 h en grand
+public, 2 h en lifestyle, 12 h chez les connaisseurs, 30 h en bling — et non
+plus par le mouvement. Échelle arbitrée sur le réel horloger.
+
+Effet mesuré aux bots (`npm run bots`) : la marge par heure d'atelier passe d'un
+écart de 18× à 1,8× entre gammes, et l'écart de chiffre d'affaires entre
+stratégies de 75× à **2,1×**. Le Volumiste, qui mourait sur 10 parties sur 10,
+survit désormais sur 10 sur 10 — le déclencheur était l'ajout d'un **petit
+palier d'atelier** (1 poste, 60 000 CHF) : sans lui, une stratégie de volume
+n'accumulait jamais les 350 000 CHF nécessaires à la grande halle et restait
+bloquée à un employé pendant cinquante ans.
+
+Quatre des cinq critères d'équilibrage sont tenus. Le cinquième — la meilleure
+stratégie doit entrer au Top 50 entre 2050 et 2065 — reste ouvert : les bots
+plafonnent vers 2035 et restent plats, si bien qu'aucun seuil ne peut créer de
+couloir. Détail et pistes dans le lore, section équilibrage.
+
 ## Structure
 
 ```

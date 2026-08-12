@@ -9,7 +9,7 @@ import Fin from "./components/Fin.jsx";
 import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
-  ATELIER_COUT, ATELIER_FIXES, ATELIER_HEURES, POSTES_PAR_EXTENSION,
+  ATELIERS,
   CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
@@ -279,13 +279,7 @@ export default function App() {
           (lignes.length ? lignes.join(" | ") : "Aucun modèle en vente.")] });
     }
 
-    if (type === "atelier" && assez(COUTS_H.atelier, ATELIER_COUT)) {
-      setG({ ...g, heures: g.heures - COUTS_H.atelier, cash: g.cash - ATELIER_COUT,
-        ateliers: g.ateliers + 1, capacite: g.capacite + ATELIER_HEURES,
-        messages: [...g.messages, "Atelier agrandi : " + POSTES_PAR_EXTENSION +
-          " postes de plus, soit +" + ATELIER_HEURES + " h par trimestre. Coûts fixes +" +
-          fmtArgent(ATELIER_FIXES) + "/trimestre."] });
-    }
+
 
     if (type === "soldes" && assez(COUTS_H.soldes)) {
       let cash = 0, unites = 0;
@@ -321,6 +315,26 @@ export default function App() {
       setG({ ...g, cash: g.cash - montant, dette: g.dette - montant,
         messages: [...g.messages, "Remboursement : −" + fmtArgent(montant) + " de dette."] });
     }
+  }
+
+  // Deux tailles d'extension : le petit pas pour les stratégies de volume qui
+  // n'accumulent jamais assez pour la halle, la halle pour le passage à l'échelle.
+  function agrandirAtelier(taille) {
+    const a = ATELIERS[taille];
+    if (!a || !assez(a.heuresAction, a.cout)) return;
+    setG({
+      ...g,
+      heures: g.heures - a.heuresAction,
+      cash: g.cash - a.cout,
+      ateliers: g.ateliers + 1,
+      ateliersFixes: (g.ateliersFixes || 0) + a.fixes,
+      capacite: g.capacite + a.heures,
+      messages: [
+        ...g.messages,
+        "Atelier agrandi : " + a.postes + " poste" + (a.postes > 1 ? "s" : "") + " de plus, soit +" +
+        fmtH(a.heures) + " par trimestre. Coûts fixes +" + fmtArgent(a.fixes) + "/trimestre.",
+      ],
+    });
   }
 
   function facelift(i) {
@@ -543,7 +557,7 @@ export default function App() {
       <Jeu
         g={g} ctx={ctx} marque={marque} saveMsg={saveMsg} autosaveAt={autosaveAt}
         actions={{
-          action, creerModele, rechercher, embaucher, licencier, ouvrirCanal,
+          action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
           facelift, edition, opportunite, setProd, setPrix,
           finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}
