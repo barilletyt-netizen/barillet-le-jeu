@@ -242,12 +242,38 @@ export const FINITION = { heures: 1, cout: 80, qual: 1, prixMult: 1.2 };
 // ce n'est plus un prix imposé. `pool` = taille du marché avant saturation.
 // Playtest : les pools d'origine plafonnaient le quartz vers 1'500 pièces par
 // trimestre. Élargis pour qu'une marque de volume puisse exister.
+//
+// Équilibrage post-beta : le haut de gamme encaissait plus de chiffre avant
+// saturation que le grand public (135 M contre 96 M par an), tout en ne coûtant
+// presque aucune capacité — la stratégie « monter en gamme » était strictement
+// supérieure. Les pools connaisseurs et bling sont resserrés pour que le haut
+// de gamme soit un jeu de marge à plafond bas, et le volume un jeu de capacité
+// à plafond haut. Il n'y a pas quarante mille acheteurs de tourbillons.
 export const SEGMENTS = {
   grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
   lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
-  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 90000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées." },
-  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 30000, qualMin: 4, notoMin: 35, desc: "Prix élevés, mais il faut être connu." },
+  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 45000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées. Marché étroit." },
+  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 14000, qualMin: 4, notoMin: 35, desc: "Prix élevés, marché minuscule. Il faut être connu." },
 };
+
+// ---- Rendements des jauges ----------------------------------------------
+// Les jauges d'image agissent en rendements décroissants : un exposant < 1
+// rend les premiers points très payants et les derniers presque décoratifs.
+//
+// Pourquoi concave plutôt qu'un poids global plus faible : la beta a montré que
+// les jauges devenaient accessoires au-delà d'un certain niveau, mais elles
+// doivent rester le déverrouillage des marges en début de partie. Aplatir le
+// haut de la courbe tame la stratégie « tout dans l'image » sans dévaloriser
+// les premiers investissements — au contraire, il les renforce.
+// Élasticité au-delà du prix acceptable. En dessous du prix acceptable la
+// demande reste linéaire ; au-dessus, elle est écrasée par une puissance.
+// Beta : « il suffit de marger comme un porc » — vendre 35% au-dessus du prix
+// acceptable ne coûtait presque rien en volume.
+export const ELASTICITE_PRIX = 2.6;
+
+export const CONCAVITE_NOTORIETE = 0.55;
+export const CONCAVITE_CREDIBILITE = 0.55;
+export const CONCAVITE_DESIRABILITE = 0.55;
 
 // La saturation d'un segment se résorbe : elle mesure les ventes récentes, pas
 // le cumul de toute la partie (sinon le marché se ferme définitivement).

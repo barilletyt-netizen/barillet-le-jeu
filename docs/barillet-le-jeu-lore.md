@@ -171,6 +171,39 @@ Le jeu n'affiche **aucun prix par défaut**. À la conception il annonce le **co
 ### Déblocage progressif des actions (principe clé)
 Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges, année, complications, taille d'équipe. Exemples : Campagne choc → notoriété ≥ 20 ; Édition limitée → désirabilité ≥ 15 ; Boutique en propre → distribution ≥ 40. Certaines actions n'apparaissent qu'après un événement. *(Non implémenté : sorti du plan révisé, à replacer en S4 ou S6.)*
 
+## 3 bis. Équilibrage — méthode et état (Phase B, en cours)
+
+### Méthode
+Quatre bots stratèges (`npm run bots`) jouent 2015-2065 sur dix graines reproductibles : **le Margeur** (prix 1,35× le prix acceptable), **le Volumiste** (0,8×, portée maximale), **le Prestigieux** (jauges d'abord, 1,1×), **l'Équilibré**. Sortie par bot : année d'entrée au Top 50, faillites, CA et rang médians. Verdict automatique sur les critères.
+
+**Critères de validation** : (a) la meilleure stratégie entre au Top 50 entre 2050 et 2065 sur ≥ 3 graines — les humains font environ deux fois mieux que les bots, c'est le couloir voulu ; (b) aucune stratégie avant 2040 ; (c) écart de CA médian < 3× entre la meilleure et la pire stratégie viable ; (d) le Volumiste peut faire faillite sur quelques graines, pas 10/10 ; (e) l'Équilibré finit dans le couloir médian.
+
+**Deux pièges méthodologiques rencontrés, à ne pas refaire :**
+- Des bots naïfs qui ne dépensent rien en image meurent tous : la demande dépend de la notoriété, donc on mesure alors la bêtise des bots, pas l'équilibrage. Tout bot doit entretenir un plancher de jauges, reprendre ses prix et faire ses facelifts.
+- Le verdict automatique passait au vert par vacuité : quand personne n'atteint le Top 50, « aucune stratégie ne domine » est trivialement vrai. Un critère de gagnabilité est indispensable.
+
+### Réglages posés
+| Curseur | Valeur | Raison |
+|---|---|---|
+| Seuil Top 50 croissant | +3,8 %/an (60 M en 2015 → 152 M en 2040 → 387 M en 2065) | La barre monte avec le marché |
+| Rendements des jauges | concaves, exposant 0,55 | Les premiers points de notoriété valent plus que les derniers : tame le « tout image » sans dévaloriser les débuts |
+| Élasticité prix | puissance 2,6 au-dessus du prix acceptable | « Marger comme un porc » doit se payer en volume |
+| Pools haut de gamme | connaisseurs 90 k → 45 k, bling 30 k → 14 k | Le haut de gamme encaissait plus de chiffre avant saturation que le grand public |
+
+### Diagnostic principal, non encore résolu
+La cause dominante du déséquilibre **n'est pas le poids des jauges** mais la **marge par heure d'atelier**, la ressource rare du jeu :
+
+| Segment | h/pièce | Prix acceptable | Marge/pièce | **Marge par heure** |
+|---|---|---|---|---|
+| Grand public | 1 | 370 | 199 | **199** |
+| Lifestyle | 1 | 925 | 643 | **643** |
+| Connaisseurs | 3 | 5 373 | 3 958 | **1 319** |
+| Bling | 3 | 13 816 | 10 713 | **3 571** |
+
+Un facteur **18** sur la grandeur qui commande la vitesse de croissance. Le haut de gamme est strictement supérieur par unité de ressource rare, et compose bien plus vite. Tant que cet écart existe, aucun réglage de jauges ou d'élasticité ne rapprochera les stratégies.
+
+**Piste retenue pour la prochaine itération** : faire croître les heures par pièce avec la gamme (ébauche et manufacture bien plus chères en heures qu'aujourd'hui), et/ou relever fortement le coût matière du haut de gamme. Une montre de connaisseur ne se fabrique pas en trois heures.
+
 ## 4. Production & organisation
 (inchangé v0.3 : postes clés nommés avec stats + effectifs standard ; louer → construire ; Vallée de Joux/Neuchâtel = vivier, Paris = difficile ; départements Marketing/Finance/IT ; distribution directe/détaillants/boutiques/e-commerce ; fournisseurs avec stats, track record, coût, faillite possible ; verticalisation = accomplissement ultime, pas de simulation de label)
 

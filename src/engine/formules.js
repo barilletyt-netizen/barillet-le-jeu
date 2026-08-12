@@ -3,6 +3,7 @@ import {
   EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE, COMPL_NIVEAU_REQUIS,
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
+  CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
 } from "../data/config.js";
 import { multEvenements } from "../data/evenements.js";
 import { devise, enDevise } from "./devise.js";
@@ -347,6 +348,13 @@ export const gainChoc = (g, pays) => Math.max(3, Math.round((9 - g.noto / 14) * 
 export const fraicheur = (age) => Math.max(0.35, 1 - 0.045 * Math.max(0, age - 4));
 
 /**
+ * Rendement d'une jauge, en rendements décroissants. Renvoie 0 à 0 et 1 à 100,
+ * mais monte beaucoup plus vite au début : les vingt premiers points de
+ * notoriété valent plus que les vingt derniers.
+ */
+export const rendement = (valeur, concavite) => Math.pow(clamp(valeur, 0, 100) / 100, concavite);
+
+/**
  * Source unique de vérité pour la demande. L'étude de marché et la simulation
  * l'appellent toutes les deux ; la simulation y ajoute seulement l'aléa.
  * `prixTest` permet de simuler un autre prix que celui du modèle.
@@ -360,15 +368,22 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   if (m.qual < seg.qualMin || g.noto < seg.notoMin) return 0;
 
   // Le prix « acceptable » monte avec le matériau, les complications et la finition.
+  // La crédibilité élargit le prix acceptable, en rendements décroissants.
   const idealAdj =
     seg.ideal *
     MATERIAUX[m.materiau].idealMult *
     produit(paliersDe(m), (p) => p.prixMult) *
     (m.finition ? FINITION.prixMult : 1) *
-    (0.55 + m.qual / 14 + g.cred / 300);
+    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE));
 
-  const priceFit = clamp(1.45 - prixN / idealAdj, 0.05, 1.1);
-  const desMult = m.seg === "connaisseurs" || m.seg === "bling" ? 0.45 + g.des / 90 : 0.85 + g.des / 300;
+  // Adhérence au prix : linéaire tant qu'on reste sous le prix acceptable,
+  // écrasée par une puissance au-dessus. Vendre trop cher se paie très vite.
+  const ratio = prixN / idealAdj;
+  const priceFit =
+    clamp(1.45 - ratio, 0.02, 1.1) * (ratio > 1 ? Math.pow(1 / ratio, ELASTICITE_PRIX) : 1);
+  const desirabilite = rendement(g.des, CONCAVITE_DESIRABILITE);
+  const desMult =
+    m.seg === "connaisseurs" || m.seg === "bling" ? 0.45 + 1.11 * desirabilite : 0.85 + 0.33 * desirabilite;
   // Saturation calculée sur les ventes récentes : le marché se referme si on
   // l'inonde, mais il respire dès qu'on lève le pied.
   const satMult = seg.pool / (seg.pool + (g.saturation[m.seg] || 0));
@@ -376,7 +391,7 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
 
   return (
     seg.base *
-    Math.pow(g.noto / 100, 0.85) *
+    rendement(g.noto, CONCAVITE_NOTORIETE) *
     priceFit * porteeTotale(g.canaux) * desMult * satMult * fraicheur(m.age) * styleMult *
     multEvenements(g.annee, g.t, m.seg, m.mvt) *
     multExterne
