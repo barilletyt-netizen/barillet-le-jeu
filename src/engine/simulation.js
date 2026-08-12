@@ -10,7 +10,7 @@ import {
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
 import { mondeInitial, evoluerMonde, breveConcurrent } from "./monde.js";
-import { recitTrimestre } from "./recit.js";
+import { journalTrimestre } from "./journal.js";
 
 const SEGMENTS_VIDE = { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 };
 
@@ -38,6 +38,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     revenusAnnee: 0, revenusAnneePrec: 0, resultatAnnee: 0, meilleurRang: 2200,
     saturation: { ...SEGMENTS_VIDE }, // ventes récentes, se résorbent chaque trimestre
     segVendues: { ...SEGMENTS_VIDE }, // cumul, pour les statistiques
+    marque: marque || "Votre marque",
     journal: [], opportunite: null, oppRecentes: [],
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
@@ -265,7 +266,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     heuresEquipe: heuresEmployes(employes),
     encadrement: enc, capacite: gs.capacite,
   };
-  rap.recit = recitTrimestre(rap, gs, gs.actionsTour || [], breve);
+  rap.journal = journalTrimestre({ rap, gs, actions: gs.actionsTour || [], marque: gs.marque, breve });
 
   const gs2 = {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,

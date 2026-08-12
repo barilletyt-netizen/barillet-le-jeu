@@ -186,12 +186,14 @@ Quatre bots stratèges (`npm run bots`) jouent 2015-2065 sur dix graines reprodu
 
 Échelle arbitrée sur le réel horloger, pas sur l'équilibrage — c'est le sujet du jeu, autant qu'il soit crédible :
 
-| Gamme | Heures par pièce |
-|---|---|
-| Grand public | 1 h |
-| Lifestyle | 2 h |
-| Connaisseurs | 12 h |
-| Bling-bling | 30 h |
+**Les heures se justifient par le travail, pas par la clientèle** — retour de test : « il faudrait le justifier au-delà de : c'est pour telle population ». Chaque gamme affiche en jeu le geste qui prend le temps.
+
+| Gamme | Heures par pièce | Ce qu'on y fait |
+|---|---|---|
+| Grand public | 1 h | Mouvement posé, boîtier fermé, contrôle de marche au banc |
+| Lifestyle | 2 h | Boîtier brossé puis poli, bracelet ajusté à la main, double contrôle |
+| Connaisseurs | 12 h | Anglage des ponts à la lime, côtes de Genève, réglage en cinq positions |
+| Bling-bling | 30 h | Sertissage pierre à pierre, polissage miroir, démontage et remontage après essais |
 
 Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-dessus. Un quartz s'assemble en une heure, un tourbillon manufacture finition maison en approche cinquante.
 

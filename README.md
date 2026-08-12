@@ -162,10 +162,12 @@ couloir. Détail et pistes dans le lore, section équilibrage.
 
 ### S3 — couche narrative (v0.9)
 
-- **Récit trimestriel** en tête du rapport : ce que vous avez fait de votre temps,
-  l'événement du trimestre, le résultat commercial, une brève de l'industrie.
-  Assemblé par gabarits (`src/engine/recit.js`), ton de chronique horlogère, sans
-  flatterie automatique — un mauvais trimestre se dit franchement.
+- **La Gazette du Balancier** (`src/engine/journal.js`) : le trimestre en une de
+  journal, papier ivoire sur l'UI sombre. Chaque fait candidat porte un poids et
+  c'est le plus fort qui fait la une, dont on ne garde que trois — un trimestre
+  de crise et un trimestre calme ne se lisent pas pareil. La première version
+  était une chronique en prose : les testeurs cessaient de la lire au bout de
+  trois tours parce que l'ordre était figé et que tout y était raconté.
 - **Classement vivant** (`src/engine/monde.js`) : les géants voient leurs revenus
   dériver chaque année et peuvent se doubler ; les indépendants gardent leur
   identité et gagnent ou perdent des places, avec flèche de tendance. Leurs

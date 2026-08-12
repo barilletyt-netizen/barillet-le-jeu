@@ -1,7 +1,10 @@
 import { S } from "../styles.js";
 import { fmtArgent, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
+import Journal from "./Journal.jsx";
 
 export default function Rapport({ r, onContinuer }) {
+  // Le journal a la priorité : on n'affiche le rappel que s'il n'en a pas parlé.
+  const dejaDit = (source) => (r.journal ? r.journal.sources.includes(source) : false);
   return (
     <div style={S.root}>
       <div style={{ ...S.wrap, paddingTop: 24 }}>
@@ -9,29 +12,17 @@ export default function Rapport({ r, onContinuer }) {
           Rapport T{r.t} {r.annee}
         </div>
 
-        {/* La chronique d'abord : c'est elle qui donne le sens des chiffres qui suivent. */}
-        {r.recit && r.recit.length > 0 && (
-          <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 12 }}>
-            {r.recit.map((p, i) => (
-              <div key={i} style={{ marginBottom: i === r.recit.length - 1 ? 0 : 10, lineHeight: 1.45 }}>
-                {i === r.recit.length - 1 && r.recit.length > 1 ? (
-                  <span style={S.steel}>{p}</span>
-                ) : (
-                  p
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Le journal remplace la chronique en paragraphes : on le parcourt. */}
+        <Journal j={r.journal} />
 
-        {r.evt && (
+        {r.evt && !dejaDit("evt") && (
           <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>
             <span style={S.gold}>⚡ {r.evt.titre}</span>
             <br />
             <span style={S.steel}>{r.evt.texte}</span>
           </div>
         )}
-        {r.alea && (
+        {r.alea && !dejaDit("alea") && (
           <div style={{ ...S.panel, borderColor: "#4A7C9E", marginTop: 12 }}>
             <span style={S.blue}>🎲 {r.alea.titre}</span>
             <br />

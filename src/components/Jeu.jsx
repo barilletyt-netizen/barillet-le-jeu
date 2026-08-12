@@ -506,6 +506,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                   {facteur > 1 && <span style={S.red}> ×{facteur} le grand public</span>}
                   <br />
                   <span style={S.steel}>{sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
+                  {/* Les heures se justifient par le travail, pas par la clientèle. */}
+                  <br />
+                  <span style={{ ...S.steel, opacity: 0.85 }}>{sg.metier}</span>
                 </button>
               );
             })}

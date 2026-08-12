@@ -10,7 +10,7 @@
 // ATTENTION : `main` sert le panneau de fermeture (true). Sur la branche de
 // chantier il est à false pour pouvoir jouer et tester. Au moment de rouvrir,
 // c'est la seule ligne à vérifier.
-export const BETA_FERMEE = true;
+export const BETA_FERMEE = false;
 
 // Liens de l'écran de fermeture. Un lien à null s'affiche en texte simple :
 // mieux vaut pas de lien qu'un lien mort sur une page publique.
@@ -254,10 +254,26 @@ export const FINITION = { heures: 1, cout: 80, qual: 1, prixMult: 1.2 };
 // quartz d'entrée de gamme s'assemble en minutes, une pièce de haute horlogerie
 // finie main demande des dizaines d'heures. C'est le sujet même du jeu.
 export const SEGMENTS = {
-  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, heures: 1, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix. 1 h de main-d'œuvre par pièce." },
-  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, heures: 2, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable. 2 h par pièce." },
-  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 2100, pool: 90000, heures: 12, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées. Marché étroit, 12 h par pièce." },
-  bling: { nom: "Bling-bling", ideal: 9000, base: 800, pool: 30000, heures: 30, qualMin: 4, notoMin: 35, desc: "Marché minuscule, finition d'exception : 30 h par pièce." },
+  grandpublic: {
+    nom: "Grand public", ideal: 280, base: 3800, pool: 800000, heures: 1, qualMin: 0, notoMin: 0,
+    desc: "Gros volumes, très sensible au prix.",
+    metier: "Mouvement posé, boîtier fermé, contrôle de marche au banc. Une pièce par heure et par personne.",
+  },
+  lifestyle: {
+    nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, heures: 2, qualMin: 2, notoMin: 10,
+    desc: "Achète l'image. Notoriété indispensable.",
+    metier: "Boîtier brossé puis poli, bracelet ajusté à la main, double contrôle avant emballage.",
+  },
+  connaisseurs: {
+    nom: "Connaisseurs", ideal: 3500, base: 2100, pool: 90000, heures: 12, qualMin: 5, notoMin: 5,
+    desc: "Qualité et crédibilité exigées. Marché étroit.",
+    metier: "Anglage des ponts à la lime, côtes de Genève, réglage en cinq positions sur plusieurs jours. Ça ne s'automatise pas.",
+  },
+  bling: {
+    nom: "Bling-bling", ideal: 9000, base: 800, pool: 30000, heures: 30, qualMin: 4, notoMin: 35,
+    desc: "Marché minuscule, il faut être connu.",
+    metier: "Sertissage pierre à pierre, polissage miroir des flancs, démontage et remontage complets après essais. Une pièce mobilise un horloger pendant près d'une semaine.",
+  },
 };
 
 // ---- Rendements des jauges ----------------------------------------------
