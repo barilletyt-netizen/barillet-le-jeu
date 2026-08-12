@@ -8,10 +8,12 @@
 // suffit à rouvrir (beta de novembre).
 export const BETA_FERMEE = true;
 
-// Liens de l'écran de fermeture. Laisser à null tant que l'URL exacte n'est pas
-// confirmée : le texte s'affiche alors sans lien mort.
+// Liens de l'écran de fermeture. Un lien à null s'affiche en texte simple :
+// mieux vaut pas de lien qu'un lien mort sur une page publique.
+// Discord volontairement absent : l'invitation passe par la description de la
+// vidéo et la newsletter, pas par le jeu.
 export const LIENS = {
-  youtube: null,
+  youtube: "https://www.youtube.com/@barilletmontre",
   discord: null,
 };
 
