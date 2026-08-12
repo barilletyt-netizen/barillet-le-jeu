@@ -46,7 +46,8 @@ export default function BetaFermee() {
           <br />
           <br />
           <span style={S.steel}>
-            Accès anticipé à la prochaine version via {lien(LIENS.discord, "le Discord")}.
+            Accès anticipé à la prochaine version via le Discord — l'invitation est en description de la
+            vidéo et dans la newsletter.
           </span>
         </div>
 
