@@ -2,6 +2,19 @@
 // Spec v0.5 : budget d'heures (plus de PA), employés spécialisés, complications,
 // self-made à 10'000 CHF, horizon 2015-2065.
 
+// ---- Fermeture de la beta ------------------------------------------------
+// Drapeau unique : à true, l'application ne sert que l'écran de fermeture. Le
+// jeu reste intégralement dans le code, rien n'est supprimé — repasser à false
+// suffit à rouvrir (beta de novembre).
+export const BETA_FERMEE = true;
+
+// Liens de l'écran de fermeture. Laisser à null tant que l'URL exacte n'est pas
+// confirmée : le texte s'affiche alors sans lien mort.
+export const LIENS = {
+  youtube: null,
+  discord: null,
+};
+
 // ---- Temps et budget d'heures -------------------------------------------
 
 export const ANNEE_DEBUT = 2015;

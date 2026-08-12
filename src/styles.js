@@ -52,6 +52,7 @@ export const S = {
     borderRadius: 4, width: 90, textAlign: "right",
   },
   jauge: { fontSize: 16, color: "#9DA8A6" },
+  lien: { color: "#C9A227", textDecoration: "underline" },
 
   // ---- Barre de statut persistante (bas d'écran, mobile d'abord) ----------
   barre: {

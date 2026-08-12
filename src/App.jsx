@@ -6,7 +6,9 @@ import Jeu from "./components/Jeu.jsx";
 import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
+import BetaFermee from "./components/BetaFermee.jsx";
 import {
+  BETA_FERMEE,
   ATELIER_COUT, ATELIER_FIXES, ATELIER_HEURES, POSTES_PAR_EXTENSION,
   CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
@@ -25,6 +27,10 @@ import { nomDeMarque } from "./data/noms.js";
 import { chargerPartie, existeSauvegarde, sauvegarderPartie } from "./engine/save.js";
 
 export default function App() {
+  // Court-circuit de fermeture : aucun hook n'est appelé au-delà, et surtout
+  // aucune écriture dans le localStorage des visiteurs.
+  if (BETA_FERMEE) return <BetaFermee />;
+
   const [phase, setPhase] = useState("intro");
   const [pays, setPays] = useState(null);
   const [profil, setProfil] = useState(null);
