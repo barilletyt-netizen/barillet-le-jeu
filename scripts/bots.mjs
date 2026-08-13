@@ -19,6 +19,7 @@ import * as F from "../src/engine/formules.js";
 import * as C from "../src/data/config.js";
 import * as M from "../src/data/monde.js";
 import { graine } from "../src/engine/alea.js";
+import { EVENEMENTS } from "../src/data/evenements.js";
 
 const arg = (nom, defaut) => {
   const i = process.argv.indexOf("--" + nom);
@@ -26,6 +27,15 @@ const arg = (nom, defaut) => {
 };
 const NB_SEEDS = arg("seeds", 10);
 const TRACE = process.argv.includes("--trace");
+
+/** Option de texte : `--pays chine`, `--sans bns`, `--bot Équilibré`. */
+const argTxt = (nom, defaut) => {
+  const i = process.argv.indexOf("--" + nom);
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : defaut;
+};
+const PAYS = argTxt("pays", "suisse");
+const SANS = argTxt("sans", null);
+const SEUL = argTxt("bot", null);
 
 // ---- Briques communes -----------------------------------------------------
 
@@ -346,17 +356,26 @@ function partie(bot, seed, ctx, origine) {
 
 // ---- Exécution ------------------------------------------------------------
 
-const ctx = { pays: "suisse", profil: "artisan" };
+// Test discriminant : retirer un événement permet de savoir si c'est lui qui
+// tue une stratégie, ou si la stratégie se tue toute seule.
+if (SANS) {
+  const i = EVENEMENTS.findIndex((e) => e.id === SANS);
+  if (i < 0) { console.error("Aucun événement « " + SANS + " »."); process.exit(1); }
+  EVENEMENTS.splice(i, 1);
+}
+
+const ctx = { pays: PAYS, profil: "artisan" };
 const ORIGINE = "moyen";
 const seeds = Array.from({ length: NB_SEEDS }, (_, i) => 1000 + i * 137);
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : null);
 
-console.log(`Bots stratèges · ${seeds.length} graines · ${ORIGINE} / ${ctx.pays} / ${ctx.profil}\n`);
+console.log(`Bots stratèges · ${seeds.length} graines · ${ORIGINE} / ${ctx.pays} / ${ctx.profil}` +
+  (SANS ? ` · SANS « ${SANS} »` : "") + "\n");
 console.log("bot          | Top 50 (médiane) | jamais | faillites | CA médian 2065 | rang médian");
 console.log("-".repeat(92));
 
 const resultats = [];
-for (const bot of BOTS) {
+for (const bot of BOTS.filter((b) => !SEUL || b.nom === SEUL)) {
   const runs = seeds.map((s) => partie(bot, s, ctx, ORIGINE));
   const tops = runs.map((r) => r.anneeTop50).filter((x) => x !== null);
   const faillites = runs.filter((r) => r.faillite).length;

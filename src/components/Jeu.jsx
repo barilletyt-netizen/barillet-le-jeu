@@ -8,7 +8,7 @@ import {
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
   HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES,
 } from "../data/config.js";
-import { OPPORTUNITES } from "../data/evenements.js";
+import { PROPOSITIONS } from "../data/evenements.js";
 import {
   canauxOuvrables, chargeHeures, complicationsDispo, complicationsRecherchables,
   complicationsVerrouillees, coutFacelift, coutRD, coutUnitaire, dureeDev, encadrement,
@@ -59,7 +59,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
     marquer(cle);
   };
 
-  const opp = g.opportunite ? OPPORTUNITES.find((o) => o.id === g.opportunite) : null;
+  const opp = g.opportunite ? PROPOSITIONS.find((o) => o.id === g.opportunite) : null;
   const actifs = g.modeles.filter((m) => m.statut === "actif");
   const charge = chargeHeures(g.modeles);
   const dispoProd = heuresProductionDispo(g);
@@ -258,19 +258,25 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        {/* Une opportunité se saisit, une décision se tranche : le bandeau ne
+            se lit pas pareil, et le refus n'a pas le même poids. */}
         {opp && (
-          <div style={{ ...S.panel, borderColor: "#C9A227" }}>
-            <span style={S.gold}>★ {opp.titre}</span>
+          <div style={{ ...S.panel, borderColor: opp.type === "decision" ? "#4A7C9E" : "#C9A227" }}>
+            <span style={opp.type === "decision" ? S.blue : S.gold}>
+              {opp.type === "decision" ? "◆ " : "★ "}
+              {opp.titre}
+            </span>
             <br />
             <span style={S.steel}>{opp.texte}</span>
             <br />
             <span style={S.steel}>
-              {fmtH(opp.heures)}
+              {opp.heures > 0 ? fmtH(opp.heures) : "aucune heure"}
               {opp.cout > 0 ? " + " + fmtArgent(opp.cout) : ""}
+              {opp.effetRefus ? " · refuser n'est pas neutre" : ""}
             </span>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => actions.opportunite(false)}>
-                Décliner
+                {opp.type === "decision" ? "Refuser" : "Décliner"}
               </button>
               <button
                 style={{ ...S.cta, marginTop: 0, opacity: ok(opp.heures, opp.cout) ? 1 : 0.4 }}

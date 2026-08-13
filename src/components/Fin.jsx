@@ -2,8 +2,8 @@ import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN } from "../data/config.js";
 import { fmtArgent } from "../engine/formules.js";
 
-const TITRES = { faillite: "FAILLITE", top50: "TOP 50 !", temps: ANNEE_FIN + " — BILAN" };
-const ICONES = { faillite: "💀", top50: "👑", temps: "⌛" };
+const TITRES = { faillite: "FAILLITE", top50: "TOP 50 !", temps: ANNEE_FIN + " — BILAN", rachat: "RACHETÉE" };
+const ICONES = { faillite: "💀", top50: "👑", temps: "⌛", rachat: "🤝" };
 
 export default function Fin({ f, marque, onRejouer }) {
   const nom = marque || "Votre marque";
@@ -13,6 +13,9 @@ export default function Fin({ f, marque, onRejouer }) {
     top50:
       f.annee + ". " + nom + " entre au Stanley Morgan Top 50 avec " + fmtArgent(f.revenus) +
       " de revenus. L'industrie s'incline.",
+    rachat:
+      f.annee + ". Le groupe a signé. Le nom reste sur les cadrans, l'atelier tourne encore, et " + nom +
+      " ne vous appartient plus. On vous a remercié dans le communiqué.",
     temps:
       (ANNEE_FIN - ANNEE_DEBUT) + " ans se sont écoulés. " + nom + " termine autour du rang #" + f.rang +
       " avec " + fmtArgent(f.revenus) + " de revenus annuels. " +

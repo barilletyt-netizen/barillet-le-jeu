@@ -1,4 +1,4 @@
-import { ALEAS, EVENEMENTS, OPPORTUNITES, poolAleas } from "../data/evenements.js";
+import { ALEAS, DECISIONS, EVENEMENTS, PROPOSITIONS, poolAleas } from "../data/evenements.js";
 import { rangPour } from "../data/monde.js";
 import {
   PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
@@ -124,7 +124,9 @@ export const FREQ_OPPORTUNITE = 0.5;
 export function tirerOpportunite(etat) {
   if (etat.modeles.length === 0) return null;
   if (hasard() > FREQ_OPPORTUNITE) return null;
-  const dispo = OPPORTUNITES.filter((o) => o.req(etat));
+  // Les décisions liées à un événement historique ne se tirent pas au sort :
+  // c'est la date qui les amène.
+  const dispo = PROPOSITIONS.filter((o) => !o.surEvenement && o.req(etat));
   const choisie = tirerPondere(dispo, etat);
   return choisie ? choisie.id : null;
 }
@@ -445,6 +447,11 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     prevente,
     // L'enquête solde l'ardoise : le compteur repart de zéro.
     presseAchetee: effetAlea.resetPresse ? 0 : gs.presseAchetee || 0,
+    // Une décision portée par un événement passe devant l'opportunité du
+    // trimestre : c'est la date qui l'amène, on ne la remet pas au tirage.
+    decisionEvt: evtHisto && evtHisto.decision
+      && DECISIONS.find((d) => d.id === evtHisto.decision).req(gs)
+      ? evtHisto.decision : null,
     // Rang de l'exercice qui vient de se clore, pour la Gazette du T1 suivant.
     // Historique des rangs, un par exercice clos : la Gazette du T1 y lit la
     // progression de l'année écoulée.

@@ -13,7 +13,7 @@ import {
   CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
-import { OPPORTUNITES } from "./data/evenements.js";
+import { PROPOSITIONS } from "./data/evenements.js";
 import { trimestreIndex } from "./engine/effets.js";
 import { rangPour } from "./data/monde.js";
 import {
@@ -366,14 +366,33 @@ export default function App() {
   }
 
   function opportunite(accepte) {
-    const opp = OPPORTUNITES.find((o) => o.id === g.opportunite);
+    const opp = PROPOSITIONS.find((o) => o.id === g.opportunite);
     if (!opp) return;
     // Acceptée ou déclinée, l'opportunité rejoint la mémoire courte : elle ne
     // sera pas reproposée tout de suite (playtest : voyage de presse un
     // trimestre sur deux).
     const memoire = [opp.id, ...(g.oppRecentes || [])].slice(0, 3);
     if (!accepte) {
-      setG({ ...g, opportunite: null, oppRecentes: memoire });
+      // Dire non n'est pas toujours neutre : le label perdu se paie, la
+      // machine refusée se respecte.
+      const r = opp.effetRefus;
+      const etatRefus = { ...g, opportunite: null, oppRecentes: memoire };
+      if (r) {
+        if (r.cred) etatRefus.cred = clamp(g.cred + r.cred, 0, 100);
+        if (r.des) etatRefus.des = clamp(g.des + r.des, 0, 100);
+        if (r.noto) etatRefus.noto = clamp(g.noto + r.noto, 0, 100);
+        if (r.mods) {
+          etatRefus.mods = [
+            ...(g.mods || []),
+            ...r.mods.map((mod) => ({
+              ...mod,
+              fin: mod.duree == null ? null : trimestreIndex(g.annee, g.t) + mod.duree,
+            })),
+          ];
+        }
+        if (r.msg) etatRefus.messages = [...g.messages, r.msg];
+      }
+      setG(etatRefus);
       return;
     }
     if (!assez(opp.heures, opp.cout)) return;
@@ -400,6 +419,7 @@ export default function App() {
     if (e.dilution) etat.dilution = (g.dilution || 0) + e.dilution;
     if (e.embaucheFacile) etat.embaucheFacile = true;
     if (e.engagementVolume) etat.engagementVolume = true;
+    if (e.capacitePlus) etat.capacite = g.capacite + e.capacitePlus;
 
     // Écouler du stock : tout, ou un plafond de pièces.
     if (e.ecoulerStock) {
@@ -513,6 +533,13 @@ export default function App() {
     }
 
     etat.messages = [...g.messages, [e.msg || opp.msg, ...notes].filter(Boolean).join(" ")];
+    // Une décision peut terminer la partie : accepter le rachat, c'est arrêter.
+    if (e.finPartie) {
+      setG(etat);
+      setFinInfo({ type: e.finPartie, annee: g.annee, revenus: g.revenusAnnee, rang: g.meilleurRang });
+      setPhase("fin");
+      return;
+    }
     setG(etat);
   }
 
@@ -582,7 +609,8 @@ export default function App() {
       return;
     }
     const etat = { ...g, t: g.t + 1, heures: HEURES_FONDATEUR, actionsTour: [] };
-    etat.opportunite = tirerOpportunite(etat);
+    etat.opportunite = etat.decisionEvt || tirerOpportunite(etat);
+    etat.decisionEvt = null;
     etat.messages = ["T" + etat.t + " " + etat.annee + " — à vous de jouer.", ...g.messages];
     setG(etat);
     persister(etat);
@@ -617,7 +645,8 @@ export default function App() {
       revenusAnneePrec: g.revenusAnnee, revenusAnnee: 0, meilleurRang,
       messages: ["T1 " + nouvelleAnnee + " — nouvelle année."],
     };
-    etat.opportunite = tirerOpportunite(etat);
+    etat.opportunite = etat.decisionEvt || tirerOpportunite(etat);
+    etat.decisionEvt = null;
     setG(etat);
     persister(etat);
     setBilanAnnuel(null);

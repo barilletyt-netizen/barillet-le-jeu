@@ -329,6 +329,7 @@ export const EVENEMENTS = [
     texte: "Les groupes profitent des ruines du krach pour racheter tout ce qui tient encore debout. Un tiers des indépendants du classement changent de main en dix-huit mois.",
     mods: [],
     monde: { disparitionIndes: 0.3 },
+    decision: "offreRachat",
   },
   {
     annee: 2046, t: 1, id: "collectionneurs",
@@ -396,11 +397,7 @@ export const EVENEMENTS = [
     titre: "Le robot d'établi",
     texte: "Une machine sait désormais anglier un pont aussi bien qu'un humain, en un dixième du temps. La profession se divise entre ceux qui l'achètent et ceux qui refusent.",
     mods: [],
-    choix: {
-      accepter: "Installer la machine",
-      refuser: "S'en tenir à la main",
-      // L'effet réel est posé par le joueur : voir CHOIX_EVENEMENT.
-    },
+    decision: "machineAnglage",
   },
   {
     annee: 2054, t: 1, id: "climatAlpin",
@@ -447,7 +444,7 @@ export const EVENEMENTS = [
     titre: "L'horlogerie spatiale",
     texte: "Les premières missions habitées longue durée créent un besoin : un garde-temps mécanique qui fonctionne sans gravité ni électricité. Une maison décroche le contrat.",
     mods: [],
-    opportunite: { id: "contratSpatial", si: (g) => g.savoir >= 70 },
+    decision: "contratSpatial",
   },
   {
     annee: 2060, t: 1, id: "patrimoine",
@@ -1157,3 +1154,170 @@ ALEAS.push(
 
 // La démission ordinaire relève elle aussi du climat social.
 for (const a of ALEAS) if (a.id === "demission" || a.id === "talentDebauche") a.risqueSocial = true;
+
+/**
+ * Les décisions. Un aléa qu'on subit et un aléa qu'on décide ne se lisent pas
+ * pareil : ceux-là arrivent comme les opportunités, avec un choix à faire.
+ *
+ * Même forme qu'une opportunité, plus deux champs :
+ *   `effetRefus`     ce que coûte — ou rapporte — le fait de dire non
+ *   `surEvenement`   la décision n'est pas tirée au sort, c'est un événement
+ *                    historique qui la déclenche
+ */
+export const DECISIONS = [
+  {
+    id: "maitreRetraite", type: "decision", titre: "Un maître horloger à la retraite se propose",
+    texte: "Il viendrait deux jours par semaine. Le savoir-faire d'une vie, contre un salaire qui n'est pas symbolique.",
+    cout: 0, heures: 20, epoque: ["croissance", "maturite"], req: (g) => g.savoir >= 40,
+    effet: { savoir: 6, mods: [{ quoi: "fixesAjout", montant: 4000, duree: null }] },
+    msg: "Le maître revient à l'établi : savoir-faire +6, CHF 4'000 par trimestre.",
+  },
+  {
+    id: "outillageOccasion", type: "decision", titre: "L'outillage d'une manufacture qui ferme",
+    texte: "Une maison liquide son outillage. CHF 40'000 pour deux cents heures de capacité — le prix d'un tiers d'agrandissement.",
+    cout: 40000, heures: 30, epoque: "toujours", req: (g) => g.ateliers >= 1,
+    effet: { capacitePlus: 200 },
+    msg: "Outillage racheté : +200 h de capacité par trimestre, sans coût fixe supplémentaire.",
+  },
+  {
+    id: "remiseVolume", type: "decision", titre: "Le fournisseur propose un contrat",
+    texte: "−12% sur les composants pendant un an, contre un engagement de volume. En dessous, pénalité.",
+    cout: 0, heures: 30, epoque: ["croissance", "maturite"],
+    req: (g) => Object.values(g.segVendues).reduce((s, n) => s + n, 0) >= 300,
+    effet: { engagementVolume: true, mods: [{ quoi: "couts", mult: 0.88, duree: 4 }] },
+    msg: "Contrat signé : composants −12% pendant un an. En dessous de 125 pièces par trimestre, CHF 20'000 de pénalité.",
+  },
+  {
+    id: "ebauchesLiquidation", type: "decision", titre: "Des ébauches à saisir",
+    texte: "Soixante ébauches en liquidation à moitié prix. À prendre maintenant ou jamais.",
+    cout: 18000, heures: 20, epoque: "toujours", req: () => true,
+    effet: { mods: [{ quoi: "mouvement", mvtId: "ebauche", mult: 0.5, duree: 2 }] },
+    msg: "Ébauches achetées : le mouvement coûte moitié prix pendant deux trimestres.",
+  },
+  {
+    id: "maroquinier", type: "decision", titre: "Un maroquinier veut signer vos bracelets",
+    texte: "Un nom réputé sur le cuir. La montre gagne, la marge perd.",
+    cout: 0, heures: 30, epoque: ["croissance", "maturite"], req: (g) => g.des >= 30,
+    effet: { qualPlus: 1, mods: [{ quoi: "couts", mult: 1.03, duree: null }] },
+    msg: "Le cuir prend un nom : qualité +1 sur la meilleure pièce, coûts +3%.",
+  },
+  {
+    id: "commandeCorporate", type: "decision", titre: "Quarante montres pour une entreprise",
+    texte: "Gravées à leur logo, pour leurs cadres. Payées comptant, sans négociation possible — et sans prestige.",
+    cout: 0, heures: 40, epoque: "toujours",
+    req: (g) => g.noto >= 25 && g.modeles.some((m) => m.statut === "actif" && m.stock >= 40),
+    effet: { venteDirecte: { n: 40, prixMult: 0.85 }, cred: -1 },
+    msg: "Commande d'entreprise honorée.",
+  },
+  {
+    id: "localCentreVille", type: "decision", titre: "Un local en centre-ville se libère",
+    texte: "Une rue passante, 30% sous le prix habituel d'une boutique. L'occasion ne se représentera pas.",
+    cout: 180000, heures: 60, epoque: ["croissance", "maturite"], req: (g) => g.cash >= 250000,
+    effet: { canalPalier: "boutique", noto: 4 },
+    msg: "Local pris : la boutique en propre progresse d'un palier.",
+  },
+  {
+    id: "podcast", type: "decision", titre: "Un podcast horloger vous invite",
+    texte: "Une heure au micro. Vingt heures de préparation pour ne pas dire de bêtises.",
+    cout: 0, heures: 20, epoque: "toujours", req: (g) => g.cred >= 15,
+    effet: { cred: 4, noto: 3 },
+    msg: "Une heure au micro : crédibilité +4, notoriété +3.",
+  },
+  {
+    id: "investisseurApproche", type: "decision", titre: "Un investisseur frappe à la porte",
+    texte: "CHF 400'000 contre 20% du capital. De quoi accélérer — et un actionnaire à convaincre désormais.",
+    cout: 0, heures: 40, epoque: ["croissance", "maturite"], req: (g) => g.revenusAnnee >= 1000000,
+    effet: { cash: 400000, dilution: 20 },
+    msg: "Investisseur entré au capital : CHF 400'000 contre 20% de la maison.",
+  },
+  {
+    id: "horlogerLegendaire", type: "decision", titre: "Un nom cherche une maison",
+    texte: "Un horloger dont tout le monde connaît le nom est disponible. Au double du salaire habituel.",
+    cout: 0, heures: 40, epoque: "maturite", req: (g) => g.savoir >= 60,
+    effet: { savoir: 12, cred: 6, mods: [{ quoi: "fixesAjout", montant: 12000, duree: null }] },
+    msg: "Le régleur que tout le monde voulait a signé : savoir-faire +12, crédibilité +6, CHF 12'000 par trimestre.",
+  },
+  {
+    id: "ancienCamarade", type: "decision", titre: "Un ancien camarade propose de s'associer",
+    texte: "CHF 200'000 contre 15% et un droit de regard. L'argent d'un ami n'est jamais tout à fait gratuit.",
+    cout: 0, heures: 30, epoque: ["debut", "croissance"], req: (g) => g.annee - 2015 <= 8,
+    effet: { cash: 200000, dilution: 15 },
+    msg: "Association scellée : CHF 200'000 contre 15% de la maison.",
+  },
+  {
+    id: "labelSwissMade", type: "decision", titre: "Le label Swiss made sous contrôle",
+    texte: "Contrôle sur la composition de vos montres. Se mettre en conformité coûte CHF 25'000 ; y renoncer coûte le label, et ce qu'il permet de facturer.",
+    cout: 25000, heures: 40, epoque: ["croissance", "maturite"], req: (g) => g.pays === "suisse",
+    effet: { cred: 2 },
+    effetRefus: {
+      mods: [{ quoi: "prixAcceptable", mult: 0.85, duree: null }],
+      msg: "Label perdu : le prix acceptable recule de 15%, définitivement.",
+    },
+    msg: "Mise en conformité faite : le label est sauf.",
+  },
+  {
+    id: "venteCaritative", type: "decision", titre: "Une vente caritative vous invite",
+    texte: "Une pièce unique sous le marteau pour une œuvre. Une montre en moins, quarante heures d'établi, et beaucoup de regards.",
+    cout: 0, heures: 40, epoque: "toujours",
+    req: (g) => g.cred >= 25 && g.modeles.some((m) => m.statut === "actif" && m.stock > 0),
+    effet: { cred: 7, des: 6, stockMoins: 1 },
+    msg: "La pièce est partie sous le marteau : crédibilité +7, désirabilité +6.",
+  },
+  {
+    id: "ecolePartenariat", type: "decision", titre: "Une école veut placer deux apprentis",
+    texte: "Trente heures à les encadrer ce trimestre, et un atelier qui transmet enfin quelque chose.",
+    cout: 0, heures: 30, epoque: ["croissance", "maturite"],
+    req: (g) => Object.values(g.employes).reduce((s, n) => s + n, 0) >= 3,
+    effet: { savoir: 5, mods: [{ quoi: "salaires", mult: 0.95, duree: 4 }] },
+    msg: "Deux apprentis à l'établi : savoir-faire +5, masse salariale allégée un an durant.",
+  },
+
+  // ---- Les trois décisions déclenchées par un événement -------------------
+  {
+    id: "machineAnglage", type: "decision", surEvenement: true,
+    titre: "Installer le robot d'établi ?",
+    texte: "La machine anglie un pont aussi bien qu'un humain, en un dixième du temps. La profession se divise entre ceux qui l'achètent et ceux qui refusent.",
+    cout: 0, heures: 40, req: () => true,
+    effet: { des: -10, cred: -6, mods: [{ quoi: "capacite", mult: 1.67, duree: null }] },
+    msg: "Machine installée : l'atelier rend deux tiers d'heures en plus. Désirabilité −10, crédibilité −6.",
+    effetRefus: { cred: 4, msg: "La maison s'en tient à la main. Crédibilité +4." },
+  },
+  {
+    id: "contratSpatial", type: "decision", surEvenement: true,
+    titre: "Le contrat spatial",
+    texte: "Une mission habitée longue durée cherche un garde-temps mécanique qui fonctionne sans gravité ni électricité. Il faut tout reprendre depuis le début.",
+    cout: 200000, heures: 150, req: (g) => g.savoir >= 70,
+    effet: { cred: 15, noto: 12, des: 10 },
+    msg: "Contrat spatial décroché : crédibilité +15, notoriété +12, désirabilité +10.",
+  },
+  {
+    id: "offreRachat", type: "decision", surEvenement: true,
+    titre: "Un groupe veut racheter la maison",
+    texte: "L'offre est sérieuse, le chèque considérable, et le nom resterait sur les cadrans. Ce ne serait simplement plus votre maison.",
+    cout: 0, heures: 0, req: () => true,
+    effet: { finPartie: "rachat" },
+    msg: "Offre acceptée.",
+    effetRefus: { cred: 3, msg: "Offre déclinée. La profession en prend note : crédibilité +3." },
+  },
+];
+
+/** Tout ce qui peut être proposé au joueur, opportunités et décisions. */
+export const PROPOSITIONS = [...OPPORTUNITES, ...DECISIONS];
+
+/**
+ * `copieConcurrent` a besoin d'identifier le meilleur vendeur : il ne pouvait
+ * pas être écrit avec le vocabulaire déclaratif des autres aléas.
+ */
+ALEAS.push({
+  id: "copieConcurrent", titre: "Un concurrent copie votre best-seller", epoque: ["croissance", "maturite"],
+  req: (g) => g.modeles.some((m) => m.statut === "actif" && m.age >= 2),
+  texte: "Une maison concurrente sort une pièce très proche de votre meilleure vente, 30% moins chère. Fraîcheur du modèle −35%, désirabilité −4.",
+  presse: ["UNE RESSEMBLANCE TROUBLANTE", "LE MARCHÉ SE COPIE", "NOTRE BEST-SELLER A UN JUMEAU"],
+  effet: { fraicheurMalus: 0.35, des: -4 },
+});
+
+// Les deux aléas qui coûtaient des heures repassent en décisions : on ne
+// dépense pas quarante heures d'établi dans un rapport qu'on se contente de lire.
+for (let i = ALEAS.length - 1; i >= 0; i--) {
+  if (ALEAS[i].id === "venteCaritative" || ALEAS[i].id === "ecolePartenariat") ALEAS.splice(i, 1);
+}
