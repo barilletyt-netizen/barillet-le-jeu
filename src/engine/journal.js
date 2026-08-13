@@ -61,7 +61,7 @@ const AMBIANCE_SAISON = {
   3: [
     "L'été vide les ateliers et ralentit les livraisons. C'est ainsi chaque année.",
     "Juillet : la profession part en vacances, et le marché avec elle.",
-    "Les horlogers sont aux Bréviné ou en Italie. Les établis attendent.",
+    "Les horlogers sont aux Brenets ou en Italie. Les établis attendent.",
   ],
   4: [
     "Les fêtes approchent : c'est maintenant que se jouent les chiffres de l'année.",
@@ -136,7 +136,9 @@ function articlesPossibles({ rap, gs, actions, marque }) {
 
   // --- Le monde extérieur.
   if (rap.evt) ajoute("evt", 90, rap.evt.titre.toUpperCase(), rap.evt.texte, "evt");
-  if (rap.alea) {
+  // La démission a son propre article, plus précis (il nomme le poste) : sans
+  // cette exception, le même départ occuperait deux colonnes du même numéro.
+  if (rap.alea && !(rap.alea.id === "demission" && rap.depart)) {
     ajoute("alea", rap.alea.id === "celebrite" || rap.alea.id === "tiktok" ? 80 : 62,
       un(TITRES_ALEA[rap.alea.id] || [rap.alea.titre.toUpperCase()]), rap.alea.texte, "alea");
   }
@@ -174,7 +176,8 @@ function articlesPossibles({ rap, gs, actions, marque }) {
       un([
         "Débauché par un concurrent. Le poste est à repourvoir, et le savoir-faire part avec la personne.",
         "Le carnet d'adresses de la profession est court : tout le monde saura d'où il vient.",
-      ])
+      ]),
+      "alea"
     );
   }
   if (rap.encadrement && rap.encadrement.manque > 0) {
