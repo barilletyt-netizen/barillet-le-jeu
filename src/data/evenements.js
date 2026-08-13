@@ -566,9 +566,12 @@ export const OPPORTUNITES = [
   {
     id: "salonAmerique", titre: "Un salon à New York", epoque: ["croissance", "maturite"],
     texte: "Sur le premier marché mondial. Le billet d'entrée est le double d'ailleurs.",
-    cout: 35000, heures: 90, req: (g) => g.noto >= 25,
-    effet: { noto: 10, canalPalier: "detaillants" },
-    msg: "Salon de New York : notoriété +10, et un palier de détaillants offert si le canal est ouvert.",
+    cout: 35000, heures: 60, req: (g) => g.noto >= 25,
+    effet: {
+      noto: 16, cred: 4, canalPalier: "detaillants",
+      mods: [{ quoi: "portee", mult: 1.2, duree: 6 }],
+    },
+    msg: "Salon de New York : notoriété +16, crédibilité +4, un palier de détaillants offert, et la portée des canaux +20% pendant dix-huit mois.",
   },
   {
     id: "concoursDesign", titre: "Un concours de design horloger", epoque: "toujours",
@@ -1221,9 +1224,12 @@ export const DECISIONS = [
   {
     id: "localCentreVille", type: "decision", titre: "Un local en centre-ville se libère",
     texte: "Une rue passante, 30% sous le prix habituel d'une boutique. L'occasion ne se représentera pas.",
-    cout: 180000, heures: 60, epoque: ["croissance", "maturite"], req: (g) => g.cash >= 250000,
-    effet: { canalPalier: "boutique", noto: 4 },
-    msg: "Local pris : la boutique en propre progresse d'un palier.",
+    cout: 90000, heures: 40, epoque: ["croissance", "maturite"], req: (g) => g.cash >= 250000,
+    effet: {
+      canalPalier: "boutique", canalOuvre: "boutique", noto: 6, des: 3,
+      mods: [{ quoi: "fixesAjout", montant: -6000, duree: 24 }],
+    },
+    msg: "Local pris à 30% sous le prix : la boutique en propre s'ouvre ou progresse d'un palier, et le loyer est allégé six ans durant.",
   },
   {
     id: "podcast", type: "decision", titre: "Un podcast horloger vous invite",
@@ -1241,10 +1247,20 @@ export const DECISIONS = [
   },
   {
     id: "horlogerLegendaire", type: "decision", titre: "Un nom cherche une maison",
-    texte: "Un horloger dont tout le monde connaît le nom est disponible. Au double du salaire habituel.",
-    cout: 0, heures: 40, epoque: "maturite", req: (g) => g.savoir >= 60,
-    effet: { savoir: 12, cred: 6, mods: [{ quoi: "fixesAjout", montant: 12000, duree: null }] },
-    msg: "Le régleur que tout le monde voulait a signé : savoir-faire +12, crédibilité +6, CHF 12'000 par trimestre.",
+    texte: "Un horloger dont tout le monde connaît le nom est disponible. Il produit comme les autres, au double du salaire — CHF 16'000 par trimestre, définitivement.",
+    // La condition ne porte pas que sur le savoir-faire : un nom à double
+    // salaire dans un atelier de trois personnes est une ruine, pas une
+    // consécration. Il ne se propose qu'à une maison capable de l'absorber.
+    cout: 0, heures: 40, epoque: "maturite",
+    req: (g) => g.savoir >= 60 && Object.values(g.employes).reduce((s, n) => s + n, 0) >= 5 && g.cash >= 250000,
+    // C'est un horloger avant d'être un nom : il occupe un poste et rend ses
+    // 450 h comme les autres, au double du salaire. Sans cela il coûtait une
+    // fortune sans jamais rien produire.
+    effet: {
+      savoir: 12, cred: 6, employePlus: 1,
+      mods: [{ quoi: "fixesAjout", montant: 8000, duree: null }],
+    },
+    msg: "Le régleur que tout le monde voulait a signé : savoir-faire +12, crédibilité +6, 450 h de production — au double du salaire d'un horloger.",
   },
   {
     id: "ancienCamarade", type: "decision", titre: "Un ancien camarade propose de s'associer",
@@ -1329,4 +1345,25 @@ ALEAS.push({
 // dépense pas quarante heures d'établi dans un rapport qu'on se contente de lire.
 for (let i = ALEAS.length - 1; i >= 0; i--) {
   if (ALEAS[i].id === "venteCaritative" || ALEAS[i].id === "ecolePartenariat") ALEAS.splice(i, 1);
+}
+
+/**
+ * Une proposition dont l'effet est définitif ne se propose qu'une fois.
+ *
+ * Sans cette règle, le label Swiss made revenait tous les trois ans et chaque
+ * refus multipliait le prix acceptable par 0,85 — cinq refus et la marque était
+ * morte, sans que le joueur ait jamais vu venir le cumul. Même chose à
+ * l'endroit : on ne rachète pas deux fois le même fournisseur.
+ *
+ * La règle se déduit du contenu plutôt que de se poser à la main : un
+ * modificateur sans durée, une dilution du capital ou une fin de partie
+ * suffisent. Le rachat d'un indépendant y échappe volontairement — l'Empire
+ * demande d'en racheter trois.
+ */
+for (const o of PROPOSITIONS) {
+  const e = o.effet || {};
+  const permanent = (liste) => (liste || []).some((m) => m.duree == null);
+  if (permanent(e.mods) || permanent(o.effetRefus && o.effetRefus.mods) || e.dilution || e.finPartie) {
+    o.uneFois = true;
+  }
 }

@@ -52,6 +52,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     top50Depuis: null, // année d'entrée au Top 50 — un jalon, plus une fin
     anneesTop50: 0, // exercices clos passés dans les cinquante
     mods: [], // modificateurs durables posés par les aléas et les opportunités
+    oppFaites: [], // propositions déjà tranchées, pour celles qui ne se proposent qu'une fois
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -128,7 +129,10 @@ export function tirerOpportunite(etat) {
   if (hasard() > FREQ_OPPORTUNITE) return null;
   // Les décisions liées à un événement historique ne se tirent pas au sort :
   // c'est la date qui les amène.
-  const dispo = PROPOSITIONS.filter((o) => !o.surEvenement && o.req(etat));
+  const faites = etat.oppFaites || [];
+  const dispo = PROPOSITIONS.filter(
+    (o) => !o.surEvenement && !(o.uneFois && faites.includes(o.id)) && o.req(etat)
+  );
   const choisie = tirerPondere(dispo, etat);
   return choisie ? choisie.id : null;
 }

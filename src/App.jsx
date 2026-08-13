@@ -376,7 +376,10 @@ export default function App() {
       // Dire non n'est pas toujours neutre : le label perdu se paie, la
       // machine refusée se respecte.
       const r = opp.effetRefus;
-      const etatRefus = { ...g, opportunite: null, oppRecentes: memoire };
+      const etatRefus = {
+        ...g, opportunite: null, oppRecentes: memoire,
+        oppFaites: [...(g.oppFaites || []), opp.id],
+      };
       if (r) {
         if (r.cred) etatRefus.cred = clamp(g.cred + r.cred, 0, 100);
         if (r.des) etatRefus.des = clamp(g.des + r.des, 0, 100);
@@ -406,6 +409,7 @@ export default function App() {
       cash: g.cash - opp.cout,
       opportunite: null,
       oppRecentes: memoire,
+      oppFaites: [...(g.oppFaites || []), opp.id],
     };
     const notes = [];
 
@@ -459,7 +463,9 @@ export default function App() {
     // Un palier de canal offert, s'il est déjà ouvert et pas au maximum.
     if (e.canalPalier) {
       const niveau = g.canaux[e.canalPalier] || 0;
-      if (niveau > 0 && niveau < CANAUX[e.canalPalier].paliers.length) {
+      // `canalOuvre` permet d'ouvrir un canal encore fermé : un local qui se
+      // libère n'a d'intérêt que si l'on n'avait pas encore de boutique.
+      if ((niveau > 0 || e.canalOuvre === e.canalPalier) && niveau < CANAUX[e.canalPalier].paliers.length) {
         etat.canaux = { ...g.canaux, [e.canalPalier]: niveau + 1 };
         notes.push(CANAUX[e.canalPalier].nom + " passe au palier " + (niveau + 1) + ".");
       }

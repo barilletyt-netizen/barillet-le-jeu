@@ -338,11 +338,14 @@ const BOTS = [
 function appliquerOpportunite(g, ctx, filtre) {
   const opp = PROPOSITIONS.find((o) => o.id === g.opportunite);
   if (!opp) return { ...g, opportunite: null };
-  if (filtre && !filtre(opp)) return { ...g, opportunite: null };
-  if (g.heures < opp.heures || g.cash < opp.cout) return { ...g, opportunite: null };
+  if (filtre && !filtre(opp)) return refuserOpportunite(g);
+  if (g.heures < opp.heures || g.cash < opp.cout) return refuserOpportunite(g);
 
   const e = opp.tirage ? opp.tirage(hasard()) : opp.effet || {};
-  const etat = { ...g, opportunite: null, heures: g.heures - opp.heures, cash: g.cash - opp.cout };
+  const etat = {
+    ...g, opportunite: null, heures: g.heures - opp.heures, cash: g.cash - opp.cout,
+    oppFaites: [...(g.oppFaites || []), opp.id],
+  };
   const q = trimestreIndex(g.annee, g.t);
   if (e.noto) etat.noto = F.clamp(g.noto + e.noto, 0, 100);
   if (e.cred) etat.cred = F.clamp(g.cred + e.cred, 0, 100);
@@ -386,6 +389,25 @@ function appliquerOpportunite(g, ctx, filtre) {
   return etat;
 }
 
+/** Refuser n'est pas neutre partout : le label perdu se paie. */
+function refuserOpportunite(g) {
+  const opp = PROPOSITIONS.find((o) => o.id === g.opportunite);
+  const etat = { ...g, opportunite: null, oppFaites: opp ? [...(g.oppFaites || []), opp.id] : g.oppFaites };
+  const r = opp && opp.effetRefus;
+  if (!r) return etat;
+  if (r.cred) etat.cred = F.clamp(g.cred + r.cred, 0, 100);
+  if (r.des) etat.des = F.clamp(g.des + r.des, 0, 100);
+  if (r.noto) etat.noto = F.clamp(g.noto + r.noto, 0, 100);
+  if (r.mods) {
+    const q = trimestreIndex(g.annee, g.t);
+    etat.mods = [
+      ...(g.mods || []),
+      ...r.mods.map((mod) => ({ ...mod, fin: mod.duree == null ? null : q + mod.duree })),
+    ];
+  }
+  return etat;
+}
+
 function partie(bot, seed, ctx, origine, politique = null, filtre = null) {
   graine(seed);
   let g = etatInitial({ ...ctx, origine, marque: bot.nom });
@@ -395,14 +417,19 @@ function partie(bot, seed, ctx, origine, politique = null, filtre = null) {
 
   while (g.annee <= C.ANNEE_FIN) {
     if (politique === "tout") g = appliquerOpportunite(g, ctx, filtre);
-    else if (politique === "rien") g = { ...g, opportunite: null };
+    else if (politique === "rien") g = refuserOpportunite(g);
     g = bot.jouer(g, ctx);
     const { gs2, rap, faillite: mort } = simulateQuarter(g, g.heures, ctx);
     if (mort) { faillite = true; courbe.push({ annee: g.annee, ca: gs2.revenusAnnee, rang: M.RANG_MAX }); break; }
     g = { ...gs2 };
     if (g.t >= 4) {
       const rang = M.rangPour(g.revenusAnnee, g.annee);
-      courbe.push({ annee: g.annee, ca: g.revenusAnnee, rang, cash: rap.cash, equipe: F.nbEmployes(g.employes) });
+      courbe.push({
+        annee: g.annee, ca: g.revenusAnnee, rang, cash: rap.cash, equipe: F.nbEmployes(g.employes),
+        // De quoi diagnostiquer un plafond : est-ce l'atelier, le marché ou la caisse ?
+        heuresUtilisees: rap.heuresUtilisees, capacite: rap.capacite, heuresDispo: rap.heuresDispo,
+        saturation: { ...g.saturation }, ateliers: g.ateliers, dette: g.dette,
+      });
       if (rang <= 50 && anneeTop50 === null) anneeTop50 = g.annee;
       g.revenusAnneePrec = g.revenusAnnee;
       g.revenusAnnee = 0;
@@ -478,6 +505,55 @@ for (const bot of BOTS.filter((b) => !SEUL || b.nom === SEUL)) {
   }
 }
 
+// ---- Diagnostic de plafond -------------------------------------------------
+
+/**
+ * Pourquoi une marque cesse de grandir après 2050. Trois causes possibles et
+ * trois corrections opposées : l'atelier saturé (il faut des paliers plus
+ * gros), le marché épuisé (il faut des pools ou une expansion), ou la
+ * trésorerie (il faut des leviers de financement). On mesure avant de régler.
+ *
+ *   npm run bots -- --plafond
+ */
+if (process.argv.includes("--plafond")) {
+  const SEGS = ["grandpublic", "lifestyle", "connaisseurs", "bling"];
+  console.log("\nDIAGNOSTIC DE PLAFOND — médianes sur " + seeds.length + " graines\n");
+  for (const bot of BOTS.filter((b) => !SEUL || ["Margeur", "Prestigieux"].includes(b.nom))) {
+    if (SEUL && bot.nom !== SEUL) continue;
+    if (!SEUL && !["Margeur", "Prestigieux"].includes(bot.nom)) continue;
+    const runs = seeds.map((s) => partie(bot, s, ctx, ORIGINE));
+    console.log("\x1b[1m" + bot.nom + "\x1b[0m");
+    console.log(
+      "  année |     atelier |  équipe |    trésorerie |          CA | rang | " +
+      SEGS.map((x) => x.slice(0, 5).padStart(6)).join(" ")
+    );
+    for (const annee of [2045, 2050, 2055, 2060, 2065]) {
+      const pts = runs.map((r) => r.courbe.find((p) => p.annee === annee)).filter(Boolean);
+      if (!pts.length) continue;
+      const med = (f) => median(pts.map(f));
+      const util = med((p) => p.heuresUtilisees);
+      const cap = med((p) => p.capacite);
+      // Part du pool déjà consommée : au-delà de ~50%, le marché se referme.
+      const sat = SEGS.map((sg) => {
+        const s2 = med((p) => p.saturation[sg] || 0);
+        const pool = C.SEGMENTS[sg].pool;
+        return ((s2 / (s2 + pool)) * 100).toFixed(0).padStart(5) + "%";
+      });
+      console.log(
+        "   " + annee + " | " +
+        (Math.round((util / cap) * 100) + "%").padStart(4) + " " +
+        (Math.round(cap / 100) / 10 + "k h").padStart(6) + " | " +
+        String(med((p) => p.equipe)).padStart(7) + " | " +
+        F.fmtArgent(med((p) => p.cash)).padStart(13) + " | " +
+        F.fmtArgent(med((p) => p.ca)).padStart(11) + " | " +
+        String(med((p) => p.rang)).padStart(4) + " | " + sat.join(" ")
+      );
+    }
+    console.log("");
+  }
+  process.exit(0);
+}
+
 // ---- Mesure des opportunités ----------------------------------------------
 
 /**
@@ -539,6 +615,17 @@ if (process.argv.includes("--opp") || process.argv.includes("--opp-cat") || proc
       console.log("  " + l.nom.padEnd(22) + F.fmtArgent(l.ca).padStart(14) + "  " + l.gain.toFixed(2) + "×");
     }
     console.log("\n  référence (rien accepté) : " + F.fmtArgent(base));
+    if (process.argv.includes("--trace")) {
+      const id = argTxt("trace-id", null);
+      if (id) {
+        const r = partie(cible, seeds[0], ctx, ORIGINE, "tout", (o) => o.id === id);
+        for (const p of r.courbe.filter((_, i) => i % 5 === 0)) {
+          console.log("    " + p.annee + " · CA " + F.fmtArgent(p.ca).padStart(13) +
+            " · caisse " + F.fmtArgent(p.cash).padStart(13) + " · équipe " + p.equipe +
+            " · atelier " + Math.round((p.heuresUtilisees / p.capacite) * 100) + "%");
+        }
+      }
+    }
   }
   process.exit(0);
 }
