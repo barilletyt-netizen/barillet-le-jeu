@@ -14,12 +14,13 @@
  *   2. aucun bot n'entre au Top 50 avant 2040 ;
  *   3. l'Équilibré ne fait jamais faillite.
  */
-import { etatInitial, simulateQuarter } from "../src/engine/simulation.js";
+import { etatInitial, simulateQuarter, tirerOpportunite } from "../src/engine/simulation.js";
 import * as F from "../src/engine/formules.js";
 import * as C from "../src/data/config.js";
 import * as M from "../src/data/monde.js";
-import { graine } from "../src/engine/alea.js";
-import { EVENEMENTS } from "../src/data/evenements.js";
+import { graine, hasard } from "../src/engine/alea.js";
+import { trimestreIndex } from "../src/engine/effets.js";
+import { EVENEMENTS, PROPOSITIONS } from "../src/data/evenements.js";
 
 const arg = (nom, defaut) => {
   const i = process.argv.indexOf("--" + nom);
@@ -327,7 +328,65 @@ const BOTS = [
 
 // ---- Boucle de partie -----------------------------------------------------
 
-function partie(bot, seed, ctx, origine) {
+/**
+ * Mesure pauvre des opportunités : pas de moteur d'arbitrage, deux extrêmes.
+ * `politique` vaut "tout" (accepter systématiquement ce qui est finançable),
+ * "rien" (refuser), ou null (ne rien tirer du tout — le comportement d'origine).
+ * L'écart entre les deux borne ce que les opportunités valent, et une
+ * bissection par catégorie puis par entrée désigne les coupables.
+ */
+function appliquerOpportunite(g, ctx, filtre) {
+  const opp = PROPOSITIONS.find((o) => o.id === g.opportunite);
+  if (!opp) return { ...g, opportunite: null };
+  if (filtre && !filtre(opp)) return { ...g, opportunite: null };
+  if (g.heures < opp.heures || g.cash < opp.cout) return { ...g, opportunite: null };
+
+  const e = opp.tirage ? opp.tirage(hasard()) : opp.effet || {};
+  const etat = { ...g, opportunite: null, heures: g.heures - opp.heures, cash: g.cash - opp.cout };
+  const q = trimestreIndex(g.annee, g.t);
+  if (e.noto) etat.noto = F.clamp(g.noto + e.noto, 0, 100);
+  if (e.cred) etat.cred = F.clamp(g.cred + e.cred, 0, 100);
+  if (e.des) etat.des = F.clamp(g.des + e.des, 0, 100);
+  if (e.savoir) etat.savoir = F.clamp(g.savoir + e.savoir, 0, 100);
+  if (e.cash) etat.cash += e.cash;
+  if (e.dette) etat.dette = g.dette + e.dette;
+  if (e.capacitePlus) etat.capacite = g.capacite + e.capacitePlus;
+  if (e.presseAchetee) etat.presseAchetee = (g.presseAchetee || 0) + e.presseAchetee;
+  if (e.engagementVolume) etat.engagementVolume = true;
+  if (e.atelierPlus) {
+    etat.ateliers = g.ateliers + e.atelierPlus;
+    etat.ateliersFixes = (g.ateliersFixes || 0) + C.ATELIERS.grand.fixes * e.atelierPlus;
+    etat.capacite = (etat.capacite || g.capacite) + C.ATELIERS.grand.heures * e.atelierPlus;
+  }
+  if (e.employePlus) etat.employes = { ...g.employes, horloger: g.employes.horloger + e.employePlus };
+  if (e.canalPalier) {
+    const n = g.canaux[e.canalPalier] || 0;
+    if (n > 0 && n < C.CANAUX[e.canalPalier].paliers.length) {
+      etat.canaux = { ...g.canaux, [e.canalPalier]: n + 1 };
+    }
+  }
+  if (e.ecoulerStock) {
+    let reste = e.ecoulerStock.max || Infinity, encaisse = 0;
+    etat.modeles = g.modeles.map((m) => {
+      if (m.statut !== "actif" || m.stock <= 0 || reste <= 0) return m;
+      const n = Math.min(m.stock, reste);
+      reste -= n;
+      encaisse += Math.round(n * Math.max(50, Number(m.prix) || 0) * e.ecoulerStock.prixMult * F.margeMoyenne(g.canaux));
+      return { ...m, stock: m.stock - n };
+    });
+    etat.cash += encaisse;
+    etat.revenusAnnee = g.revenusAnnee + encaisse;
+  }
+  if (e.mods) {
+    etat.mods = [
+      ...(g.mods || []),
+      ...e.mods.map((mod) => ({ ...mod, fin: mod.duree == null ? null : q + mod.duree })),
+    ];
+  }
+  return etat;
+}
+
+function partie(bot, seed, ctx, origine, politique = null, filtre = null) {
   graine(seed);
   let g = etatInitial({ ...ctx, origine, marque: bot.nom });
   const courbe = [];
@@ -335,6 +394,8 @@ function partie(bot, seed, ctx, origine) {
   let faillite = false;
 
   while (g.annee <= C.ANNEE_FIN) {
+    if (politique === "tout") g = appliquerOpportunite(g, ctx, filtre);
+    else if (politique === "rien") g = { ...g, opportunite: null };
     g = bot.jouer(g, ctx);
     const { gs2, rap, faillite: mort } = simulateQuarter(g, g.heures, ctx);
     if (mort) { faillite = true; courbe.push({ annee: g.annee, ca: gs2.revenusAnnee, rang: M.RANG_MAX }); break; }
@@ -349,6 +410,7 @@ function partie(bot, seed, ctx, origine) {
       g.t = 1;
     } else g.t += 1;
     g.heures = C.HEURES_FONDATEUR;
+    if (politique) g.opportunite = tirerOpportunite(g);
   }
   const derniere = courbe[courbe.length - 1] || { ca: 0, rang: M.RANG_MAX, annee: C.ANNEE_DEBUT };
   // Entrer au Top 50 n'arrête plus la partie : ce qui compte est d'y être
@@ -414,6 +476,71 @@ for (const bot of BOTS.filter((b) => !SEUL || b.nom === SEUL)) {
       console.log(`     ${p.annee} · CA ${F.fmtArgent(p.ca).padStart(14)} · rang ${p.rang}`);
     }
   }
+}
+
+// ---- Mesure des opportunités ----------------------------------------------
+
+/**
+ * Version pauvre, volontairement : deux extrêmes, pas de moteur d'arbitrage.
+ * Un bot qui accepte tout et un bot qui refuse tout ; l'écart borne ce que les
+ * opportunités valent. Si l'écart est gros, on bissecte par catégorie puis par
+ * entrée pour désigner les coupables.
+ *
+ *   npm run bots -- --opp        les deux extrêmes, par stratégie
+ *   npm run bots -- --opp-cat    bissection par catégorie
+ *   npm run bots -- --opp-une    bissection entrée par entrée
+ */
+const CATEGORIES = {
+  salons: ["salon", "salonAsie", "salonAmerique", "concours", "concoursDesign", "salonEcoles"],
+  image: ["partenariatMusee", "documentaire", "atelierOuvert", "ambassadeur", "capsuleCollab",
+    "podcast", "youtubeur", "voyagepresse", "collab"],
+  commercial: ["detaillant", "boutiqueEphemere", "preventeCommunaute", "contratOEM",
+    "licenceMarque", "commandeCorporate", "localCentreVille"],
+  production: ["certificationChrono", "rachatFournisseur", "formationInterne", "maitreRetraite",
+    "outillageOccasion", "remiseVolume", "ebauchesLiquidation", "maroquinier",
+    "horlogerLegendaire", "ecolePartenariat", "fournisseurExclusif"],
+  finance: ["rachatInde", "familyOffice", "empruntObligataire", "investisseurApproche", "ancienCamarade"],
+  autres: ["venteCaritative", "labelSwissMade", "machineAnglage", "contratSpatial", "offreRachat"],
+};
+
+const caMedianAvec = (bot, politique, filtre) =>
+  median(seeds.map((s) => partie(bot, s, ctx, ORIGINE, politique, filtre).derniere.ca));
+
+if (process.argv.includes("--opp") || process.argv.includes("--opp-cat") || process.argv.includes("--opp-une")) {
+  console.log("\nMESURE DES OPPORTUNITÉS — accepter tout contre ne rien accepter\n");
+  console.log("bot          |    refuse tout |   accepte tout | écart");
+  console.log("-".repeat(62));
+  const botsMesures = BOTS.filter((b) => !SEUL || b.nom === SEUL);
+  for (const bot of botsMesures) {
+    const rien = caMedianAvec(bot, "rien", null);
+    const tout = caMedianAvec(bot, "tout", null);
+    const r = rien > 0 ? tout / rien : 0;
+    console.log(
+      bot.nom.padEnd(12) + " | " + F.fmtArgent(rien).padStart(14) + " | " +
+      F.fmtArgent(tout).padStart(14) + " | " + (r ? r.toFixed(2) + "×" : "—")
+    );
+  }
+
+  if (process.argv.includes("--opp-cat") || process.argv.includes("--opp-une")) {
+    const cible = botsMesures[0];
+    const base = caMedianAvec(cible, "rien", null);
+    const groupes = process.argv.includes("--opp-une")
+      ? Object.fromEntries(PROPOSITIONS.map((o) => [o.id, [o.id]]))
+      : CATEGORIES;
+    console.log("\nBISSECTION sur « " + cible.nom + " » — chaque ligne : cette seule famille acceptée\n");
+    const lignes = [];
+    for (const [nom, ids] of Object.entries(groupes)) {
+      const ca = caMedianAvec(cible, "tout", (o) => ids.includes(o.id));
+      lignes.push({ nom, ca, gain: base > 0 ? ca / base : 0 });
+    }
+    lignes.sort((a, b) => b.gain - a.gain);
+    for (const l of lignes) {
+      if (Math.abs(l.gain - 1) < 0.02 && process.argv.includes("--opp-une")) continue;
+      console.log("  " + l.nom.padEnd(22) + F.fmtArgent(l.ca).padStart(14) + "  " + l.gain.toFixed(2) + "×");
+    }
+    console.log("\n  référence (rien accepté) : " + F.fmtArgent(base));
+  }
+  process.exit(0);
 }
 
 // ---- Verdict --------------------------------------------------------------
