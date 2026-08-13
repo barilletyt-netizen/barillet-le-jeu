@@ -10,7 +10,7 @@ import {
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
 import { mondeInitial, evoluerMonde, breveConcurrent } from "./monde.js";
-import { journalTrimestre } from "./journal.js";
+import { journalTrimestre, MEMOIRE_JOURNAL } from "./journal.js";
 
 const SEGMENTS_VIDE = { grandpublic: 0, lifestyle: 0, connaisseurs: 0, bling: 0 };
 
@@ -40,6 +40,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     segVendues: { ...SEGMENTS_VIDE }, // cumul, pour les statistiques
     marque: marque || "Votre marque",
     journal: [], opportunite: null, oppRecentes: [],
+    journalRecent: [], // familles déjà passées en une de la Gazette
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -89,6 +90,10 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const saturation = { ...gs.saturation };
   const lignes = [];
   const messagesDev = [];
+  // Faits du trimestre que seul le moteur connaît, transmis au journal.
+  const modelesPrets = [];
+  let acquis = null;
+  let depart = null;
   let ventesBrutes = 0, coutsProd = 0, caDirect = 0;
 
   // Un événement historique remplace l'aléa du trimestre : pas deux chocs à la fois.
@@ -111,6 +116,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
       if (postes.length) {
         const parti = pick(postes);
         employes = { ...employes, [parti]: employes[parti] - 1 };
+        depart = EMPLOYES[parti].nom;
         messagesDev.push("Départ d'un " + EMPLOYES[parti].nom.toLowerCase() + " : son poste est vacant.");
       }
     }
@@ -144,6 +150,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
       const restant = m.devRestant - 1;
       if (restant <= 0) {
         messagesDev.push("« " + m.nom + " » est prêt ! Réglez prix et production.");
+        modelesPrets.push(m.nom);
         savoir = clamp(savoir + 2, 0, 100);
         return { ...m, statut: "actif", devRestant: 0 };
       }
@@ -176,7 +183,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     if (m.finition && vendues > 0) des = clamp(des + 1, 0, 100);
 
     lignes.push({
-      nom: m.nom, prod: prodEff, heures: prodEff * heuresParPiece(m),
+      nom: m.nom, seg: m.seg, prod: prodEff, heures: prodEff * heuresParPiece(m),
       demande: Math.round(d), vendues, ca: Math.round(vendues * prixN * marge),
       stock: stockFinal, fraicheur: fraicheur(m.age),
     });
@@ -197,10 +204,12 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (recherche && recherche.restant <= 0) {
     if (recherche.type === "materiau") {
       materiaux = { ...materiaux, [recherche.id]: true };
+      acquis = { type: "materiau", nom: MATERIAUX[recherche.id].nom };
       messagesDev.push("Matériau maîtrisé : " + MATERIAUX[recherche.id].nom + ". Disponible sur les nouveaux modèles.");
     } else {
       const palier = COMPLICATIONS[recherche.id].niveaux[recherche.niveau - 1];
       complications = { ...complications, [recherche.id]: recherche.niveau };
+      acquis = { type: "complication", nom: palier.nom, famille: COMPLICATIONS[recherche.id].nom };
       messagesDev.push(
         "Complication maîtrisée : " + COMPLICATIONS[recherche.id].nom + " niveau " + recherche.niveau +
         " — « " + palier.nom + " ». Disponible sur les nouveaux modèles."
@@ -265,6 +274,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     heuresFondateur: Math.max(0, heuresRestantes),
     heuresEquipe: heuresEmployes(employes),
     encadrement: enc, capacite: gs.capacite,
+    // Pour le journal.
+    modelesPrets, acquis, depart,
+    noto, cred, des, savoir, employes,
   };
   rap.journal = journalTrimestre({ rap, gs, actions: gs.actionsTour || [], marque: gs.marque, breve });
 
@@ -272,6 +284,8 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,
     complications, materiaux, recherche,
     journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash }],
+    // Mémoire de la Gazette : les sujets déjà titrés passent leur tour.
+    journalRecent: [...rap.journal.familles.slice(0, 2), ...(gs.journalRecent || [])].slice(0, MEMOIRE_JOURNAL),
     revenusAnnee: gs.revenusAnnee + revenus,
     resultatAnnee: gs.t === 4 ? 0 : beneficeAnnuel,
     messages: messagesDev,
