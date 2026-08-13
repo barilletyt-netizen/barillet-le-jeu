@@ -935,3 +935,30 @@ ALEAS.push({
   presse: ["CE QUE LA MAISON OFFRAIT AUX JOURNALISTES", "ENQUÊTE SUR DES COMPLAISANCES", "LE PRIX DES BONS ARTICLES"],
   effet: { cred: -14, noto: 4, resetPresse: true },
 });
+
+/**
+ * Les deux aléas qui dépendent de la politique salariale. `risqueSocial` les
+ * fait doubler quand on paie mal et diviser par deux quand on paie bien : sans
+ * ça, la décision n'aurait aucune conséquence visible.
+ */
+ALEAS.push(
+  {
+    id: "greve", titre: "Grève à l'atelier", epoque: ["croissance", "maturite"],
+    risqueSocial: true,
+    req: (g) => effectif(g.employes) >= 5 && g.salaires === "serree",
+    texte: "L'atelier débraye. Production nulle ce trimestre, crédibilité −3. Il faudra choisir : céder ou tenir.",
+    presse: ["L'ATELIER DÉBRAYE", "BRAS DE FER SOCIAL", "LES ÉTABLIS À L'ARRÊT"],
+    effet: { prodMult: 0, cred: -3 },
+  },
+  {
+    id: "departsSimultanes", titre: "Deux départs le même mois", epoque: ["croissance", "maturite"],
+    risqueSocial: true,
+    req: (g) => effectif(g.employes) >= 4 && g.salaires === "serree",
+    texte: "Deux départs le même mois. Le message est clair. Savoir-faire −6, deux postes vacants.",
+    presse: ["DEUX DÉPARTS LE MÊME MOIS", "L'ATELIER SE VIDE"],
+    effet: { savoir: -6, employeMoins: 2 },
+  }
+);
+
+// La démission ordinaire relève elle aussi du climat social.
+for (const a of ALEAS) if (a.id === "demission" || a.id === "talentDebauche") a.risqueSocial = true;

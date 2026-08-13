@@ -366,6 +366,26 @@ export const CANAUX_VIDE = { direct: 1, ecommerce: 0, foires: 0, detaillants: 0,
 // Impôt sur le bénéfice annuel, prélevé au bilan de fin d'année.
 export const IMPOT_TAUX = 0.18;
 
+/**
+ * Politique salariale. Une décision de plus, gratuite en heures, qui donne du
+ * sens aux employés : payer mal coûte moins cher et se paie autrement — en
+ * grèves, en départs et en savoir-faire qui s'en va.
+ */
+export const SALAIRES = {
+  serree: {
+    nom: "Serrée", icon: "🪫", mult: 0.85, risque: 2, savoirAn: -1, efficacite: 0,
+    desc: "Masse salariale −15%. Risque de grève et de départ doublé, savoir-faire −1 par an.",
+  },
+  standard: {
+    nom: "Standard", icon: "⚖", mult: 1, risque: 1, savoirAn: 0, efficacite: 0,
+    desc: "Les salaires de la branche. Rien de plus, rien de moins.",
+  },
+  genereuse: {
+    nom: "Généreuse", icon: "🔋", mult: 1.2, risque: 0.5, savoirAn: 1, efficacite: 0.05,
+    desc: "Masse salariale +20%. Risque de départ divisé par deux, savoir-faire +1 par an, équipe +5% d'efficacité.",
+  },
+};
+
 // ---- Atelier et coûts fixes ---------------------------------------------
 // L'atelier est un plafond d'heures : embaucher sans agrandir ne sert à rien.
 //

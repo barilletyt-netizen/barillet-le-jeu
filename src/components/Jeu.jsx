@@ -6,7 +6,7 @@ import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
   ATELIERS,
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
-  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
+  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES,
 } from "../data/config.js";
 import { OPPORTUNITES } from "../data/evenements.js";
 import {
@@ -64,7 +64,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const charge = chargeHeures(g.modeles);
   const dispoProd = heuresProductionDispo(g);
   const mainOeuvreEquipe = heuresEmployes(g.employes);
-  const enc = encadrement(g.employes);
+  const enc = encadrement(g.employes, g.salaires);
   const heuresPerdues = Math.max(0, g.heures + mainOeuvreEquipe * enc.efficacite - g.capacite);
   const postesLibres = Math.max(0, g.capacite - g.heures - mainOeuvreEquipe * enc.efficacite);
   const gainEmbauche = Math.round(Math.min(HEURES_EMPLOYE * enc.efficacite, postesLibres));
@@ -81,7 +81,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const marge = margeMoyenne(g.canaux);
   const tres = tresorerie(g);
   const libres = dispoProd - charge;
-  const fixes = coutsFixes(g);
+  const fixes = coutsFixes({ ...g, salaires: g.salaires });
   // Un conseil ne pousse à une dépense que si le joueur garde de quoi tenir.
   const peut = (montant) => conseilFinancable(g, montant);
   const [voirFixes, setVoirFixes] = useState(false);
@@ -698,6 +698,28 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           )}
         </div>
 
+        {/* La politique salariale : gratuite en heures, elle se décide, elle ne
+            se dépense pas. Elle n'apparaît qu'une fois qu'il y a une équipe. */}
+        {nbEmployes(g.employes) > 0 && (
+          <div style={{ ...S.panel, marginBottom: 8 }}>
+            <div style={S.steel}>POLITIQUE SALARIALE</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+              {Object.entries(SALAIRES).map(([k, p]) => (
+                <button
+                  key={k}
+                  style={{ ...S.btn(g.salaires === k), flex: "1 1 30%", minWidth: 92 }}
+                  onClick={() => actions.politiqueSalariale(k)}
+                >
+                  {p.icon} {p.nom}
+                </button>
+              ))}
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              {SALAIRES[g.salaires || "standard"].desc}
+            </div>
+          </div>
+        )}
+
         {panneau !== "embauche" && (
           <button style={S.action(ok(COUTS_H.embauche))} onClick={() => ok(COUTS_H.embauche) && setPanneau("embauche")}>
             👥 Embaucher{" "}
@@ -727,7 +749,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             {Object.entries(EMPLOYES).map(([k, e]) => {
               // Encadrement tel qu'il serait APRÈS cette embauche : le joueur doit
               // voir la conséquence avant de cliquer, pas au rapport suivant.
-              const apres = encadrement({ ...g.employes, [k]: g.employes[k] + 1 });
+              const apres = encadrement({ ...g.employes, [k]: g.employes[k] + 1 }, g.salaires);
               return (
                 <button
                   key={k}

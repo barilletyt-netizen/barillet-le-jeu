@@ -3,7 +3,7 @@ import { rangPour } from "../data/monde.js";
 import {
   PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
   CAPACITE_DEPART, HEURES_FONDATEUR, HEURES_PAR_SAVOIR, ANNEE_DEBUT,
-  CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX,
+  CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX, SALAIRES,
 } from "../data/config.js";
 import {
   capaciteEffective, chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes,
@@ -46,6 +46,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     journal: [], opportunite: null, oppRecentes: [],
     journalRecent: [], // familles déjà passées en une de la Gazette
     tirages: [], // { id, q } — mémoire courte des aléas et opportunités déjà vus
+    salaires: "standard", // politique salariale : serree | standard | genereuse
     presseAchetee: 0, // complaisances accumulées : voyages de presse et collabs
     rangs: [], // un rang par exercice clos, pour la Gazette
     mods: [], // modificateurs durables posés par les aléas et les opportunités
@@ -89,12 +90,14 @@ export function poidsTirage(entree, g) {
     const liste = Array.isArray(fenetre) ? fenetre : [fenetre];
     if (!liste.includes("toujours") && !liste.includes(epoqueDe(g))) return 0;
   }
+  // Payer mal double le risque social, payer bien le divise par deux.
+  const social = entree.risqueSocial ? (SALAIRES[g.salaires] || SALAIRES.standard).risque : 1;
   const vu = (g.tirages || []).find((r) => r.id === entree.id);
-  if (!vu) return 1;
+  if (!vu) return social;
   const ecoule = trimestreIndex(g.annee, g.t) - vu.q;
-  if (ecoule < 12) return 0.25;
-  if (ecoule < 24) return 0.5;
-  return 1;
+  if (ecoule < 12) return 0.25 * social;
+  if (ecoule < 24) return 0.5 * social;
+  return social;
 }
 
 /** Tirage pondéré sur le flux d'aléa de simulation. */
@@ -248,7 +251,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
 
   // Heures disponibles : fondateur + équipe de production, corrigée par
   // l'encadrement, plafonnée par les postes de l'atelier.
-  const enc = encadrement(employes);
+  const enc = encadrement(employes, gs.salaires);
   const capacite = Math.floor(capaciteEffective(gs, eff) * mCapacite);
   const heuresDispo = Math.floor(
     Math.min(heuresRestantes + heuresEmployes(employes) * enc.efficacite, capacite)
@@ -341,7 +344,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
   const interets = Math.round((gs.dette * tauxInteret(profil) * eff.interets) / 4);
-  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff };
+  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff, salaires: gs.salaires };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus - coutsProd - fixes - interets;
   cash += resultat;
@@ -367,6 +370,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   // Rééquilibrage S2 : la crédibilité se construit aussi passivement.
   const gainsCred = [];
   if (gs.t === 1) {
+    // Ce que la politique salariale fait au savoir-faire, une fois par an.
+    const pol = SALAIRES[gs.salaires] || SALAIRES.standard;
+    if (pol.savoirAn) savoir = clamp(savoir + pol.savoirAn, 0, 100);
     if (savoir >= CRED_SAVOIR_SEUIL) {
       cred = clamp(cred + 1, 0, 100);
       gainsCred.push("savoir-faire ≥ " + CRED_SAVOIR_SEUIL);

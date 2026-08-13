@@ -10,7 +10,7 @@ import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
   ATELIERS,
-  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
@@ -434,6 +434,14 @@ export default function App() {
     setG(etat);
   }
 
+  // La politique salariale ne coûte pas d'heures : c'est une décision, pas une
+  // action. Elle prend effet au trimestre suivant, comme tout ce qui touche
+  // aux coûts fixes.
+  function politiqueSalariale(niveau) {
+    setG({ ...g, salaires: niveau,
+      messages: [...g.messages, "Politique salariale : " + SALAIRES[niveau].nom.toLowerCase() + ". " + SALAIRES[niveau].desc] });
+  }
+
   const setProd = (i, val) => setG({ ...g, modeles: g.modeles.map((m, j) => (j === i ? { ...m, prod: val } : m)) });
   const setPrix = (i, val) => setG({ ...g, modeles: g.modeles.map((m, j) => (j === i ? { ...m, prix: val } : m)) });
 
@@ -567,7 +575,7 @@ export default function App() {
         g={g} ctx={ctx} marque={marque} saveMsg={saveMsg} autosaveAt={autosaveAt}
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
-          facelift, edition, opportunite, setProd, setPrix,
+          facelift, edition, opportunite, politiqueSalariale, setProd, setPrix,
           finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}
       />

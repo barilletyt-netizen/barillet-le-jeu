@@ -273,29 +273,36 @@ Mécanique : reviews = bonus/malus, jamais fatal. Presse achetable (voyages, mon
 ### Contrefaçon, marché gris
 (inchangé : contrefaçon liée à la notoriété ; marché gris simulé, rareté = stratégie légitime)
 
-## 7. Aléas (~20, tirés de l'histoire horlogère et mondiale)
-1. Fournisseur en faillite (racheté par un groupe — écho ETA)
-2. Fraude d'un employé (détournement)
-3. Fournisseur en retard (production ÷2)
-4. Envolée du CHF (coûts +12%)
-5. Célébrité porte votre montre (écho Paul Newman)
-6. Contrefaçons massives saisies aux douanes
-7. Article élogieux dans la presse spécialisée
-8. Cambriolage de l'atelier (écho braquages de manufactures)
-9. Démission d'un horloger clé (débauché)
-10. Buzz TikTok inattendu
-11. Récession locale
-12. Un collectionneur commande une série
-13. Rappel qualité (défaut de mouvement) — coût + crédibilité
-14. Invitation à une vente caritative type « Only Watch » — pièce unique, prestige
-15. Votre montre bat un record aux enchères (si désirabilité haute) — désirabilité ++
-16. Grève dans l'atelier (si employés > 5 et salaires bas)
-17. Vol d'un prototype avant un salon
-18. Nouveau droit de douane sur votre marché principal
-19. Incendie d'atelier (assurance partielle)
-20. Un journaliste enquête sur la presse achetée (si utilisée) — scandale rétroactif
-21. Pénurie d'acier / de composants
-22. Un concurrent copie votre best-seller (fraîcheur −)
+## 7. Aléas et effets d'époque *(livré S4)*
+
+Le catalogue compte **55 aléas** (10 d'origine, 14 du lore, 31 nouveaux) et
+**56 événements** couvrant chaque année de 2015 à 2065. Le détail des textes et
+des effets est dans `docs/barillet-contenu-v1.md`, `-v2-extension.md` et
+`-v3-chronologie.md` ; l'implémentation est dans `src/data/evenements.js`.
+
+**Deux règles de tirage** gouvernent le catalogue, sans lesquelles soixante
+entrées se comportent comme dix : une **mémoire courte** (poids ÷4 pendant 12
+trimestres, ÷2 pendant 12 de plus) et une **fenêtre d'époque** (`debut`,
+`croissance`, `maturite`, `toujours`). Fréquences : 45% pour les aléas, 50%
+pour les opportunités.
+
+**Les effets s'empilent** (`src/engine/effets.js`) : chaque événement ou aléa
+porte des modificateurs déclaratifs — demande par gamme, par mouvement ou
+croisée, coûts, matériaux, mouvements, charges fixes, salaires, capacité,
+portée, prix acceptable, désirabilité et son plafond, pools, notoriété, impôt,
+intérêts. 33 événements ont un effet permanent. `npm run chrono` vérifie la
+couverture et affiche les multiplicateurs cumulés en 2035, 2050 et 2065.
+
+**Politique salariale** : serrée (−15% de masse salariale, risque social ×2,
+savoir-faire −1/an), standard, généreuse (+20%, risque ÷2, savoir-faire +1/an,
+équipe +5% d'efficacité). Gratuite en heures. Elle commande la grève et les
+départs simultanés.
+
+**Compteur de presse achetée** : chaque voyage de presse et chaque collab
+l'incrémente ; l'enquête tombe avec 5% de probabilité par complaisance et par
+trimestre, coûte 14 de crédibilité et remet le compteur à zéro. C'est ce qui
+fait que ces deux opportunités cessent de promettre un risque qui n'existait
+pas.
 
 ## 8. Couche narrative (S3 — livrée)
 
@@ -345,7 +352,7 @@ Simulation sérieuse avec clins d'œil. L'humour vit dans les noms, les événem
 - **S2 — moteur ✅** : système d'heures (fondateur + employés spécialisés), complications, rééquilibrage crédibilité, horizon → 2065.
 - **S2.5 — retours du premier smoke test ✅** : prix libre, canaux de distribution, recherche des matériaux, complications cumulables, encadrement, licenciements, impôts, cohérence du classement, rééquilibrage des volumes.
 - **S3 — narratif ✅** : récit trimestriel, brèves concurrents, classement vivant, page d'introduction.
-- **S4 — rythme** : objectifs quinquennaux, événements 2026–2065, aléas complets, les 20 YouTubeurs.
+- **S4 — rythme** *(partiellement livré)* : chronologie complète 2015–2065 (56 événements, une année ne peut plus être vide), catalogue d'aléas porté à 55, règles de tirage (mémoire courte + fenêtre d'époque), compteur de presse achetée et enquête, politique salariale, familles de journal « classement » et « concurrence ». Restent : les 21 opportunités du lot v1/v2, les 12 aléas à choix, les objectifs quinquennaux et les 20 YouTubeurs.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, intégration audio.
 - **S6 — polish & beta** : équilibrage complet (une partie 2015–2065 testée), écrans de fin, build itch.io + GitHub Pages.
 

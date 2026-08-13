@@ -28,7 +28,7 @@ changer cette valeur.
 
 ### Session 1 — portage
 Le prototype validé, porté sous Vite + React : UI « établi », 6 jauges, demande par
-segment, événements 2015-2023, aléas, opportunités, classement annuel, sauvegarde
+segment, chronologie 2015-2065, aléas, opportunités, classement annuel, sauvegarde
 localStorage (automatique en début de trimestre + bouton manuel), déploiement Pages.
 
 ### Session 2 — moteur (spec v0.5)
@@ -193,7 +193,8 @@ la simulation utilisent la même formule, la simulation y ajoutant seulement l'a
 
 - **S3 — narratif** : récit trimestriel généré, brèves des concurrents, classement
   vivant (revenus du Top 50 qui évoluent), page d'introduction.
-- **S4 — rythme** : objectifs quinquennaux, événements 2026-2065, aléas complets,
+- **S4 — rythme** *(en cours)* : chronologie 2015-2065 et catalogue d'aléas livrés ;
+  restent les 21 opportunités, les aléas à choix et les objectifs quinquennaux,
   les 20 YouTubeurs. C'est aussi là qu'il faudra replacer le **déblocage progressif
   des actions**, qui est sorti du plan révisé.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, audio.

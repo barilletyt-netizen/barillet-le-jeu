@@ -1,6 +1,6 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
-  EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS,
+  EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS, SALAIRES,
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
@@ -91,24 +91,27 @@ export const nbProduction = (employes) =>
  * des chefs d'atelier. Sans eux, l'atelier tourne mal — c'est le frein qui
  * remplace « on embauche et ça roule tout seul ».
  */
-export function encadrement(employes) {
+export function encadrement(employes, salaires = "standard") {
   const prod = nbProduction(employes);
   const chefs = employes.chef || 0;
   // Les ENCADREMENT_SANS_CHEF premiers sont encadrés par le fondateur lui-même.
   const aEncadrer = Math.max(0, prod - ENCADREMENT_SANS_CHEF);
   const requis = Math.ceil(aEncadrer / ENCADREMENT_PAR_CHEF);
-  if (requis === 0) return { requis: 0, chefs, manque: 0, efficacite: 1, prod, sansChef: ENCADREMENT_SANS_CHEF };
+  const bonus = (SALAIRES[salaires] || SALAIRES.standard).efficacite;
+  if (requis === 0) {
+    return { requis: 0, chefs, manque: 0, efficacite: 1 + bonus, prod, sansChef: ENCADREMENT_SANS_CHEF };
+  }
   const couverture = Math.min(1, chefs / requis);
   return {
     requis, chefs, prod, sansChef: ENCADREMENT_SANS_CHEF,
     manque: Math.max(0, requis - chefs),
-    efficacite: ENCADREMENT_PLANCHER + (1 - ENCADREMENT_PLANCHER) * couverture,
+    efficacite: ENCADREMENT_PLANCHER + (1 - ENCADREMENT_PLANCHER) * couverture + bonus,
   };
 }
 
 // Heures réellement productibles : main-d'œuvre encadrée, plafonnée par les postes.
 export function heuresProductionDispo(g) {
-  const effEnc = encadrement(g.employes).efficacite;
+  const effEnc = encadrement(g.employes, g.salaires).efficacite;
   return Math.floor(Math.min(g.heures + heuresEmployes(g.employes) * effEnc, capaciteEffective(g)));
 }
 
@@ -218,9 +221,10 @@ export function qualiteNouveau(mvtKey, { pays, profil, savoir, compls = [], fini
 export const masseSalariale = (employes) =>
   Object.entries(employes).reduce((s, [k, n]) => s + n * EMPLOYES[k].fixes, 0);
 
-export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null }) {
+export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard" }) {
   const e = eff || effetsNeutres();
-  const base = FIXES_BASE + masseSalariale(employes) * e.salaires + ateliersFixes + fixesCanaux(canaux);
+  const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
+  const base = FIXES_BASE + masseSalariale(employes) * e.salaires * politique + ateliersFixes + fixesCanaux(canaux);
   return Math.round(base * e.fixesMult + e.fixesAjout);
 }
 
@@ -228,13 +232,14 @@ export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null }) 
  * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
  * coûts » reste une intention : le joueur ne sait pas où appuyer.
  */
-export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux }) {
+export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard" }) {
+  const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
   const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
   for (const [k, n] of Object.entries(employes)) {
     if (n > 0) {
       lignes.push({
-        libelle: EMPLOYES[k].nom + (n > 1 ? " ×" + n : ""),
-        montant: n * EMPLOYES[k].fixes,
+        libelle: EMPLOYES[k].nom + (n > 1 ? " ×" + n : "") + (politique !== 1 ? " (" + SALAIRES[salaires].nom.toLowerCase() + ")" : ""),
+        montant: Math.round(n * EMPLOYES[k].fixes * politique),
         detail: n > 1 ? fmtArgent(EMPLOYES[k].fixes) + " chacun" : null,
       });
     }
