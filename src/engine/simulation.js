@@ -10,7 +10,7 @@ import {
   num, tauxInteret,
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
-import { effetsActifs, trimestreIndex } from "./effets.js";
+import { effetsActifs, nettoyerMods, trimestreIndex } from "./effets.js";
 import { mondeInitial, evoluerMonde, breveConcurrent } from "./monde.js";
 import { journalTrimestre, MEMOIRE_JOURNAL } from "./journal.js";
 
@@ -45,6 +45,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     journal: [], opportunite: null, oppRecentes: [],
     journalRecent: [], // familles déjà passées en une de la Gazette
     tirages: [], // { id, q } — mémoire courte des aléas et opportunités déjà vus
+    mods: [], // modificateurs durables posés par les aléas et les opportunités
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -149,7 +150,8 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   let depart = null;
   let ventesBrutes = 0, coutsProd = 0, caDirect = 0;
 
-  // Les effets durables des événements, empilés une fois pour tout le trimestre.
+  // Les effets durables des événements et de la partie, empilés une fois
+  // pour tout le trimestre.
   const eff = effetsActifs(gs);
 
   // Un événement historique remplace l'aléa du trimestre : pas deux chocs à la fois.
@@ -165,42 +167,75 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     if (im.savoir) savoir = clamp(savoir + im.savoir, 0, 100);
   }
 
-  let mProd = 1, mCoutU = 1, mDemande = 1;
+  let mProd = 1, mCoutU = 1, mDemande = 1, mCapacite = 1;
   let modeles = gs.modeles.map((m) => ({ ...m }));
 
+  // Effet de l'aléa, appliqué depuis sa description. Les soixante entrées du
+  // catalogue partagent le même vocabulaire : plus de chaîne de `if` par id.
+  const effetAlea = alea ? (alea.effetSelon ? alea.effetSelon(gs) : alea.effet || {}) : {};
+  const modsPoses = [];
   if (alea) {
-    if (alea.id === "retard") mProd = 0.5;
-    if (alea.id === "chf") mCoutU = 1.12;
-    if (alea.id === "celebrite") { noto = clamp(noto + 6, 0, 100); des = clamp(des + 5, 0, 100); }
-    if (alea.id === "contrefacon") { des = clamp(des - 5, 0, 100); mDemande *= 0.9; }
-    if (alea.id === "article") cred = clamp(cred + 4, 0, 100);
-    if (alea.id === "cambriolage") { modeles = modeles.map((m) => ({ ...m, stock: Math.floor(m.stock * 0.7) })); cash -= 10000; }
-    if (alea.id === "demission") {
-      savoir = clamp(savoir - 3, 0, 100);
-      const postes = Object.keys(employes).filter((k) => employes[k] > 0);
-      if (postes.length) {
+    const e = effetAlea;
+    if (e.noto) noto = clamp(noto + e.noto, 0, 100);
+    if (e.cred) cred = clamp(cred + e.cred, 0, 100);
+    if (e.des) des = clamp(des + e.des, 0, 100);
+    if (e.savoir) savoir = clamp(savoir + e.savoir, 0, 100);
+    if (e.cash) cash += e.cash;
+    if (e.cashPct) cash += Math.round(cash * e.cashPct);
+    if (e.beneficePct) {
+      const cumul = gs.journal.reduce((s2, l) => s2 + (l.resultat || 0), 0);
+      cash += Math.round(Math.max(0, cumul) * e.beneficePct);
+    }
+    if (e.prodMult) mProd *= e.prodMult;
+    if (e.coutMult) mCoutU *= e.coutMult;
+    if (e.demandeMult) mDemande *= e.demandeMult;
+    if (e.capMult) mCapacite *= e.capMult;
+    if (e.stockMult) modeles = modeles.map((m) => ({ ...m, stock: Math.floor(m.stock * e.stockMult) }));
+    if (e.stockPlus) {
+      const i = modeles.findIndex((m) => m.statut === "actif");
+      if (i >= 0) modeles[i] = { ...modeles[i], stock: modeles[i].stock + e.stockPlus };
+    }
+    if (e.stockMoins) {
+      const i = modeles.findIndex((m) => m.statut === "actif" && m.stock >= e.stockMoins);
+      if (i >= 0) modeles[i] = { ...modeles[i], stock: modeles[i].stock - e.stockMoins };
+    }
+    if (e.devPlus) {
+      const i = modeles.findIndex((m) => m.statut === "dev");
+      if (i >= 0) modeles[i] = { ...modeles[i], devRestant: modeles[i].devRestant + e.devPlus };
+    }
+    if (e.fraicheurMalus) {
+      const i = modeles.findIndex((m) => m.statut === "actif");
+      if (i >= 0) modeles[i] = { ...modeles[i], age: modeles[i].age + Math.round(e.fraicheurMalus * 20) };
+    }
+    if (e.employeMoins) {
+      for (let n = 0; n < e.employeMoins; n++) {
+        const postes = Object.keys(employes).filter((k) => employes[k] > 0);
+        if (!postes.length) break;
         const parti = pick(postes);
         employes = { ...employes, [parti]: employes[parti] - 1 };
         depart = EMPLOYES[parti].nom;
         messagesDev.push("Départ d'un " + EMPLOYES[parti].nom.toLowerCase() + " : son poste est vacant.");
       }
     }
-    if (alea.id === "tiktok") { noto = clamp(noto + 8, 0, 100); cred = clamp(cred - 1, 0, 100); }
-    if (alea.id === "recession") mDemande *= 0.8;
-    if (alea.id === "collectionneur") {
-      const idx = modeles.findIndex((m) => m.stock > 15);
-      if (idx >= 0) {
-        const prixN = Math.max(50, num(modeles[idx].prix));
-        caDirect += Math.round(15 * prixN * 1.2);
-        modeles[idx].stock -= 15;
+    if (e.venteDirecte) {
+      const { n, prixMult, stockMin } = e.venteDirecte;
+      const i = modeles.findIndex((m) => m.statut === "actif" && m.stock >= (stockMin || n));
+      if (i >= 0) {
+        const prixN = Math.max(50, num(modeles[i].prix));
+        caDirect += Math.round(n * prixN * prixMult);
+        modeles[i] = { ...modeles[i], stock: modeles[i].stock - n };
       }
+    }
+    // Effets durables : ils survivent au trimestre et à la sauvegarde.
+    for (const mod of alea.mods || []) {
+      modsPoses.push({ ...mod, fin: mod.duree == null ? null : trimestreIndex(gs.annee, gs.t) + mod.duree });
     }
   }
 
   // Heures disponibles : fondateur + équipe de production, corrigée par
   // l'encadrement, plafonnée par les postes de l'atelier.
   const enc = encadrement(employes);
-  const capacite = capaciteEffective(gs, eff);
+  const capacite = Math.floor(capaciteEffective(gs, eff) * mCapacite);
   const heuresDispo = Math.floor(
     Math.min(heuresRestantes + heuresEmployes(employes) * enc.efficacite, capacite)
   );
@@ -257,6 +292,8 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   });
 
   ventesBrutes += caDirect;
+  // Impayés, retours, rappels : une part du chiffre du trimestre s'évapore.
+  if (effetAlea.caPct) ventesBrutes = Math.round(ventesBrutes * (1 + effetAlea.caPct));
   const commissions = Math.round(ventesBrutes * (1 - marge));
   const revenus = Math.round(ventesBrutes * marge);
 
@@ -289,7 +326,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const gainSavoir = Math.min(2, Math.floor(Math.max(0, heuresRestantes) / HEURES_PAR_SAVOIR));
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
-  const interets = Math.round((gs.dette * tauxInteret(profil)) / 4);
+  const interets = Math.round((gs.dette * tauxInteret(profil) * eff.interets) / 4);
   const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus - coutsProd - fixes - interets;
@@ -335,7 +372,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const rap = {
     annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
     coutsProd, fixes, interets, impot, resultat, resultatNet: resultat - impot,
-    evt: evtHisto, alea, cash, capDepassee, gainsCred, gainSavoir,
+    evt: evtHisto,
+    alea: alea && effetAlea.verdict ? { ...alea, texte: alea.texte + " " + effetAlea.verdict } : alea,
+    cash, capDepassee, gainsCred, gainSavoir,
     detailFixes: detailFixes(contexteFixes),
     heuresUtilisees, heuresDemandees, heuresDispo,
     heuresFondateur: Math.max(0, heuresRestantes),
@@ -350,7 +389,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const gs2 = {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,
     complications, materiaux, recherche,
-    journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash }],
+    journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash,
+      vendues: lignes.reduce((s2, l) => s2 + l.vendues, 0) }],
+    mods: [...nettoyerMods(gs), ...modsPoses],
     // Mémoire courte des tirages : ce qui vient de sortir se raréfie.
     tirages: alea
       ? [{ id: alea.id, q: trimestreIndex(gs.annee, gs.t) },

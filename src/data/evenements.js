@@ -514,22 +514,412 @@ export const OPPORTUNITES = [
   },
 ];
 
-// Effectif total, sans dépendre du moteur (évite un cycle d'imports).
-const effectif = (employes) => Object.values(employes).reduce((s, n) => s + n, 0);
 
-// Aléas possibles ce trimestre, selon l'état de la partie.
+/**
+ * Les aléas. Soixante-huit entrées, tirées avec une mémoire courte et une
+ * fenêtre d'époque (voir engine/simulation.js) — sans ces deux règles, un
+ * catalogue profond se comporterait comme un catalogue de dix.
+ *
+ * Chaque entrée porte :
+ *   `texte`  ce que lit le joueur dans son rapport
+ *   `presse` les titres à la troisième personne pour la Gazette
+ *   `epoque` "debut" | "croissance" | "maturite" | "toujours" (ou une liste)
+ *   `req`    condition d'apparition
+ *   `effet`  effet du trimestre, déclaratif (voir appliquerEffet)
+ *   `mods`   effets durables posés sur la partie, en trimestres
+ *   `choix`  l'aléa se décide au lieu de se subir — passe par l'interface
+ *            d'opportunité, pas par le rapport
+ */
+
+const effectif = (employes) => Object.values(employes).reduce((s, n) => s + n, 0);
+const actifs = (g) => g.modeles.filter((m) => m.statut === "actif");
+const age = (g) => g.annee - 2015;
+const canal = (g, id) => g.canaux[id] || 0;
+const beneficeCumule = (g) => g.journal.reduce((s, l) => s + (l.resultat || 0), 0);
+const venduesAnnee = (g) => g.journal.slice(-4).reduce((s, l) => s + (l.vendues || 0), 0);
+
+export const ALEAS = [
+  // ---- Les dix d'origine ------------------------------------------------
+  {
+    id: "retard", titre: "Fournisseur en retard", epoque: "toujours",
+    texte: "Un lot de composants n'arrive pas. Production divisée par deux ce trimestre.",
+    presse: ["LES COMPOSANTS N'ARRIVENT PAS", "CHAÎNE D'APPROVISIONNEMENT GRIPPÉE", "L'ATTENTE DES FOURNITURES"],
+    effet: { prodMult: 0.5 },
+  },
+  {
+    id: "chf", titre: "Le franc suisse s'envole", epoque: "toujours",
+    texte: "Coûts de production +12% ce trimestre.",
+    presse: ["LE FRANC S'ENVOLE", "LA MONNAIE PÈSE SUR LES COÛTS", "CHANGE DÉFAVORABLE"],
+    effet: { coutMult: 1.12 },
+  },
+  {
+    id: "celebrite", titre: "Une célébrité porte votre montre", epoque: "toujours",
+    texte: "Repérée en couverture. Notoriété +6, désirabilité +5.",
+    presse: ["UNE STAR AU POIGNET", "APERÇUE EN COUVERTURE", "LE POIGNET QUI FAIT PARLER"],
+    effet: { noto: 6, des: 5 },
+  },
+  {
+    id: "article", titre: "Article élogieux", epoque: "toujours",
+    texte: "Un magazine spécialisé vous encense. Crédibilité +4.",
+    presse: ["LA PRESSE SPÉCIALISÉE APPLAUDIT", "BEL ARTICLE DANS LA PRESSE", "UN PAPIER QUI FAIT DU BIEN"],
+    effet: { cred: 4 },
+  },
+  {
+    id: "tiktok", titre: "Buzz TikTok inattendu", epoque: "toujours",
+    texte: "Une vidéo devient virale. Notoriété +8, crédibilité −1.",
+    presse: ["LA VIDÉO QUI S'EMBALLE", "SUCCÈS VIRAL INATTENDU", "LES RÉSEAUX S'EN MÊLENT"],
+    effet: { noto: 8, cred: -1 },
+  },
+  {
+    id: "recession", titre: "Récession locale", epoque: "toujours",
+    texte: "Demande −20% ce trimestre.",
+    presse: ["LE MARCHÉ SE CONTRACTE", "RÉCESSION : LA DEMANDE RECULE", "LES CLIENTS SE FONT RARES"],
+    effet: { demandeMult: 0.8 },
+  },
+  {
+    id: "contrefacon", titre: "Contrefaçons repérées", epoque: "toujours",
+    req: (g) => g.noto >= 40,
+    texte: "Des copies circulent. Désirabilité −5, ventes −10% ce trimestre.",
+    presse: ["DES COPIES EN CIRCULATION", "LA CONTREFAÇON S'INVITE", "FAUSSES PIÈCES SAISIES"],
+    effet: { des: -5, demandeMult: 0.9 },
+  },
+  {
+    id: "cambriolage", titre: "Cambriolage de l'atelier", epoque: "toujours",
+    req: (g) => g.modeles.some((m) => m.stock > 10),
+    texte: "30% du stock disparaît, plus CHF 10'000 de dégâts.",
+    presse: ["ATELIER CAMBRIOLÉ", "VOL DANS LES RÉSERVES", "UNE NUIT AGITÉE À L'ÉTABLI"],
+    effet: { stockMult: 0.7, cash: -10000 },
+  },
+  {
+    id: "demission", titre: "Un collaborateur démissionne", epoque: "toujours",
+    req: (g) => effectif(g.employes) > 0,
+    texte: "Débauché par un concurrent. Savoir-faire −3, un poste à repourvoir.",
+    presse: ["UN DÉPART À L'ATELIER", "L'ÉTABLI PERD UNE MAIN", "DÉBAUCHAGE CHEZ LE VOISIN"],
+    effet: { savoir: -3, employeMoins: 1 },
+  },
+  {
+    id: "collectionneur", titre: "Un collectionneur passe commande", epoque: "toujours",
+    req: (g) => g.modeles.some((m) => m.stock > 15),
+    texte: "15 pièces d'un coup, payées +20%.",
+    presse: ["UN COLLECTIONNEUR PASSE COMMANDE", "COMMANDE FERME D'UN AMATEUR", "UNE SÉRIE POUR UN SEUL HOMME"],
+    effet: { venteDirecte: { n: 15, prixMult: 1.2, stockMin: 15 } },
+  },
+
+  // ---- Les quatorze du lore, longtemps restés sur le papier --------------
+  {
+    id: "fraude", titre: "Fraude d'un employé", epoque: ["croissance", "maturite"],
+    req: (g) => effectif(g.employes) >= 2 && g.cash > 100000,
+    texte: "Un collaborateur détournait des fonds depuis plusieurs trimestres. Perte de 8% de la trésorerie, crédibilité −4.",
+    presse: ["DÉTOURNEMENT À L'ATELIER", "UNE AFFAIRE INTERNE", "LES COMPTES NE TOMBAIENT PLUS JUSTE"],
+    effet: { cashPct: -0.08, cred: -4 },
+  },
+  {
+    id: "fournisseurFaillite", titre: "Fournisseur en faillite", epoque: "toujours",
+    texte: "Votre fournisseur de composants a été racheté par un groupe qui garde la production pour lui. Coûts +20% pendant trois trimestres, le temps d'en trouver un autre.",
+    presse: ["LE FOURNISSEUR PASSE SOUS PAVILLON ÉTRANGER", "APPROVISIONNEMENT À RÉINVENTER", "UN CARNET D'ADRESSES À REFAIRE"],
+    mods: [{ quoi: "couts", mult: 1.20, duree: 3 }],
+  },
+  {
+    id: "rappelQualite", titre: "Rappel qualité", epoque: ["croissance", "maturite"],
+    req: (g) => Object.values(g.segVendues).reduce((s, n) => s + n, 0) >= 100,
+    texte: "Un défaut de série sur les mouvements. Rappel, réparation, excuses. Crédibilité −6, désirabilité −4.",
+    presse: ["RAPPEL SUR UNE SÉRIE", "LE DÉFAUT QU'ON N'AVAIT PAS VU", "LA MAISON RAPPELLE SES PIÈCES"],
+    effet: { caPct: -0.15, cred: -6, des: -4 },
+  },
+  {
+    id: "venteCaritative", titre: "Invitation à une vente caritative", epoque: "toujours",
+    req: (g) => g.cred >= 25 && actifs(g).some((m) => m.stock > 0),
+    texte: "Une pièce unique part sous le marteau pour une œuvre. Crédibilité +7, désirabilité +6, une montre en moins.",
+    presse: ["UNE PIÈCE UNIQUE POUR LA BONNE CAUSE", "SOUS LE MARTEAU POUR LA RECHERCHE", "LA MAISON DONNE SA MONTRE"],
+    effet: { cred: 7, des: 6, stockMoins: 1 },
+  },
+  {
+    id: "recordEncheres", titre: "Record aux enchères", epoque: ["croissance", "maturite"],
+    req: (g) => g.des >= 55 && age(g) >= 8,
+    texte: "Une de vos premières pièces vient de tripler son prix d'origine en salle des ventes. Désirabilité +10, notoriété +5.",
+    presse: ["UN RECORD EN SALLE DES VENTES", "LA COTE S'ENVOLE", "TROIS FOIS LE PRIX D'ORIGINE"],
+    effet: { des: 10, noto: 5 },
+  },
+  {
+    id: "volPrototype", titre: "Vol d'un prototype", epoque: "toujours",
+    req: (g) => g.modeles.some((m) => m.statut === "dev"),
+    texte: "Le prototype a disparu avant sa présentation. Le développement perd un trimestre, et quelqu'un, quelque part, a vos plans.",
+    presse: ["PROTOTYPE DISPARU", "UN VOL AVANT L'HEURE", "LES PLANS DANS LA NATURE"],
+    effet: { devPlus: 1 },
+  },
+  {
+    id: "douaneAlea", titre: "Nouveau droit de douane", epoque: ["croissance", "maturite"],
+    req: (g) => canal(g, "ecommerce") >= 2 || canal(g, "detaillants") >= 2,
+    texte: "Votre principal marché d'export impose une surtaxe. Portée des canaux −25% pendant quatre trimestres.",
+    presse: ["SURTAXE SUR LE MARCHÉ PRINCIPAL", "LES DOUANES SE REFERMENT", "EXPORTER COÛTE PLUS CHER"],
+    mods: [{ quoi: "portee", mult: 0.75, duree: 4 }],
+  },
+  {
+    id: "incendie", titre: "Incendie de l'atelier", epoque: ["croissance", "maturite"],
+    req: (g) => g.ateliers >= 1,
+    texte: "Un départ de feu dans l'atelier. L'assurance couvre la moitié : 60% du stock perdu, la production amputée deux trimestres.",
+    presse: ["L'ATELIER A BRÛLÉ", "UNE NUIT QU'ON N'OUBLIERA PAS", "LES ÉTABLIS SOUS L'EAU DES POMPIERS"],
+    effet: { stockMult: 0.4 },
+    mods: [{ quoi: "capacite", mult: 0.7, duree: 2 }],
+  },
+  {
+    id: "penurieAcier", titre: "Pénurie d'acier", epoque: "toujours",
+    texte: "L'acier de qualité horlogère manque. Coûts +18% ce trimestre, production plafonnée à 70%.",
+    presse: ["L'ACIER MANQUE", "APPROVISIONNEMENT SOUS TENSION", "ON SE BAT POUR DES BOÎTIERS"],
+    effet: { coutMult: 1.18, prodMult: 0.7 },
+  },
+  {
+    id: "museeExpo", titre: "Une pièce entre au musée", epoque: ["croissance", "maturite"],
+    req: (g) => g.savoir >= 55 && Object.values(g.complications).some((n) => n >= 2),
+    texte: "Un musée horloger intègre une de vos montres à sa collection permanente. Crédibilité +8.",
+    presse: ["UNE MONTRE AU MUSÉE", "RECONNAISSANCE INSTITUTIONNELLE", "LA PIÈCE REJOINT LES COLLECTIONS"],
+    effet: { cred: 8 },
+  },
+  {
+    id: "ecolePartenariat", titre: "Partenariat avec une école d'horlogerie", epoque: ["croissance", "maturite"],
+    req: (g) => effectif(g.employes) >= 3,
+    texte: "Une école place deux apprentis chez vous. Savoir-faire +5.",
+    presse: ["DEUX APPRENTIS À L'ÉTABLI", "LA MAISON FORME", "TRANSMETTRE, ENFIN"],
+    effet: { savoir: 5 },
+  },
+  {
+    id: "panneMachine", titre: "Panne d'une machine-outil", epoque: ["croissance", "maturite"],
+    req: (g) => g.ateliers >= 1,
+    texte: "Le tour à décolleter est hors service. Réparation CHF 25'000, capacité −30% ce trimestre.",
+    presse: ["LA MACHINE S'ARRÊTE", "PANNE EN PRODUCTION", "UNE SEMAINE DE RETARD"],
+    effet: { cash: -25000, capMult: 0.7 },
+  },
+  {
+    id: "clientFortune", titre: "Commande d'un client fortuné", epoque: "toujours",
+    req: (g) => g.des >= 40 && actifs(g).some((m) => m.stock > 0),
+    texte: "Un collectionneur veut une pièce sur mesure, payée dix fois le prix catalogue. Désirabilité +5.",
+    presse: ["UNE COMMANDE SPÉCIALE", "SUR MESURE POUR UN AMATEUR", "LA MAISON SORT DU CATALOGUE"],
+    effet: { venteDirecte: { n: 1, prixMult: 10, stockMin: 1 }, des: 5 },
+  },
+  {
+    id: "redressement", titre: "Contrôle fiscal", epoque: "maturite",
+    req: (g) => beneficeCumule(g) > 500000,
+    texte: "L'administration revient sur trois exercices. Redressement de 6% du bénéfice cumulé, et beaucoup de paperasse.",
+    presse: ["LE FISC S'INVITE", "CONTRÔLE SUR TROIS EXERCICES", "L'ADDITION DES ANNÉES PASSÉES"],
+    effet: { beneficePct: -0.06 },
+  },
+  {
+    id: "talentDebauche", titre: "Un concurrent débauche votre meilleur horloger", epoque: ["croissance", "maturite"],
+    req: (g) => effectif(g.employes) >= 3 && g.savoir >= 50,
+    texte: "Une grande maison a doublé son salaire. Savoir-faire −5, un poste vacant, et le carnet de commandes qui part avec.",
+    presse: ["DÉBAUCHÉ PAR PLUS GROS", "LE SAVOIR-FAIRE CHANGE DE MAISON", "ON NE RETIENT PAS UN RÉGLEUR AVEC DES MOTS"],
+    effet: { savoir: -5, employeMoins: 1 },
+  },
+
+  // ---- Atelier et production --------------------------------------------
+  {
+    id: "erreurSerie", titre: "Erreur de série", epoque: "toujours",
+    req: (g) => actifs(g).reduce((s, m) => s + Number(m.prod || 0), 0) >= 50,
+    texte: "Une erreur de réglage sur toute une série. 20% de la production à repasser : autant d'heures perdues.",
+    presse: ["TOUTE UNE SÉRIE À REPRENDRE", "L'ERREUR QU'ON NE VOIT QU'APRÈS"],
+    effet: { prodMult: 0.8 },
+  },
+  {
+    id: "apprentiDoue", titre: "Un apprenti doué", epoque: "toujours",
+    req: (g) => effectif(g.employes) >= 2,
+    texte: "Un apprenti d'un talent rare. Savoir-faire +4, et dans un an il vaudra un horloger confirmé.",
+    presse: ["UN APPRENTI QU'ON GARDE", "LE COUP D'ŒIL D'UN DÉBUTANT"],
+    effet: { savoir: 4 },
+  },
+  {
+    id: "accidentTravail", titre: "Accident du travail", epoque: "toujours",
+    req: (g) => effectif(g.employes) >= 3,
+    texte: "Un accident à l'établi. Personne de gravement blessé, mais un poste immobilisé et une inspection à venir. Crédibilité −2.",
+    presse: ["ACCIDENT À L'ATELIER", "UNE INSPECTION S'ANNONCE"],
+    effet: { cred: -2, capMult: 0.85 },
+  },
+  {
+    id: "inventaireOublie", titre: "Un fond de réserve oublié", epoque: "toujours",
+    req: (g) => age(g) >= 4 && actifs(g).length > 0,
+    texte: "En rangeant la réserve : trente pièces d'un ancien modèle, jamais mises en vente. Elles repartent en stock.",
+    presse: ["TRENTE MONTRES RETROUVÉES", "LE FOND DE RÉSERVE"],
+    effet: { stockPlus: 30 },
+  },
+  {
+    id: "hygrometrie", titre: "L'atelier prend l'humidité", epoque: ["croissance", "maturite"],
+    req: (g) => g.ateliers >= 1,
+    texte: "La régulation d'humidité a lâché. Poussière et oxydation : 10% du stock à démonter et nettoyer.",
+    presse: ["L'ATELIER PREND L'HUMIDITÉ", "TOUT À DÉMONTER"],
+    effet: { stockMult: 0.9, capMult: 0.9 },
+  },
+  {
+    id: "normesAtelier", titre: "Mise aux normes", epoque: "maturite",
+    req: (g) => effectif(g.employes) >= 5,
+    texte: "Mise aux normes exigée sur l'atelier. CHF 18'000, non négociables.",
+    presse: ["L'INSPECTION PASSE", "LES NORMES ONT UN PRIX"],
+    effet: { cash: -18000 },
+  },
+
+  // ---- Fournisseurs et matières -----------------------------------------
+  {
+    id: "lotDefectueux", titre: "Lot de cadrans hors tolérance", epoque: "toujours",
+    texte: "Un lot de cadrans arrive hors tolérance. Production divisée par deux ce trimestre, remboursement partiel du fournisseur.",
+    presse: ["DES CADRANS HORS TOLÉRANCE", "LE LOT QU'IL FAUT RENVOYER"],
+    effet: { prodMult: 0.5, cash: 5000 },
+  },
+  {
+    id: "fournisseurHistorique", titre: "Le fournisseur des débuts ferme", epoque: ["croissance", "maturite"],
+    req: (g) => age(g) >= 6,
+    texte: "Le fournisseur qui vous suivait depuis les débuts ferme. Coûts +15% pendant deux trimestres, le temps d'en retrouver un.",
+    presse: ["LA MAISON QUI NOUS FOURNISSAIT FERME", "VINGT ANS DE RELATION QUI S'ARRÊTENT"],
+    mods: [{ quoi: "couts", mult: 1.15, duree: 2 }],
+  },
+  {
+    id: "penurieSaphir", titre: "Plus de glaces saphir", epoque: "toujours",
+    texte: "Les glaces saphir manquent. Le temps de sourcer ailleurs, l'atelier rend un cinquième de moins.",
+    presse: ["PLUS DE SAPHIR", "LES GLACES MANQUENT"],
+    effet: { capMult: 0.83 },
+  },
+
+  // ---- Commercial et distribution ---------------------------------------
+  {
+    id: "detaillantImpaye", titre: "Un détaillant fait défaut", epoque: "toujours",
+    req: (g) => canal(g, "detaillants") >= 1,
+    texte: "Un détaillant dépose le bilan avec votre marchandise. 8% du chiffre du trimestre passé en pertes.",
+    presse: ["UN DÉTAILLANT FAIT DÉFAUT", "LA MARCHANDISE ET L'ARGENT"],
+    effet: { caPct: -0.08 },
+  },
+  {
+    id: "vagueRetours", titre: "Vague de retours clients", epoque: ["croissance", "maturite"],
+    req: (g) => venduesAnnee(g) >= 200,
+    texte: "Une vague de retours sur un défaut mineur mais visible. 5% des ventes annulées, désirabilité −3.",
+    presse: ["LES CLIENTS RENVOIENT", "UN DÉFAUT QUI SE VOIT"],
+    effet: { caPct: -0.05, des: -3 },
+  },
+  {
+    id: "marcheGrisEnvol", titre: "La cote s'envole sur le marché gris", epoque: ["croissance", "maturite"],
+    req: (g) => g.des >= 50,
+    texte: "Vos pièces se revendent 40% au-dessus du prix catalogue. Désirabilité +8 — et pas un franc pour la maison.",
+    presse: ["LA COTE S'ENVOLE SUR LE MARCHÉ GRIS", "ON REVEND PLUS CHER QUE NOUS"],
+    effet: { des: 8 },
+  },
+  {
+    id: "revendeurParallele", titre: "Un circuit parallèle brade vos modèles", epoque: "toujours",
+    req: (g) => canal(g, "ecommerce") >= 2,
+    texte: "Un revendeur parallèle brade vos modèles en ligne. Ventes +10% ce trimestre, désirabilité −6. Difficile de s'en réjouir.",
+    presse: ["NOS MONTRES BRADÉES EN LIGNE", "LE CIRCUIT PARALLÈLE"],
+    effet: { demandeMult: 1.1, des: -6 },
+  },
+
+  // ---- Presse, réseaux et réputation ------------------------------------
+  {
+    id: "macroVirale", titre: "Le défaut filmé de trop près", epoque: "toujours",
+    req: (g) => actifs(g).length > 0,
+    texte: "Quelqu'un a filmé en macro un défaut de finition sur votre mouvement. La vidéo tourne. Crédibilité −6, notoriété +6.",
+    presse: ["LE DÉFAUT FILMÉ DE TROP PRÈS", "LA MACRO QUI FAIT MAL"],
+    effet: { cred: -6, noto: 6 },
+  },
+  {
+    id: "forumsDefense", titre: "Les clients montent au créneau", epoque: ["croissance", "maturite"],
+    req: (g) => g.cred >= 30,
+    texte: "Attaquée sur un forum, la marque a été défendue par ses propres clients. Crédibilité +3, désirabilité +2.",
+    presse: ["LES CLIENTS MONTENT AU CRÉNEAU", "UNE COMMUNAUTÉ QUI RÉPOND"],
+    effet: { cred: 3, des: 2 },
+  },
+  {
+    id: "couvertureMagazine", titre: "En couverture", epoque: ["croissance", "maturite"],
+    req: (g) => g.noto >= 30,
+    texte: "Couverture d'un magazine spécialisé. Notoriété +7, crédibilité +3.",
+    presse: ["EN COUVERTURE", "LA UNE D'UN MAGAZINE"],
+    effet: { noto: 7, cred: 3 },
+  },
+  {
+    id: "demontageDirect", titre: "Démontée en direct", epoque: "toujours",
+    req: (g) => actifs(g).length > 0,
+    texte: "Un YouTubeur démonte votre montre en direct devant 200'000 personnes. Tout dépend de ce qu'il y a dedans.",
+    presse: ["DÉMONTÉE EN DIRECT", "L'ÉPREUVE DU TOURNEVIS"],
+    // Le verdict dépend de la meilleure pièce du catalogue.
+    effetSelon: (g) =>
+      Math.max(...actifs(g).map((m) => m.qual)) >= 7
+        ? { cred: 8, des: 5, verdict: "Le mouvement a tenu l'examen. Crédibilité +8, désirabilité +5." }
+        : { cred: -7, des: -4, verdict: "L'intérieur ne valait pas l'extérieur. Crédibilité −7, désirabilité −4." },
+  },
+  {
+    id: "prixDesign", titre: "Un prix pour le dessin", epoque: ["croissance", "maturite"],
+    req: (g) => actifs(g).some((m) => m.age < 8),
+    texte: "Un prix de design récompense une de vos pièces. Désirabilité +7, notoriété +4.",
+    presse: ["UN PRIX POUR LE DESSIN", "RÉCOMPENSÉE POUR SON STYLE"],
+    effet: { des: 7, noto: 4 },
+  },
+  {
+    id: "celebriteGenante", titre: "Une ambassadrice encombrante", epoque: "toujours",
+    req: (g) => g.noto >= 40,
+    texte: "Une personnalité très commentée porte votre montre partout. Notoriété +9, crédibilité −5. On ne choisit pas ses ambassadeurs.",
+    presse: ["UNE AMBASSADRICE ENCOMBRANTE", "LE POIGNET QU'ON N'AVAIT PAS DEMANDÉ"],
+    effet: { noto: 9, cred: -5 },
+  },
+
+  // ---- Marché et finance -------------------------------------------------
+  {
+    id: "tauxHausse", titre: "La banque resserre", epoque: "toujours",
+    req: (g) => g.dette > 100000,
+    texte: "Les taux montent. Vos intérêts augmentent de moitié pour les trois prochaines années.",
+    presse: ["LA BANQUE RESSERRE", "LE CRÉDIT COÛTE PLUS CHER"],
+    mods: [{ quoi: "interets", mult: 1.5, duree: 12 }],
+  },
+  {
+    id: "subventionRegionale", titre: "Une aide pour l'artisanat", epoque: ["debut", "croissance"],
+    req: (g) => g.pays === "suisse" || g.pays === "france",
+    texte: "Une aide régionale à l'artisanat vous est accordée : CHF 50'000, sans contrepartie autre qu'un dossier à remplir.",
+    presse: ["UNE AIDE POUR L'ARTISANAT", "LE CANTON MET LA MAIN À LA POCHE"],
+    effet: { cash: 50000 },
+  },
+  {
+    id: "primeAssurance", titre: "Les assurances revoient leurs tarifs", epoque: "toujours",
+    req: (g) => g.ateliers >= 1,
+    texte: "Après le sinistre d'un confrère, les primes de la branche augmentent. Coûts fixes +4'000 par trimestre.",
+    presse: ["LES ASSURANCES REVOIENT LEURS TARIFS", "LE SINISTRE DU VOISIN, NOTRE FACTURE"],
+    mods: [{ quoi: "fixesAjout", montant: 4000, duree: null }],
+  },
+  {
+    id: "changeFavorable", titre: "Le change joue pour nous", epoque: "toujours",
+    texte: "Le change vous est favorable ce trimestre. Coûts de production −8%.",
+    presse: ["LE CHANGE JOUE POUR NOUS", "UN TRIMESTRE DE RÉPIT SUR LES COÛTS"],
+    effet: { coutMult: 0.92 },
+  },
+  {
+    id: "grosImpaye", titre: "Un impayé qui pèse", epoque: ["croissance", "maturite"],
+    req: (g) => g.revenusAnnee >= 500000,
+    texte: "Un client important ne paie pas et conteste. 12% de la trésorerie bloqués, procédure engagée.",
+    presse: ["UN IMPAYÉ QUI PÈSE", "L'ARGENT QUI NE RENTRE PAS"],
+    effet: { cashPct: -0.12 },
+  },
+
+  // ---- Liés au pays de départ -------------------------------------------
+  {
+    id: "zoneEconomique", titre: "La région passe en zone prioritaire", epoque: "toujours",
+    req: (g) => g.pays === "chine",
+    texte: "Votre région est classée zone économique prioritaire. Coûts de production −10%, définitivement.",
+    presse: ["LA RÉGION PASSE EN ZONE PRIORITAIRE", "UN COUP DE POUCE ADMINISTRATIF"],
+    mods: [{ quoi: "couts", mult: 0.9, duree: null }],
+  },
+  {
+    id: "marcheInterieurJP", titre: "Le marché intérieur s'entrouvre", epoque: "toujours",
+    req: (g) => g.pays === "japon",
+    texte: "Le marché intérieur japonais s'ouvre enfin aux petites maisons locales. Demande +15% pendant deux ans.",
+    presse: ["LE MARCHÉ INTÉRIEUR S'ENTROUVRE", "LES JAPONAIS DÉCOUVRENT LEURS MARQUES"],
+    mods: [{ quoi: "demande", mult: 1.15, duree: 8 }],
+  },
+  {
+    id: "presseParisienne", titre: "Paris s'entiche de la maison", epoque: "toujours",
+    req: (g) => g.pays === "france",
+    texte: "La presse parisienne s'entiche de votre maison. Crédibilité +6, notoriété +5. Ça ne durera pas, autant en profiter.",
+    presse: ["PARIS S'ENTICHE DE LA MAISON", "LA PRESSE PARISIENNE ADOPTE"],
+    effet: { cred: 6, noto: 5 },
+  },
+];
+
+/**
+ * Les aléas possibles ce trimestre. Les entrées `choix` en sont exclues tant
+ * que l'interface de décision ne les porte pas : un aléa qui se décide et un
+ * aléa qui se subit ne se lisent pas pareil, et on ne veut pas du second par
+ * défaut.
+ */
 export function poolAleas(g) {
-  const pool = [
-    { id: "retard", titre: "Fournisseur en retard", texte: "Un lot de composants n'arrive pas. Production divisée par deux ce trimestre." },
-    { id: "chf", titre: "Le franc suisse s'envole", texte: "Coûts de production +12% ce trimestre." },
-    { id: "celebrite", titre: "Une célébrité porte votre montre", texte: "Repérée en couverture. Notoriété +6, désirabilité +5." },
-    { id: "article", titre: "Article élogieux", texte: "Un magazine spécialisé vous encense. Crédibilité +4." },
-    { id: "tiktok", titre: "Buzz TikTok inattendu", texte: "Une vidéo devient virale. Notoriété +8, crédibilité −1." },
-    { id: "recession", titre: "Récession locale", texte: "Demande −20% ce trimestre." },
-  ];
-  if (g.noto >= 40) pool.push({ id: "contrefacon", titre: "Contrefaçons repérées", texte: "Des copies circulent. Désirabilité −5, ventes −10% ce trimestre." });
-  if (g.modeles.some((m) => m.stock > 10)) pool.push({ id: "cambriolage", titre: "Cambriolage de l'atelier", texte: "30% du stock disparaît, plus CHF 10'000 de dégâts." });
-  if (effectif(g.employes) > 0) pool.push({ id: "demission", titre: "Un collaborateur démissionne", texte: "Débauché par un concurrent. Savoir-faire −3, un poste à repourvoir." });
-  if (g.modeles.some((m) => m.stock > 15)) pool.push({ id: "collectionneur", titre: "Un collectionneur passe commande", texte: "15 pièces d'un coup, payées +20%." });
-  return pool;
+  return ALEAS.filter((a) => !a.choix && (!a.req || a.req(g)));
 }

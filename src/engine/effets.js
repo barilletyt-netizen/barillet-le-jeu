@@ -47,6 +47,7 @@ export function effetsNeutres() {
     gainNoto: 1,
     impotPoints: 0,
     freqContrefacon: 1,
+    interets: 1,
   };
 }
 
@@ -74,6 +75,7 @@ function appliquer(acc, mod) {
     case "gainNoto": acc.gainNoto *= m; break;
     case "impotPoints": acc.impotPoints += mod.points; break;
     case "freqContrefacon": acc.freqContrefacon *= m; break;
+    case "interets": acc.interets *= m; break;
     default: break;
   }
 }
@@ -99,7 +101,22 @@ export function effetsActifs(g) {
       appliquer(acc, mod);
     }
   }
+  // Modificateurs posés en cours de partie par un aléa ou une opportunité :
+  // une hausse de prime d'assurance ou un contrat d'ambassadeur dure au-delà
+  // du trimestre où on l'a acceptée. Ils transitent par la sauvegarde : rien
+  // d'autre que des données JSON ici, jamais de fonction.
+  for (const mod of g.mods || []) {
+    if (mod.fin != null && now >= mod.fin) continue;
+    if (mod.si && !mod.si(g)) continue;
+    appliquer(acc, mod);
+  }
   return acc;
+}
+
+/** Purge les modificateurs de partie arrivés à échéance. */
+export function nettoyerMods(g) {
+  const now = trimestreIndex(g.annee, g.t);
+  return (g.mods || []).filter((m) => m.fin == null || now < m.fin);
 }
 
 /** Multiplicateur de demande pour un segment et un mouvement donnés. */

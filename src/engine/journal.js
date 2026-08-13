@@ -30,8 +30,10 @@ export const MEMOIRE_JOURNAL = 8;
 const un = (arr) => tirer(arr);
 
 /**
- * Les aléas sont écrits du point de vue du joueur (« votre montre »). Un journal
- * parle à la troisième personne : on leur donne ici leur version de presse.
+ * Les aléas portent leurs propres titres de presse (champ `presse` du
+ * catalogue) : un aléa est écrit du point de vue du joueur, un journal parle à
+ * la troisième personne. Ce tableau ne sert plus que de filet de sécurité pour
+ * une entrée qui n'en aurait pas.
  */
 const TITRES_ALEA = {
   celebrite: ["UNE STAR AU POIGNET", "APERÇUE EN COUVERTURE", "LE POIGNET QUI FAIT PARLER"],
@@ -140,7 +142,8 @@ function articlesPossibles({ rap, gs, actions, marque }) {
   // cette exception, le même départ occuperait deux colonnes du même numéro.
   if (rap.alea && !(rap.alea.id === "demission" && rap.depart)) {
     ajoute("alea", rap.alea.id === "celebrite" || rap.alea.id === "tiktok" ? 80 : 62,
-      un(TITRES_ALEA[rap.alea.id] || [rap.alea.titre.toUpperCase()]), rap.alea.texte, "alea");
+      un(rap.alea.presse || TITRES_ALEA[rap.alea.id] || [rap.alea.titre.toUpperCase()]),
+      rap.alea.texte, "alea");
   }
 
   // --- L'atelier : ce qui en sort, ce qu'on y apprend, qui le quitte.
