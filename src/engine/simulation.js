@@ -343,10 +343,37 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const gainSavoir = Math.min(2, Math.floor(Math.max(0, heuresRestantes) / HEURES_PAR_SAVOIR));
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
+  // Revenus récurrents : licence de marque, contrat de sous-traitance.
+  const revenusRecurrents = eff.revenuTrim;
+
+  // Engagement de volume : la contrepartie de la remise fournisseur.
+  const produitesCeTrimestre = lignes.reduce((s2, l) => s2 + l.prod, 0);
+  let penaliteVolume = 0;
+  if (gs.engagementVolume && produitesCeTrimestre < 125) {
+    penaliteVolume = 20000;
+    messagesDev.push("Engagement de volume non tenu (" + produitesCeTrimestre + " pièces) : CHF 20'000 de pénalité.");
+  }
+
+  // Précommande : les clients ont payé d'avance, il faut livrer.
+  let prevente = gs.prevente || null;
+  if (prevente && trimestreIndex(gs.annee, gs.t) >= prevente.echeance) {
+    const i = modeles.findIndex((m) => m.nom === prevente.nom && m.stock >= prevente.n);
+    if (i >= 0) {
+      modeles[i] = { ...modeles[i], stock: modeles[i].stock - prevente.n };
+      cred = clamp(cred + 3, 0, 100);
+      messagesDev.push("Précommande honorée : " + prevente.n + " pièces livrées. Crédibilité +3.");
+    } else {
+      cred = clamp(cred - 8, 0, 100);
+      cash -= prevente.rembourse;
+      messagesDev.push("Précommande non honorée : remboursement de " + fmtArgent(prevente.rembourse) + " et crédibilité −8.");
+    }
+    prevente = null;
+  }
+
   const interets = Math.round((gs.dette * tauxInteret(profil) * eff.interets) / 4);
   const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff, salaires: gs.salaires };
   const fixes = coutsFixes(contexteFixes);
-  const resultat = revenus - coutsProd - fixes - interets;
+  const resultat = revenus + revenusRecurrents - coutsProd - fixes - interets - penaliteVolume;
   cash += resultat;
 
   // Impôt sur le bénéfice, prélevé au dernier trimestre de l'exercice.
@@ -394,6 +421,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const rap = {
     annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
     coutsProd, fixes, interets, impot, resultat, resultatNet: resultat - impot,
+    revenusRecurrents, penaliteVolume,
     evt: evtHisto,
     alea: alea && effetAlea.verdict ? { ...alea, texte: alea.texte + " " + effetAlea.verdict } : alea,
     cash, capDepassee, gainsCred, gainSavoir,
@@ -414,6 +442,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash,
       vendues: lignes.reduce((s2, l) => s2 + l.vendues, 0) }],
     mods: [...nettoyerMods(gs), ...modsPoses],
+    prevente,
     // L'enquête solde l'ardoise : le compteur repart de zéro.
     presseAchetee: effetAlea.resetPresse ? 0 : gs.presseAchetee || 0,
     // Rang de l'exercice qui vient de se clore, pour la Gazette du T1 suivant.

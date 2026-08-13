@@ -14,6 +14,7 @@ import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { OPPORTUNITES } from "./data/evenements.js";
+import { trimestreIndex } from "./engine/effets.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
@@ -196,12 +197,16 @@ export default function App() {
 
   function embaucher(type) {
     const e = EMPLOYES[type];
-    if (!assez(COUTS_H.embauche)) return;
+    // Le salon des écoles paie une fois : la prochaine embauche coûte moitié
+    // moins d'heures, et le nouveau venu arrive déjà formé.
+    const cout = g.embaucheFacile ? Math.round(COUTS_H.embauche / 2) : COUTS_H.embauche;
+    if (!assez(cout)) return;
     setG({
       ...g,
-      heures: g.heures - COUTS_H.embauche,
+      heures: g.heures - cout,
+      embaucheFacile: false,
       employes: { ...g.employes, [type]: g.employes[type] + 1 },
-      savoir: clamp(g.savoir + e.savoir, 0, 100),
+      savoir: clamp(g.savoir + e.savoir + (g.embaucheFacile ? 3 : 0), 0, 100),
       messages: [
         ...g.messages,
         e.nom + " embauché·e : " + e.desc + " Savoir-faire +" + e.savoir + ", coûts fixes +" + fmtArgent(e.fixes) + "/trimestre.",
@@ -373,64 +378,141 @@ export default function App() {
     }
     if (!assez(opp.heures, opp.cout)) return;
 
-    const etat = { ...g, heures: g.heures - opp.heures, cash: g.cash - opp.cout, opportunite: null, oppRecentes: memoire };
-    let msg = "";
+    // Vingt-six opportunités ne tiennent plus dans une chaîne de `if` : chacune
+    // décrit son effet dans le catalogue, et on l'applique ici.
+    const e = opp.tirage ? opp.tirage(hasard()) : opp.effet || {};
+    const etat = {
+      ...g,
+      heures: g.heures - opp.heures,
+      cash: g.cash - opp.cout,
+      opportunite: null,
+      oppRecentes: memoire,
+    };
+    const notes = [];
 
-    if (opp.id === "salon") {
-      etat.noto = clamp(g.noto + 10, 0, 100);
-      etat.cred = clamp(g.cred + 4, 0, 100);
-      etat.des = clamp(g.des + 3, 0, 100);
-      msg = "Salon Genève Time : notoriété +10, crédibilité +4, désirabilité +3.";
+    if (e.noto) etat.noto = clamp(g.noto + e.noto, 0, 100);
+    if (e.cred) etat.cred = clamp(g.cred + e.cred, 0, 100);
+    if (e.des) etat.des = clamp(g.des + e.des, 0, 100);
+    if (e.savoir) etat.savoir = clamp(g.savoir + e.savoir, 0, 100);
+    if (e.cash) etat.cash += e.cash;
+    if (e.dette) etat.dette = g.dette + e.dette;
+    if (e.presseAchetee) etat.presseAchetee = (g.presseAchetee || 0) + e.presseAchetee;
+    if (e.dilution) etat.dilution = (g.dilution || 0) + e.dilution;
+    if (e.embaucheFacile) etat.embaucheFacile = true;
+    if (e.engagementVolume) etat.engagementVolume = true;
+
+    // Écouler du stock : tout, ou un plafond de pièces.
+    if (e.ecoulerStock) {
+      let encaisse = 0, unites = 0;
+      let reste = e.ecoulerStock.max || Infinity;
+      etat.modeles = g.modeles.map((m) => {
+        if (m.statut !== "actif" || m.stock <= 0 || reste <= 0) return m;
+        const n = Math.min(m.stock, reste);
+        reste -= n;
+        unites += n;
+        encaisse += Math.round(n * Math.max(50, num(m.prix)) * e.ecoulerStock.prixMult * margeMoyenne(g.canaux));
+        return { ...m, stock: m.stock - n };
+      });
+      etat.cash += encaisse;
+      etat.revenusAnnee = g.revenusAnnee + encaisse;
+      notes.push(unites + " pièces écoulées → +" + fmtArgent(encaisse) + ".");
     }
 
-    if (opp.id === "youtubeur") {
-      if (hasard() < 0.62) {
-        etat.cred = clamp(g.cred + 5, 0, 100);
-        etat.noto = clamp(g.noto + 4, 0, 100);
-        etat.des = clamp(g.des + 3, 0, 100);
-        msg = "Review positive de « Remontoir » : crédibilité +5, notoriété +4, désirabilité +3.";
+    // Vente directe : un nombre fixe de pièces, au prix qu'on veut.
+    if (e.venteDirecte) {
+      const { n, prixMult } = e.venteDirecte;
+      const i = (etat.modeles || g.modeles).findIndex((m) => m.statut === "actif" && m.stock >= n);
+      if (i >= 0) {
+        const liste = [...(etat.modeles || g.modeles)];
+        const prixN = Math.max(50, num(liste[i].prix));
+        const encaisse = Math.round(n * prixN * prixMult);
+        liste[i] = { ...liste[i], stock: liste[i].stock - n };
+        etat.modeles = liste;
+        etat.cash += encaisse;
+        etat.revenusAnnee = (etat.revenusAnnee || g.revenusAnnee) + encaisse;
+        notes.push(n + " pièces vendues directement → +" + fmtArgent(encaisse) + ".");
       } else {
-        etat.cred = clamp(g.cred - 3, 0, 100);
-        etat.noto = clamp(g.noto + 2, 0, 100);
-        msg = "Review mitigée de « Remontoir »... crédibilité −3, notoriété +2.";
+        notes.push("Pas assez de stock pour honorer la commande : l'occasion est passée.");
       }
     }
 
-    if (opp.id === "detaillant") {
-      let cash = 0, unites = 0;
-      etat.modeles = g.modeles.map((m) => {
-        if (m.stock > 0 && m.statut === "actif") {
-          unites += m.stock;
-          cash += Math.round(m.stock * Math.max(50, num(m.prix)) * 0.75 * margeMoyenne(g.canaux));
-          return { ...m, stock: 0 };
-        }
-        return m;
+    // Un palier de canal offert, s'il est déjà ouvert et pas au maximum.
+    if (e.canalPalier) {
+      const niveau = g.canaux[e.canalPalier] || 0;
+      if (niveau > 0 && niveau < CANAUX[e.canalPalier].paliers.length) {
+        etat.canaux = { ...g.canaux, [e.canalPalier]: niveau + 1 };
+        notes.push(CANAUX[e.canalPalier].nom + " passe au palier " + (niveau + 1) + ".");
+      }
+    }
+
+    if (e.atelierPlus) {
+      const a = ATELIERS.grand;
+      etat.ateliers = g.ateliers + e.atelierPlus;
+      etat.ateliersFixes = (g.ateliersFixes || 0) + a.fixes * e.atelierPlus;
+      etat.capacite = g.capacite + a.heures * e.atelierPlus;
+      notes.push("Atelier agrandi de " + fmtH(a.heures * e.atelierPlus) + " par trimestre.");
+    }
+    if (e.employePlus) {
+      etat.employes = { ...g.employes, horloger: g.employes.horloger + e.employePlus };
+    }
+
+    // Qualité : sur le meilleur modèle en vente, celui qu'on fait certifier.
+    if (e.qualPlus) {
+      const liste = [...(etat.modeles || g.modeles)];
+      let best = -1;
+      liste.forEach((m, i) => {
+        if (m.statut === "actif" && (best < 0 || m.qual > liste[best].qual)) best = i;
       });
-      etat.cash += cash;
-      etat.revenusAnnee = g.revenusAnnee + cash;
-      etat.des = clamp(g.des - 1, 0, 100);
-      msg = "Détaillant : " + unites + " montres à −25% → +" + fmtArgent(cash) + ". Désirabilité −1 : écouler en gros se voit.";
+      if (best >= 0) {
+        liste[best] = { ...liste[best], qual: liste[best].qual + e.qualPlus };
+        etat.modeles = liste;
+        notes.push("« " + liste[best].nom + " » gagne un point de qualité.");
+      }
     }
 
-    // Les deux complaisances alimentent le compteur : le risque n'est plus un
-    // tirage sur place, c'est une enquête qui peut tomber n'importe quand
-    // ensuite, d'autant plus probable qu'on a recommencé.
-    if (opp.id === "voyagepresse") {
-      etat.cred = clamp(g.cred + 5, 0, 100);
-      etat.presseAchetee = (g.presseAchetee || 0) + 1;
-      msg = "Voyage de presse : crédibilité +5." +
-        (etat.presseAchetee >= 3 ? " Trois complaisances au compteur — la profession finit toujours par parler." : "");
+    // Précommande : l'argent rentre maintenant, les montres sont dues.
+    if (e.prevente) {
+      const liste = etat.modeles || g.modeles;
+      const m = liste.find((x) => x.statut === "actif");
+      if (m) {
+        const encaisse = Math.round(e.prevente.n * Math.max(50, num(m.prix)) * e.prevente.part);
+        etat.cash += encaisse;
+        etat.revenusAnnee = (etat.revenusAnnee || g.revenusAnnee) + encaisse;
+        etat.prevente = {
+          nom: m.nom, n: e.prevente.n,
+          echeance: trimestreIndex(g.annee, g.t) + e.prevente.delai,
+          rembourse: encaisse,
+        };
+        notes.push("+" + fmtArgent(encaisse) + " encaissés d'avance sur « " + m.nom + " ».");
+      }
     }
 
-    if (opp.id === "collab") {
-      etat.noto = clamp(g.noto + 12, 0, 100);
-      etat.cred = clamp(g.cred - 2, 0, 100);
-      etat.presseAchetee = (g.presseAchetee || 0) + 1;
-      msg = "Collab influenceur : notoriété +12, crédibilité −2." +
-        (etat.presseAchetee >= 3 ? " Trois complaisances au compteur — ça finira par se savoir." : "");
+    // Sous-traitance : un revenu garanti contre de la capacité mobilisée.
+    if (e.contratOEM) {
+      const m = g.modeles.find((x) => x.statut === "actif");
+      const revenu = m
+        ? Math.round(100 * coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes }) * 1.35)
+        : 60000;
+      etat.mods = [
+        ...(g.mods || []),
+        { quoi: "revenuTrim", montant: revenu, fin: trimestreIndex(g.annee, g.t) + 4 },
+        { quoi: "capacite", mult: 0.75, fin: trimestreIndex(g.annee, g.t) + 4 },
+      ];
+      notes.push(fmtArgent(revenu) + " par trimestre pendant un an, un quart de la capacité en moins.");
     }
 
-    etat.messages = [...g.messages, msg];
+    // Modificateurs durables déclarés par l'opportunité.
+    if (e.mods) {
+      etat.mods = [
+        ...(etat.mods || g.mods || []),
+        ...e.mods.map((mod) => ({
+          ...mod,
+          fin: mod.duree == null ? null : trimestreIndex(g.annee, g.t) + mod.duree,
+        })),
+      ];
+    }
+
+    etat.messages = [...g.messages, [e.msg || opp.msg, ...notes].filter(Boolean).join(" ")];
     setG(etat);
   }
 

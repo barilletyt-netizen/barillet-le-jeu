@@ -48,6 +48,7 @@ export function effetsNeutres() {
     impotPoints: 0,
     freqContrefacon: 1,
     interets: 1,
+    revenuTrim: 0, // revenu récurrent : licence de marque, contrat de sous-traitance
   };
 }
 
@@ -76,6 +77,7 @@ function appliquer(acc, mod) {
     case "impotPoints": acc.impotPoints += mod.points; break;
     case "freqContrefacon": acc.freqContrefacon *= m; break;
     case "interets": acc.interets *= m; break;
+    case "revenuTrim": acc.revenuTrim += mod.montant; break;
     default: break;
   }
 }

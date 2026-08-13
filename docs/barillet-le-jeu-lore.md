@@ -148,6 +148,7 @@ Aucun message d'aide ne recommande une dépense si le joueur ne peut pas la paye
 ### Backlog (noté, non implémenté)
 - **Combos et synergies** : boosts provisoires ou consommables déclenchés par des enchaînements d'actions précis (retour testeur). À traiter en S4 avec le déblocage progressif des actions — c'est la même mécanique de récompense de la maîtrise.
 - **Habillage** : référence citée par un testeur, *Game Dev Tycoon*, à verser au moodboard de S5.
+- **Tutoriel « l'horlogerie en quelques pages »** : le jeu suppose acquis un vocabulaire qui ne l'est pas. Un néophyte ne sait pas ce qu'est une ébauche, pourquoi une manufacture coûte cinquante fois plus cher, ce que vaut un anglage, ni pourquoi une complication se paie en heures. Prévoir trois à cinq pages courtes, illustrées, consultables **avant** la partie et **rappelables en jeu** depuis les endroits où le vocabulaire apparaît (choix du mouvement, gamme, complications, finition) — pas un mur de texte au démarrage, qu'on saute. Contenu pressenti : (1) ce qu'il y a dans une montre et qui fait quoi ; (2) quartz, ébauche, manufacture — ce que chacun coûte et ce qu'il rapporte ; (3) les quatre gammes et à qui elles s'adressent ; (4) ce qu'une complication ajoute et ce qu'elle prend ; (5) les trois jauges d'image et pourquoi elles ne se rattrapent pas à l'argent. Sert aussi la chaîne YouTube : ces pages sont un script de vidéo. Session S6, ou S5 si les assets arrivent tôt.
 
 ### Fiscalité (v0.6)
 **Impôt de 18% sur le bénéfice annuel**, prélevé au bilan du T4.

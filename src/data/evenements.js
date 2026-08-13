@@ -311,6 +311,19 @@ export const EVENEMENTS = [
     ],
   },
   {
+    annee: 2045, t: 1, id: "retourMilieu",
+    titre: "Le milieu de gamme reprend des couleurs",
+    texte: "Deux ans après le krach, les acheteurs qui visaient le très haut de gamme n'y sont plus. Ceux qui restent veulent une montre qu'on porte, pas une qu'on range. Les maisons redécouvrent qu'entre la pièce à mille francs et celle à cent mille, il y a un marché — celui qu'elles avaient laissé filer vingt ans plus tôt.",
+    // Atténue `polarisation` (2026) sans l'annuler : elle avait posé
+    // ×0.82 / ×0.88 / ×1.18 / ×1.30, il en reste environ la moitié.
+    mods: [
+      { quoi: "demande", seg: ["grandpublic"], mult: 1.10, duree: null },
+      { quoi: "demande", seg: ["lifestyle"], mult: 1.07, duree: null },
+      { quoi: "demande", seg: ["connaisseurs"], mult: 0.93, duree: null },
+      { quoi: "demande", seg: ["bling"], mult: 0.88, duree: null },
+    ],
+  },
+  {
     annee: 2045, t: 3, id: "consolidation",
     titre: "La grande consolidation",
     texte: "Les groupes profitent des ruines du krach pour racheter tout ce qui tient encore debout. Un tiers des indépendants du classement changent de main en dix-huit mois.",
@@ -487,33 +500,215 @@ export const EVENEMENTS = [
 ];
 
 export const OPPORTUNITES = [
+  // ---- Les cinq d'origine ------------------------------------------------
   {
-    id: "salon", titre: "Invitation au salon Genève Time",
+    id: "salon", titre: "Invitation au salon Genève Time", epoque: "toujours",
     texte: "Un stand se libère. CHF 25'000, mais la visibilité est réelle.",
     cout: 25000, heures: 80, req: (g) => g.modeles.some((m) => m.statut === "actif"),
+    effet: { noto: 10, cred: 4, des: 3 },
+    msg: "Salon Genève Time : notoriété +10, crédibilité +4, désirabilité +3.",
   },
   {
-    id: "youtubeur", titre: "Un YouTubeur veut tester votre montre",
+    id: "youtubeur", titre: "Un YouTubeur veut tester votre montre", epoque: "toujours",
     texte: "« Remontoir » (280k abonnés) demande un exemplaire. Review honnête... dans les deux sens.",
     cout: 0, heures: 20, req: (g) => g.modeles.some((m) => m.statut === "actif"),
+    tirage: (r) => r < 0.62
+      ? { cred: 5, noto: 4, des: 3, msg: "Review positive de « Remontoir » : crédibilité +5, notoriété +4, désirabilité +3." }
+      : { cred: -3, noto: 2, msg: "Review mitigée de « Remontoir »... crédibilité −3, notoriété +2." },
   },
   {
-    id: "detaillant", titre: "Grosse commande d'un détaillant",
-    texte: "Une chaîne veut votre stock à -25%. Cash immédiat, marge sacrifiée, distribution renforcée.",
+    id: "detaillant", titre: "Grosse commande d'un détaillant", epoque: "toujours",
+    texte: "Une chaîne veut votre stock à −25%. Cash immédiat, marge sacrifiée, distribution renforcée.",
     cout: 0, heures: 30, req: (g) => g.modeles.some((m) => m.stock > 20),
+    effet: { ecoulerStock: { prixMult: 0.75 }, des: -1 },
+    msg: "Détaillant : tout le stock à −25%. Désirabilité −1 : écouler en gros se voit.",
   },
   {
-    id: "voyagepresse", titre: "Organiser un voyage de presse",
+    id: "voyagepresse", titre: "Organiser un voyage de presse", epoque: "toujours",
     texte: "Trois journalistes dans le Jura, montres offertes. CHF 12'000. Si ça se sait...",
     cout: 12000, heures: 80, req: () => true,
+    effet: { cred: 5, presseAchetee: 1 },
+    msg: "Voyage de presse : crédibilité +5.",
   },
   {
-    id: "collab", titre: "Collab influenceur lifestyle",
+    id: "collab", titre: "Collab influenceur lifestyle", epoque: "toujours",
     texte: "500k abonnés, CHF 20'000 le post. La notoriété s'achète, la crédibilité en souffre.",
     cout: 20000, heures: 40, req: () => true,
+    effet: { noto: 12, cred: -2, presseAchetee: 1 },
+    msg: "Collab influenceur : notoriété +12, crédibilité −2.",
+  },
+
+  // ---- Salons et concours ------------------------------------------------
+  {
+    id: "concours", titre: "Concourir au Grand Prix", epoque: ["croissance", "maturite"],
+    texte: "Le grand concours horloger de l'année ouvre ses candidatures. Y aller ne garantit rien.",
+    cout: 15000, heures: 60,
+    req: (g) => Object.values(g.complications).some((n) => n >= 2),
+    tirage: (r) => r < 0.12
+      ? { cred: 12, noto: 10, des: 8, msg: "Vainqueur du Grand Prix ! Crédibilité +12, notoriété +10, désirabilité +8." }
+      : r < 0.47
+        ? { cred: 6, noto: 4, msg: "Nomination au Grand Prix : crédibilité +6, notoriété +4." }
+        : { msg: "Ni nomination ni prix. Le jury n'a pas retenu la pièce." },
+  },
+  {
+    id: "salonAsie", titre: "Un salon horloger asiatique", epoque: ["croissance", "maturite"],
+    texte: "Loin, cher, et c'est là que se trouve la moitié des acheteurs.",
+    cout: 40000, heures: 100, req: (g) => g.cred >= 20,
+    effet: { noto: 12, cred: 5, mods: [{ quoi: "portee", mult: 1.15, duree: 4 }] },
+    msg: "Salon asiatique : notoriété +12, crédibilité +5, portée des canaux +15% pendant un an.",
+  },
+  {
+    id: "salonAmerique", titre: "Un salon à New York", epoque: ["croissance", "maturite"],
+    texte: "Sur le premier marché mondial. Le billet d'entrée est le double d'ailleurs.",
+    cout: 35000, heures: 90, req: (g) => g.noto >= 25,
+    effet: { noto: 10, canalPalier: "detaillants" },
+    msg: "Salon de New York : notoriété +10, et un palier de détaillants offert si le canal est ouvert.",
+  },
+  {
+    id: "concoursDesign", titre: "Un concours de design horloger", epoque: "toujours",
+    texte: "Peu de gloire, mais une ligne au palmarès.",
+    cout: 8000, heures: 40,
+    req: (g) => g.modeles.some((m) => m.statut === "actif" && m.age < 12),
+    tirage: (r) => r < 0.15
+      ? { des: 10, noto: 6, msg: "Prix du concours de design : désirabilité +10, notoriété +6." }
+      : r < 0.60
+        ? { des: 5, msg: "Nomination au concours de design : désirabilité +5." }
+        : { msg: "Le jury est passé à côté. Rien à en tirer cette année." },
+  },
+  {
+    id: "salonEcoles", titre: "Le salon des écoles d'horlogerie", epoque: "toujours",
+    texte: "Deux jours à serrer des mains pour recruter avant les autres.",
+    cout: 5000, heures: 40, req: (g) => Object.values(g.employes).reduce((s, n) => s + n, 0) >= 2,
+    effet: { savoir: 3, embaucheFacile: true },
+    msg: "Salon des écoles : savoir-faire +3, et la prochaine embauche coûtera deux fois moins d'heures.",
+  },
+
+  // ---- Image et prestige -------------------------------------------------
+  {
+    id: "partenariatMusee", titre: "Une exposition dans un musée horloger", epoque: "maturite",
+    texte: "Un musée propose une exposition temporaire sur votre maison.",
+    cout: 20000, heures: 60, req: (g) => g.savoir >= 45,
+    effet: { cred: 10, des: 5, noto: 4 },
+    msg: "Exposition au musée : crédibilité +10, désirabilité +5, notoriété +4.",
+  },
+  {
+    id: "documentaire", titre: "Un documentaire sur l'atelier", epoque: "maturite",
+    texte: "Une équipe veut tourner un mois durant. Des caméras dans les pattes, et une audience.",
+    cout: 30000, heures: 80, req: (g) => g.annee - 2015 >= 10,
+    effet: { noto: 14, cred: 6, mods: [{ quoi: "capacite", mult: 0.8, duree: 1 }] },
+    msg: "Documentaire : notoriété +14, crédibilité +6. L'atelier tourne au ralenti ce trimestre.",
+  },
+  {
+    id: "atelierOuvert", titre: "Ouvrir l'atelier au public", epoque: "toujours",
+    texte: "Deux week-ends portes ouvertes. Les gens veulent voir des mains travailler.",
+    cout: 10000, heures: 50, req: (g) => g.ateliers >= 1,
+    effet: { cred: 5, des: 4, venteDirecte: { n: 15, prixMult: 1 } },
+    msg: "Portes ouvertes : crédibilité +5, désirabilité +4, et quinze ventes directes à plein tarif.",
+  },
+  {
+    id: "ambassadeur", titre: "Signer un ambassadeur", epoque: "maturite",
+    texte: "Cher, efficace, et jamais tout à fait sincère.",
+    cout: 60000, heures: 40, req: (g) => g.noto >= 45,
+    effet: { noto: 18, des: 6, cred: -3, mods: [{ quoi: "fixesAjout", montant: 8000, duree: 12 }] },
+    msg: "Ambassadeur signé : notoriété +18, désirabilité +6, crédibilité −3. CHF 8'000 par trimestre pendant trois ans.",
+  },
+  {
+    id: "capsuleCollab", titre: "Une série capsule avec une autre maison", epoque: ["croissance", "maturite"],
+    texte: "Mode, automobile ou musique : un autre univers propose une collaboration.",
+    cout: 25000, heures: 70, req: (g) => g.des >= 35,
+    effet: { noto: 12, des: 8, cred: -4, venteDirecte: { n: 50, prixMult: 1.5 } },
+    msg: "Série capsule : notoriété +12, désirabilité +8, crédibilité −4, cinquante pièces vendues à 1,5× le prix.",
+  },
+
+  // ---- Commercial ---------------------------------------------------------
+  {
+    id: "boutiqueEphemere", titre: "Un pop-up de trois mois", epoque: "toujours",
+    texte: "Une rue passante, trois mois, tout le stock disponible et plein tarif.",
+    cout: 30000, heures: 60, req: (g) => g.noto >= 20 && g.modeles.some((m) => m.stock > 0),
+    effet: { ecoulerStock: { prixMult: 1, max: 80 }, noto: 5 },
+    msg: "Boutique éphémère : jusqu'à quatre-vingts pièces écoulées à plein tarif, notoriété +5.",
+  },
+  {
+    id: "preventeCommunaute", titre: "Ouvrir une précommande", epoque: "toujours",
+    texte: "Proposer une précommande à vos clients fidèles. L'argent rentre avant que la montre existe.",
+    cout: 0, heures: 60, req: (g) => g.des >= 30 && g.modeles.some((m) => m.statut === "actif"),
+    effet: { prevente: { n: 40, part: 0.6, delai: 2 } },
+    msg: "Précommande ouverte : quarante pièces payées à 60% d'avance, à livrer sous deux trimestres.",
+  },
+  {
+    id: "contratOEM", titre: "Produire pour une autre marque", epoque: ["croissance", "maturite"],
+    texte: "Une autre marque veut que vous produisiez pour elle, sans votre nom dessus. C'est de l'argent facile et un peu d'âme en moins.",
+    cout: 0, heures: 90, req: (g) => Object.values(g.employes).reduce((s, n) => s + n, 0) >= 3,
+    effet: { cred: -5, contratOEM: true },
+    msg: "Contrat de sous-traitance signé : un revenu garanti pendant un an, la capacité mobilisée d'autant, crédibilité −5.",
+  },
+  {
+    id: "licenceMarque", titre: "Licencier votre nom", epoque: "maturite",
+    texte: "Un industriel veut licencier votre nom pour une gamme accessible. Beaucoup d'argent, un vrai risque.",
+    cout: 0, heures: 50, req: (g) => g.noto >= 50,
+    effet: {
+      cash: 250000, des: -12, cred: -8,
+      mods: [{ quoi: "revenuTrim", montant: 40000, duree: 12 }],
+    },
+    msg: "Licence signée : CHF 250'000 tout de suite, CHF 40'000 par trimestre pendant trois ans. Désirabilité −12, crédibilité −8, définitivement.",
+  },
+
+  // ---- Production et savoir-faire ----------------------------------------
+  {
+    id: "certificationChrono", titre: "Faire certifier un calibre chronomètre", epoque: ["croissance", "maturite"],
+    texte: "Long, cher, et ça se voit sur le cadran.",
+    cout: 25000, heures: 80, req: (g) => g.modeles.some((m) => m.statut === "actif" && m.qual >= 7),
+    effet: { cred: 7, qualPlus: 1, mods: [{ quoi: "prixAcceptable", mult: 1.12, duree: null }] },
+    msg: "Certification chronomètre : qualité +1 sur le modèle, crédibilité +7, prix acceptable +12%.",
+  },
+  {
+    id: "rachatFournisseur", titre: "Racheter votre fournisseur", epoque: "maturite",
+    texte: "Votre fournisseur de composants est à vendre. L'acheter, c'est ne plus jamais dépendre de personne.",
+    cout: 300000, heures: 100, req: (g) => g.cash >= 500000,
+    effet: { savoir: 6, atelierPlus: 1, mods: [{ quoi: "couts", mult: 0.75, duree: null }] },
+    msg: "Fournisseur racheté : coûts matière −25% pour toujours, savoir-faire +6, un poste d'atelier de plus.",
+  },
+  {
+    id: "formationInterne", titre: "Faire former toute l'équipe", epoque: ["croissance", "maturite"],
+    texte: "Un spécialiste extérieur, un trimestre entier, tout l'atelier sur les bancs.",
+    cout: 15000, heures: 70, req: (g) => Object.values(g.employes).reduce((s, n) => s + n, 0) >= 4,
+    effet: {
+      savoir: 8,
+      mods: [{ quoi: "capacite", mult: 1.08, duree: null }, { quoi: "capacite", mult: 0.75, duree: 1 }],
+    },
+    msg: "Formation : savoir-faire +8 et 8% d'efficacité en plus, définitivement. La production souffre ce trimestre.",
+  },
+
+  // ---- Finance ------------------------------------------------------------
+  {
+    id: "rachatInde", titre: "Une maison en difficulté est à vendre", epoque: "maturite",
+    texte: "Un indépendant du classement jette l'éponge. Reprendre son atelier, son stock et son nom, c'est deux ans d'avance — ou un boulet.",
+    cout: 350000, heures: 80, req: (g) => g.cash >= 400000 && g.annee >= 2025,
+    effet: { atelierPlus: 1, employePlus: 2, cred: 5, savoir: 8, rachatInde: true },
+    msg: "Maison rachetée : un atelier, deux employés, crédibilité +5, savoir-faire +8 — et les coûts fixes qui vont avec.",
+  },
+  {
+    id: "fournisseurExclusif", titre: "Contrat d'exclusivité fournisseur", epoque: ["croissance", "maturite"],
+    texte: "Un fournisseur propose l'exclusivité sur ses cadrans en échange d'un engagement de volume.",
+    cout: 0, heures: 50, req: (g) => Object.values(g.segVendues).reduce((s, n) => s + n, 0) >= 500,
+    effet: { engagementVolume: true, mods: [{ quoi: "couts", mult: 0.85, duree: null }] },
+    msg: "Exclusivité signée : coûts matière −15% pour toujours. En dessous de 125 pièces par trimestre, CHF 20'000 de pénalité.",
+  },
+  {
+    id: "familyOffice", titre: "Un family office propose un ticket patient", epoque: "maturite",
+    texte: "De l'argent qui ne demande pas de résultat trimestriel — contre un quart de la maison.",
+    cout: 0, heures: 70, req: (g) => g.revenusAnnee >= 3000000,
+    effet: { cash: 1000000, dilution: 25 },
+    msg: "Family office : CHF 1'000'000 contre 25% du capital. Aucun coût récurrent, mais la maison n'est plus tout à fait la vôtre.",
+  },
+  {
+    id: "empruntObligataire", titre: "Émettre un emprunt auprès de vos clients", epoque: "maturite",
+    texte: "Ils prêtent, vous remboursez en montres ou en francs.",
+    cout: 0, heures: 60, req: (g) => g.revenusAnnee >= 5000000,
+    effet: { cash: 600000, dette: 600000, des: 5 },
+    msg: "Emprunt obligataire : CHF 600'000 à taux réduit, désirabilité +5 — les clients deviennent parties prenantes.",
   },
 ];
-
 
 /**
  * Les aléas. Soixante-huit entrées, tirées avec une mémoire courte et une

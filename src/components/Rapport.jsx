@@ -86,9 +86,21 @@ export default function Rapport({ r, onContinuer }) {
           <div>
             Revenus encaissés <span style={{ float: "right", ...S.green }}>{fmtArgent(r.revenus)}</span>
           </div>
+          {r.revenusRecurrents > 0 && (
+            <div>
+              Contrats et licences{" "}
+              <span style={{ float: "right", ...S.green }}>+{fmtArgent(r.revenusRecurrents)}</span>
+            </div>
+          )}
           <div>
             Production <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.coutsProd)}</span>
           </div>
+          {r.penaliteVolume > 0 && (
+            <div>
+              Pénalité d'engagement de volume{" "}
+              <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.penaliteVolume)}</span>
+            </div>
+          )}
           <div>
             Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.fixes)}</span>
           </div>
