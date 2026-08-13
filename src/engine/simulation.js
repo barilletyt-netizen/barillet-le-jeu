@@ -49,6 +49,8 @@ export function etatInitial({ pays, profil, origine, marque }) {
     salaires: "standard", // politique salariale : serree | standard | genereuse
     presseAchetee: 0, // complaisances accumulées : voyages de presse et collabs
     rangs: [], // un rang par exercice clos, pour la Gazette
+    top50Depuis: null, // année d'entrée au Top 50 — un jalon, plus une fin
+    anneesTop50: 0, // exercices clos passés dans les cinquante
     mods: [], // modificateurs durables posés par les aléas et les opportunités
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],

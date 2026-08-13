@@ -148,7 +148,7 @@ Aucun message d'aide ne recommande une dépense si le joueur ne peut pas la paye
 ### Backlog (noté, non implémenté)
 - **Combos et synergies** : boosts provisoires ou consommables déclenchés par des enchaînements d'actions précis (retour testeur). À traiter en S4 avec le déblocage progressif des actions — c'est la même mécanique de récompense de la maîtrise.
 - **Habillage** : référence citée par un testeur, *Game Dev Tycoon*, à verser au moodboard de S5.
-- **Tutoriel « l'horlogerie en quelques pages »** : le jeu suppose acquis un vocabulaire qui ne l'est pas. Un néophyte ne sait pas ce qu'est une ébauche, pourquoi une manufacture coûte cinquante fois plus cher, ce que vaut un anglage, ni pourquoi une complication se paie en heures. Prévoir trois à cinq pages courtes, illustrées, consultables **avant** la partie et **rappelables en jeu** depuis les endroits où le vocabulaire apparaît (choix du mouvement, gamme, complications, finition) — pas un mur de texte au démarrage, qu'on saute. Contenu pressenti : (1) ce qu'il y a dans une montre et qui fait quoi ; (2) quartz, ébauche, manufacture — ce que chacun coûte et ce qu'il rapporte ; (3) les quatre gammes et à qui elles s'adressent ; (4) ce qu'une complication ajoute et ce qu'elle prend ; (5) les trois jauges d'image et pourquoi elles ne se rattrapent pas à l'argent. Sert aussi la chaîne YouTube : ces pages sont un script de vidéo. Session S6, ou S5 si les assets arrivent tôt.
+- **Tutoriel « l'horlogerie en quelques pages »** : le jeu suppose acquis un vocabulaire qui ne l'est pas. Un néophyte ne sait pas ce qu'est une ébauche, pourquoi une manufacture coûte cinquante fois plus cher, ce que vaut un anglage, ni pourquoi une complication se paie en heures. Prévoir trois à cinq pages courtes, illustrées, consultables **avant** la partie et **rappelables en jeu** depuis les endroits où le vocabulaire apparaît (choix du mouvement, gamme, complications, finition) — pas un mur de texte au démarrage, qu'on saute. Contenu pressenti : (1) ce qu'il y a dans une montre et qui fait quoi ; (2) quartz, ébauche, manufacture — ce que chacun coûte et ce qu'il rapporte ; (3) les quatre gammes et à qui elles s'adressent ; (4) ce qu'une complication ajoute et ce qu'elle prend ; (5) les trois jauges d'image et pourquoi elles ne se rattrapent pas à l'argent. Sert aussi la chaîne YouTube : ces pages sont un script de vidéo. **Session S5** — remonté, c'est le retour de beta le plus fréquent.
 
 ### Fiscalité (v0.6)
 **Impôt de 18% sur le bénéfice annuel**, prélevé au bilan du T4.
@@ -312,15 +312,38 @@ pas.
 - **Page d'introduction** au lancement d'une partie : le pitch (créer une marque pérenne, viser le Top 50), les règles de base, le contexte 2015.
 
 ## 9. Fins de partie
-1. **Victoire 1 : Top 50** du Stanley Morgan
-2. **Victoire 2 : Top 10**
-3. **Rachat** (accepté ou forcé par dilution) — fin moyenne, épilogue narratif
-4. **Faillite** — défaite
-5. **La Succession** — à la retraite (fin des 50 ans), léguer l'entreprise à l'un de ses enfants avec un mot : « fais mieux que moi ». Épilogue selon l'état de la marque. (Idée Julien)
-6. **La Marque Culte** — rester volontairement minuscule (< 500 pièces/an) avec désirabilité ≥ 90 pendant 10 ans : la marque devient légendaire sans jamais grandir. Victoire alternative.
-7. **L'Empire** — racheter 3+ marques en difficulté et finir en groupe : le chassé devient chasseur. Victoire alternative.
-8. **La Montre du Siècle** — créer une pièce ultime (tourbillon manufacture, qualité 10, désirabilité max) qui entre au musée : le nom passe à la postérité même si la marque reste moyenne. Victoire d'artisan.
-9. **Le Scandale** — presse achetée révélée + fraude cumulées : ruine réputationnelle, la marque survit mais le fondateur est banni de l'industrie. Défaite narrative distincte de la faillite.
+
+**Changement de structure (S4) : entrer au Top 50 ne termine plus la partie.**
+Le pitch est « créer une marque pérenne » — durer est le test, entrer ne l'est
+pas. L'entrée devient un jalon : cérémonie annuelle spéciale, une de la
+Gazette, et la partie continue jusqu'en 2065. L'état de partie garde l'année
+d'entrée et le nombre d'exercices passés dans les cinquante ; l'écran de fin
+juge la trajectoire entière.
+
+### Conditions chiffrées
+
+| fin | condition | vérification |
+|---|---|---|
+| **Faillite** | trésorerie < −50'000 CHF | à chaque trimestre |
+| **Rachat** | accepter l'offre de `consolidation` (2045), ou dilution cumulée ≥ 50% | décision / au bilan annuel |
+| **La Succession** | atteindre 2065 sans faillite ni rachat — c'est la fin par défaut | fin de partie |
+| **La Marque Culte** | production ≤ 500 pièces/an **et** désirabilité ≥ 90, dix exercices consécutifs | au bilan annuel |
+| **L'Empire** | trois `rachatInde` acceptés **et** CA annuel ≥ 30 M | au bilan annuel |
+| **La Montre du Siècle** | un modèle cumulant mouvement manufacture, tourbillon niveau 3, finition, qualité ≥ 12 **et** désirabilité de la marque ≥ 85 le trimestre de sa sortie | à la sortie d'étude |
+| **Le Scandale** | compteur de presse achetée cumulé ≥ 8 sur la partie, enquête déclenchée ≥ 2 fois, **et** crédibilité < 10 | à chaque trimestre |
+
+Les fins alternatives ne sont pas exclusives de la Succession : elles se
+déclenchent quand leur condition est remplie et **remplacent** l'épilogue par
+défaut. Si plusieurs sont remplies en 2065, l'ordre de priorité est Scandale >
+Empire > Montre du Siècle > Marque Culte > Succession.
+
+**Épilogue de la Succession**, modulé par : l'année d'entrée au Top 50 (jamais /
+tardive / précoce), le nombre d'exercices tenus dedans, et le rang final. Une
+maison entrée en 2042 et sortie en 2058 ne raconte pas la même histoire qu'une
+maison entrée en 2050 et encore là en 2065.
+
+*(Conditions arbitrées en S4, implémentation à venir : seule la Succession —
+sous le nom « temps » — et le Rachat par décision sont codés.)*
 
 ## 10. Direction artistique (moodboard fourni par Julien, 5 références)
 - **Style : flat pixel art à gros contour sombre**, formes lisibles, fond uni clair ou carte colorée

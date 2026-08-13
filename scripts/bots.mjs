@@ -351,7 +351,14 @@ function partie(bot, seed, ctx, origine) {
     g.heures = C.HEURES_FONDATEUR;
   }
   const derniere = courbe[courbe.length - 1] || { ca: 0, rang: M.RANG_MAX, annee: C.ANNEE_DEBUT };
-  return { anneeTop50, faillite, derniere, courbe };
+  // Entrer au Top 50 n'arrête plus la partie : ce qui compte est d'y être
+  // encore à la fin, et combien d'exercices on y a tenu.
+  const anneesTop50 = courbe.filter((p) => p.rang <= 50).length;
+  return {
+    anneeTop50, faillite, derniere, courbe, anneesTop50,
+    finitTop50: !faillite && derniere.rang <= 50,
+    sortiTop50: anneeTop50 !== null && derniere.rang > 50,
+  };
 }
 
 // ---- Exécution ------------------------------------------------------------
@@ -371,8 +378,10 @@ const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.leng
 
 console.log(`Bots stratèges · ${seeds.length} graines · ${ORIGINE} / ${ctx.pays} / ${ctx.profil}` +
   (SANS ? ` · SANS « ${SANS} »` : "") + "\n");
-console.log("bot          | Top 50 (médiane) | jamais | faillites | CA médian 2065 | rang médian");
-console.log("-".repeat(92));
+console.log(
+  "bot          | entrée Top 50 | ans dedans | y finit | en sort | faillites | CA médian 2065 | rang"
+);
+console.log("-".repeat(104));
 
 const resultats = [];
 for (const bot of BOTS.filter((b) => !SEUL || b.nom === SEUL)) {
@@ -384,15 +393,21 @@ for (const bot of BOTS.filter((b) => !SEUL || b.nom === SEUL)) {
   const res = {
     nom: bot.nom, medianeTop50: median(tops), jamais: runs.length - tops.length,
     faillites, caMedian: median(cas), rangMedian: median(rangs),
+    finissentTop50: runs.filter((r) => r.finitTop50).length,
+    sortent: runs.filter((r) => r.sortiTop50).length,
+    anneesTop50Medianes: median(runs.map((r) => r.anneesTop50)),
+    seeds: runs.length,
   };
   resultats.push(res);
   console.log(
     res.nom.padEnd(12) + " | " +
-    String(res.medianeTop50 ?? "—").padStart(16) + " | " +
-    String(res.jamais).padStart(6) + " | " +
+    String(res.medianeTop50 ?? "—").padStart(13) + " | " +
+    String(res.anneesTop50Medianes).padStart(10) + " | " +
+    (res.finissentTop50 + "/" + res.seeds).padStart(7) + " | " +
+    (res.sortent + "/" + res.seeds).padStart(7) + " | " +
     String(res.faillites).padStart(9) + " | " +
     F.fmtArgent(res.caMedian).padStart(14) + " | " +
-    String(res.rangMedian).padStart(11)
+    String(res.rangMedian).padStart(4)
   );
   if (TRACE) {
     for (const p of runs[0].courbe.filter((_, i) => i % 5 === 0)) {
@@ -409,6 +424,14 @@ const ecart = viables.length > 1
   : 0;
 const plusTot = viables.length ? Math.min(...viables.map((r) => r.medianeTop50)) : null;
 const equilibreRes = resultats.find((r) => r.nom === "Équilibré");
+
+// La meilleure stratégie : celle qui tient le plus d'exercices dans les
+// cinquante, et à égalité celle qui finit le mieux classée.
+const meilleure = resultats.length
+  ? [...resultats].sort(
+      (a, b) => b.anneesTop50Medianes - a.anneesTop50Medianes || a.rangMedian - b.rangMedian
+    )[0]
+  : null;
 
 // Écart de chiffre d'affaires entre la meilleure et la pire stratégie survivante :
 // mesure de domination utilisable même quand personne n'atteint le Top 50.
@@ -435,9 +458,20 @@ const criteres = [
     mesure: "rapport " + ratioCA.toFixed(1) + "× entre la meilleure et la pire survivante",
   },
   {
-    nom: "aucun Top 50 avant 2040",
-    ok: plusTot === null || plusTot >= 2040,
-    mesure: plusTot ? "plus tôt : " + plusTot : "aucun Top 50",
+    // Le critère « pas de Top 50 avant 2040 » est abandonné : entrer n'est plus
+    // la fin de la partie, donc la date d'entrée ne dit plus grand-chose. Ce
+    // qu'on veut, c'est que durer soit le vrai test.
+    nom: "la meilleure stratégie est encore au Top 50 en 2065 (majorité des graines)",
+    ok: meilleure !== null && meilleure.finissentTop50 > meilleure.seeds / 2,
+    mesure: meilleure
+      ? meilleure.nom + " y finit sur " + meilleure.finissentTop50 + "/" + meilleure.seeds + " graines"
+      : "aucune stratégie n'entre au Top 50",
+  },
+  {
+    // Un Top 50 dont on ne sort jamais est un plafond, pas un classement.
+    nom: "au moins une stratégie viable en sort",
+    ok: resultats.some((r) => r.sortent > 0),
+    mesure: resultats.filter((r) => r.sortent > 0).map((r) => r.nom + " (" + r.sortent + ")").join(", ") || "aucune",
   },
   {
     nom: "l'Équilibré ne fait pas faillite",

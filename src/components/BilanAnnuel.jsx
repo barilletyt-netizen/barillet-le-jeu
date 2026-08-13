@@ -12,10 +12,30 @@ export default function BilanAnnuel({ b, marque, journal, monde, onContinuer }) 
     <div style={S.root}>
       <div style={{ ...S.wrap, paddingTop: 24 }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 34 }}>🏆</div>
+          <div style={{ fontSize: 34 }}>{b.premierTop50 ? "👑" : "🏆"}</div>
           <div style={S.h1}>CLASSEMENT {b.annee}</div>
           <div style={S.steel}>Le Stanley Morgan Top 50 est tombé</div>
         </div>
+
+        {/* Entrer dans les cinquante n'arrête plus la partie : c'est un jalon,
+            et il se fête. Y rester est une autre affaire. */}
+        {b.premierTop50 && (
+          <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 16, textAlign: "center" }}>
+            <div style={{ ...S.gold, fontSize: 21 }}>{(marque || "Votre marque").toUpperCase()} ENTRE AU TOP 50</div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              #{b.rang} mondial, {fmtArgent(b.revenus)} de revenus. Vous êtes la première maison fondée en 2015
+              à y parvenir. Reste à y rester : le classement se recompose chaque année, et personne n'y est
+              jamais assis.
+            </div>
+          </div>
+        )}
+        {!b.premierTop50 && b.rang <= 50 && (
+          <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 16 }}>
+            <span style={S.green}>
+              ✦ {b.anneesTop50}ᵉ exercice consécutif ou non dans les cinquante premières.
+            </span>
+          </div>
+        )}
 
         <div style={{ ...S.panel, marginTop: 16 }}>
           {geants.map((c, i) => (

@@ -16,10 +16,29 @@ export default function Fin({ f, marque, onRejouer }) {
     rachat:
       f.annee + ". Le groupe a signé. Le nom reste sur les cadrans, l'atelier tourne encore, et " + nom +
       " ne vous appartient plus. On vous a remercié dans le communiqué.",
-    temps:
-      (ANNEE_FIN - ANNEE_DEBUT) + " ans se sont écoulés. " + nom + " termine autour du rang #" + f.rang +
-      " avec " + fmtArgent(f.revenus) + " de revenus annuels. " +
-      (f.rang <= 200 ? "Une marque indépendante respectée." : "Le Top 50 reste un rêve lointain."),
+    // Le bilan juge la trajectoire entière, pas le dernier chiffre : quand on
+    // est entré, combien d'années on a tenu, et où l'on finit.
+    temps: (() => {
+      const base =
+        (ANNEE_FIN - ANNEE_DEBUT) + " ans se sont écoulés. " + nom + " termine au rang #" + f.rang +
+        " avec " + fmtArgent(f.revenus) + " de revenus annuels. ";
+      if (!f.top50Depuis) {
+        return base + (f.rang <= 200
+          ? "La maison n'aura jamais vu le Top 50, mais elle aura duré cinquante ans — ce qui n'est pas donné à tout le monde."
+          : "Le Top 50 est resté un horizon. L'atelier, lui, a tenu.");
+      }
+      const duree = f.anneesTop50 || 0;
+      if (f.rang <= 50) {
+        return base + "Entrée au Top 50 en " + f.top50Depuis + ", la maison y a passé " + duree +
+          " exercice" + (duree > 1 ? "s" : "") + " et y termine. " +
+          (duree >= 20
+            ? "Ce n'est plus une percée, c'est une institution."
+            : "Il aura fallu " + (f.top50Depuis - ANNEE_DEBUT) + " ans pour y entrer, et il faudra continuer.");
+      }
+      return base + "Entrée au Top 50 en " + f.top50Depuis + ", la maison y a passé " + duree +
+        " exercice" + (duree > 1 ? "s" : "") + " avant d'en sortir. " +
+        "Monter est une chose ; rester en est une autre, et c'était celle-là le vrai test.";
+    })(),
   };
 
   return (

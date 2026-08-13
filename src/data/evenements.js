@@ -18,9 +18,18 @@ export const EVENEMENTS = [
     annee: 2015, t: 1, id: "bns",
     titre: "La BNS lâche le taux plancher",
     texte: "Le 15 janvier, la Banque nationale abandonne le cours plancher de l'euro. Le franc s'envole de 20% en une matinée. Pour une industrie qui produit en francs et vend en euros et en dollars, c'est un séisme. L'année finira sur la première baisse des exportations depuis 2009.",
+    // Le choc s'encaisse, il ne se subit pas cinquante ans : l'industrie a
+    // réellement réabsorbé le franc fort en deux à trois ans (délocalisation
+    // partielle des composants, hausse des prix export, gains de productivité).
+    // +18% au premier trimestre, dégressif par paliers annuels vers +8%, qui
+    // reste, lui, permanent.
     mods: [
-      { quoi: "couts", mult: 1.18, duree: null, si: estSuisse },
-      { quoi: "couts", mult: 1.10, duree: null, si: (g) => !estSuisse(g) },
+      { quoi: "couts", mult: 1.18, duree: 4, si: estSuisse },
+      { quoi: "couts", mult: 1.14, debut: 4, duree: 4, si: estSuisse },
+      { quoi: "couts", mult: 1.11, debut: 8, duree: 4, si: estSuisse },
+      { quoi: "couts", mult: 1.08, debut: 12, duree: null, si: estSuisse },
+      { quoi: "couts", mult: 1.10, duree: 8, si: (g) => !estSuisse(g) },
+      { quoi: "couts", mult: 1.05, debut: 8, duree: null, si: (g) => !estSuisse(g) },
       { quoi: "demande", mult: 0.90, duree: 4, si: estSuisse },
     ],
   },

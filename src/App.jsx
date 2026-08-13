@@ -569,6 +569,8 @@ export default function App() {
       setBilanAnnuel({
         annee: g.annee, revenus: gs2.revenusAnnee, rang,
         prec: g.revenusAnneePrec, meilleurRang: Math.min(rang, g.meilleurRang),
+        premierTop50: rang <= 50 && !g.top50Depuis,
+        anneesTop50: (g.anneesTop50 || 0) + (rang <= 50 ? 1 : 0),
       });
     }
     setG(gs2);
@@ -591,6 +593,8 @@ export default function App() {
         setBilanAnnuel({
           annee: etat.annee, revenus: gs2.revenusAnnee, rang,
           prec: etat.revenusAnneePrec, meilleurRang: Math.min(rang, etat.meilleurRang),
+          premierTop50: rang <= 50 && !etat.top50Depuis,
+          anneesTop50: (etat.anneesTop50 || 0) + (rang <= 50 ? 1 : 0),
         });
         setG(gs2);
         setRapport(null);
@@ -622,14 +626,18 @@ export default function App() {
     const meilleurRang = Math.min(rang, g.meilleurRang);
     const nouvelleAnnee = g.annee + 1;
 
-    if (rang <= 50) {
-      setFinInfo({ type: "top50", annee: g.annee, revenus: g.revenusAnnee, rang });
-      setPhase("fin");
-      setBilanAnnuel(null);
-      return;
-    }
+    // Entrer au Top 50 n'arrête plus la partie : le jeu demande de bâtir une
+    // marque pérenne, et durer est le vrai test. On garde trace de l'année
+    // d'entrée et du nombre d'exercices passés dedans — c'est là-dessus que
+    // l'écran de fin jugera la trajectoire.
+    const top50Depuis = rang <= 50 && !g.top50Depuis ? g.annee : g.top50Depuis || null;
+    const anneesTop50 = (g.anneesTop50 || 0) + (rang <= 50 ? 1 : 0);
+
     if (nouvelleAnnee > ANNEE_FIN) {
-      setFinInfo({ type: "temps", annee: ANNEE_FIN, revenus: g.revenusAnnee, rang, meilleurRang });
+      setFinInfo({
+        type: "temps", annee: ANNEE_FIN, revenus: g.revenusAnnee, rang, meilleurRang,
+        top50Depuis, anneesTop50,
+      });
       setPhase("fin");
       setBilanAnnuel(null);
       return;
@@ -643,6 +651,7 @@ export default function App() {
       ...g, annee: nouvelleAnnee, t: 1, heures: HEURES_FONDATEUR, actionsTour: [],
       monde, faitsMonde: faits,
       revenusAnneePrec: g.revenusAnnee, revenusAnnee: 0, meilleurRang,
+      top50Depuis, anneesTop50,
       messages: ["T1 " + nouvelleAnnee + " — nouvelle année."],
     };
     etat.opportunite = etat.decisionEvt || tirerOpportunite(etat);
