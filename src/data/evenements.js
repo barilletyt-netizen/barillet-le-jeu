@@ -923,3 +923,15 @@ export const ALEAS = [
 export function poolAleas(g) {
   return ALEAS.filter((a) => !a.choix && (!a.req || a.req(g)));
 }
+
+/**
+ * L'enquête sur la presse achetée. Elle ne passe pas par le tirage ordinaire :
+ * sa probabilité dépend du compteur de complaisances (voir tirerAlea).
+ */
+ALEAS.push({
+  id: "enqueteScandale", titre: "Un journaliste enquête", epoque: "toujours",
+  req: (g) => (g.presseAchetee || 0) >= 3,
+  texte: "Un papier révèle vos voyages de presse et vos montres offertes. Crédibilité −14, notoriété +4. L'ardoise repart à zéro, la réputation non.",
+  presse: ["CE QUE LA MAISON OFFRAIT AUX JOURNALISTES", "ENQUÊTE SUR DES COMPLAISANCES", "LE PRIX DES BONS ARTICLES"],
+  effet: { cred: -14, noto: 4, resetPresse: true },
+});

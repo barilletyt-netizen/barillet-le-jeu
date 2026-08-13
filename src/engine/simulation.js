@@ -1,4 +1,5 @@
-import { EVENEMENTS, OPPORTUNITES, poolAleas } from "../data/evenements.js";
+import { ALEAS, EVENEMENTS, OPPORTUNITES, poolAleas } from "../data/evenements.js";
+import { rangPour } from "../data/monde.js";
 import {
   PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
   CAPACITE_DEPART, HEURES_FONDATEUR, HEURES_PAR_SAVOIR, ANNEE_DEBUT,
@@ -45,6 +46,8 @@ export function etatInitial({ pays, profil, origine, marque }) {
     journal: [], opportunite: null, oppRecentes: [],
     journalRecent: [], // familles déjà passées en une de la Gazette
     tirages: [], // { id, q } — mémoire courte des aléas et opportunités déjà vus
+    presseAchetee: 0, // complaisances accumulées : voyages de presse et collabs
+    rangs: [], // un rang par exercice clos, pour la Gazette
     mods: [], // modificateurs durables posés par les aléas et les opportunités
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
@@ -123,7 +126,18 @@ export function tirerOpportunite(etat) {
   return choisie ? choisie.id : null;
 }
 
+/**
+ * Probabilité de l'enquête sur la presse achetée : 5% par complaisance et par
+ * trimestre. C'est ce qui fait que le voyage de presse et la collab cessent de
+ * bluffer — elles promettaient un risque qui n'existait pas.
+ */
+export const PROBA_SCANDALE = 0.05;
+
 export function tirerAlea(gs) {
+  const complaisances = gs.presseAchetee || 0;
+  if (complaisances >= 3 && hasard() < complaisances * PROBA_SCANDALE) {
+    return ALEAS.find((a) => a.id === "enqueteScandale");
+  }
   if (hasard() > FREQ_ALEA) return null;
   return tirerPondere(poolAleas(gs), gs);
 }
@@ -367,7 +381,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   const faillite = cash < -50000;
 
   // Le récit se construit après coup, une fois les chiffres connus.
-  const breve = breveConcurrent(gs.monde || mondeInitial(), gs.faitsMonde || []);
+  const monde = gs.monde || mondeInitial();
+  const faitsMonde = gs.faitsMonde || [];
+  const breve = breveConcurrent(monde, faitsMonde);
 
   const rap = {
     annee: gs.annee, t: gs.t, lignes, revenus, ventesBrutes, commissions, marge,
@@ -384,7 +400,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     modelesPrets, acquis, depart,
     noto, cred, des, savoir, employes,
   };
-  rap.journal = journalTrimestre({ rap, gs, actions: gs.actionsTour || [], marque: gs.marque, breve });
+  rap.journal = journalTrimestre({ rap, gs, actions: gs.actionsTour || [], marque: gs.marque, breve, monde, faitsMonde });
 
   const gs2 = {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,
@@ -392,6 +408,12 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash,
       vendues: lignes.reduce((s2, l) => s2 + l.vendues, 0) }],
     mods: [...nettoyerMods(gs), ...modsPoses],
+    // L'enquête solde l'ardoise : le compteur repart de zéro.
+    presseAchetee: effetAlea.resetPresse ? 0 : gs.presseAchetee || 0,
+    // Rang de l'exercice qui vient de se clore, pour la Gazette du T1 suivant.
+    // Historique des rangs, un par exercice clos : la Gazette du T1 y lit la
+    // progression de l'année écoulée.
+    rangs: gs.t === 4 ? [...(gs.rangs || []), rangPour(gs.revenusAnnee + revenus, gs.annee)] : gs.rangs || [],
     // Mémoire courte des tirages : ce qui vient de sortir se raréfie.
     tirages: alea
       ? [{ id: alea.id, q: trimestreIndex(gs.annee, gs.t) },

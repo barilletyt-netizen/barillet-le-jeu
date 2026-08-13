@@ -412,20 +412,22 @@ export default function App() {
       msg = "Détaillant : " + unites + " montres à −25% → +" + fmtArgent(cash) + ". Désirabilité −1 : écouler en gros se voit.";
     }
 
+    // Les deux complaisances alimentent le compteur : le risque n'est plus un
+    // tirage sur place, c'est une enquête qui peut tomber n'importe quand
+    // ensuite, d'autant plus probable qu'on a recommencé.
     if (opp.id === "voyagepresse") {
-      if (hasard() < 0.88) {
-        etat.cred = clamp(g.cred + 5, 0, 100);
-        msg = "Voyage de presse réussi : crédibilité +5.";
-      } else {
-        etat.cred = clamp(g.cred - 8, 0, 100);
-        msg = "Scandale ! Un journaliste raconte tout. Crédibilité −8.";
-      }
+      etat.cred = clamp(g.cred + 5, 0, 100);
+      etat.presseAchetee = (g.presseAchetee || 0) + 1;
+      msg = "Voyage de presse : crédibilité +5." +
+        (etat.presseAchetee >= 3 ? " Trois complaisances au compteur — la profession finit toujours par parler." : "");
     }
 
     if (opp.id === "collab") {
       etat.noto = clamp(g.noto + 12, 0, 100);
       etat.cred = clamp(g.cred - 2, 0, 100);
-      msg = "Collab influenceur : notoriété +12, crédibilité −2.";
+      etat.presseAchetee = (g.presseAchetee || 0) + 1;
+      msg = "Collab influenceur : notoriété +12, crédibilité −2." +
+        (etat.presseAchetee >= 3 ? " Trois complaisances au compteur — ça finira par se savoir." : "");
     }
 
     etat.messages = [...g.messages, msg];

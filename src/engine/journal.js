@@ -111,7 +111,7 @@ const RUMEURS = [
  * famille et son poids. Rien n'est imposé : c'est l'état du jeu qui décide de
  * la hiérarchie.
  */
-function articlesPossibles({ rap, gs, actions, marque }) {
+function articlesPossibles({ rap, gs, actions, marque, monde, faitsMonde }) {
   const arts = [];
   const tres = tresorerie({ ...gs, cash: rap.cash, journal: [...gs.journal, { resultat: rap.resultatNet }] });
   const vendues = rap.lignes.reduce((s, l) => s + l.vendues, 0);
@@ -343,6 +343,77 @@ function articlesPossibles({ rap, gs, actions, marque }) {
       "La maison " + gros.map((a) => quoi[a]).join(", ") + ". " +
         un(["Un pari sur les prochaines années.", "L'atelier prend de l'ampleur.", "La profession observe."])
     );
+  }
+
+  // --- Le classement, qui est le but du jeu et dont le journal ne parlait pas.
+  const rangs = gs.rangs || [];
+  if (rap.t === 1 && rangs.length >= 2) {
+    const actuel = rangs[rangs.length - 1];
+    const avant = rangs[rangs.length - 2];
+    const gagne = avant - actuel;
+    const SEUILS = [1000, 500, 200, 100, 50];
+    const franchi = SEUILS.find((s) => avant > s && actuel <= s);
+    if (franchi) {
+      ajoute("classement", 78,
+        un([MAJ + " ENTRE DANS LES " + franchi, "LE SEUIL DES " + franchi + " EST FRANCHI"]),
+        "Pour la première fois, la maison figure parmi les " + franchi + " premières marques mondiales. " +
+          "Il y a " + age + " ans, elle n'existait pas."
+      );
+    } else if (Math.abs(gagne) >= Math.max(5, avant * 0.05)) {
+      ajoute("classement", 68,
+        gagne > 0
+          ? un([MAJ + " GAGNE " + gagne + " PLACES", "L'ASCENSION CONTINUE", MAJ + " REMONTE AU CLASSEMENT"])
+          : un([MAJ + " RECULE AU CLASSEMENT", -gagne + " PLACES PERDUES", "LE CLASSEMENT SE REFERME"]),
+        gagne > 0
+          ? "De la " + avant + "ᵉ à la " + actuel + "ᵉ place en un an. " +
+            un([
+              "Ce sont les indépendants qu'on double d'abord. Les groupes viennent après.",
+              "Le classement ne récompense que le chiffre. La maison en fait, désormais.",
+              "À ce rythme, la barre suivante tombera avant dix ans.",
+            ])
+          : "La maison perd " + -gagne + " places. " +
+            un([
+              "Les concurrents ont grandi plus vite, ou la maison a stagné — le classement ne fait pas la différence.",
+              "Une année sans nouveauté se paie l'année suivante.",
+            ])
+      );
+    }
+  }
+
+  // --- Les concurrents ailleurs que dans le filet de bas de page.
+  if (monde && rangs.length) {
+    const rang = rangs[rangs.length - 1];
+    const tries = [...monde.independants].sort((a, b) => a.rang - b.rang);
+    const poursuivant = tries.filter((m) => m.rang > rang).slice(0, 1)[0];
+    const devant = tries.filter((m) => m.rang < rang).slice(-1)[0];
+    const fait = (faitsMonde || []).find((f) => f.type === "difficulte" || f.type === "hausse");
+    const candidats = [];
+    if (poursuivant && poursuivant.rang - rang < 40) {
+      candidats.push([
+        un(["UN CONCURRENT SE RAPPROCHE", poursuivant.nom.toUpperCase() + " GAGNE DU TERRAIN"]),
+        poursuivant.nom + " n'est plus qu'à " + (poursuivant.rang - rang) + " places. " +
+          "Les deux maisons visent les mêmes clients.",
+      ]);
+    }
+    if (devant) {
+      candidats.push([
+        un(["LA PLACE AU-DESSUS", "CE QUI SÉPARE DE " + devant.nom.toUpperCase()]),
+        devant.nom + " occupe la " + devant.rang + "ᵉ place. " +
+          un(["Sur ce marché, on ne double personne sans que quelqu'un recule.", "C'est la prochaine à prendre."]),
+      ]);
+    }
+    if (fait) {
+      candidats.push([
+        fait.type === "difficulte"
+          ? un([fait.marque.toUpperCase() + " DÉVISSE", "UNE MAISON EN DIFFICULTÉ"])
+          : un([fait.marque.toUpperCase() + " S'ENVOLE", "UN INDÉPENDANT QUI MONTE"]),
+        fait.texte,
+      ]);
+    }
+    if (candidats.length) {
+      const c = candidats[Math.floor(hasardTexte() * candidats.length)];
+      ajoute("concurrence", 44, c[0], c[1]);
+    }
   }
 
   // --- Le fond de tiroir. Il est volontairement varié : quand la maison
