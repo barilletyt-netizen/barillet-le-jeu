@@ -2,7 +2,7 @@
 // v6 = complications à trois niveaux et budget d'heures resserré. Les
 // sauvegardes antérieures ne sont pas migrées : le modèle a changé.
 
-const SAVE_KEY = "barillet-save-v9";
+const SAVE_KEY = "barillet-save-v10";
 const VERSION = 9;
 
 function dispo() {
