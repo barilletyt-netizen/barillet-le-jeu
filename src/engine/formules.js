@@ -5,7 +5,7 @@ import {
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
 } from "../data/config.js";
-import { multEvenements } from "../data/evenements.js";
+import { effetsActifs, effetsNeutres, multDemande } from "./effets.js";
 import { devise, enDevise } from "./devise.js";
 
 // fr-CH sépare les milliers par une espace fine ou insécable selon le moteur :
@@ -108,8 +108,19 @@ export function encadrement(employes) {
 
 // Heures réellement productibles : main-d'œuvre encadrée, plafonnée par les postes.
 export function heuresProductionDispo(g) {
-  const eff = encadrement(g.employes).efficacite;
-  return Math.floor(Math.min(g.heures + heuresEmployes(g.employes) * eff, g.capacite));
+  const effEnc = encadrement(g.employes).efficacite;
+  return Math.floor(Math.min(g.heures + heuresEmployes(g.employes) * effEnc, capaciteEffective(g)));
+}
+
+/**
+ * Capacité d'atelier après les événements. Une hausse du temps de fabrication
+ * (crise des matières, rationnement électrique) se traduit ici plutôt que dans
+ * les heures par pièce : même résultat, sans faire passer l'accumulateur dans
+ * les dix fonctions qui comptent des heures.
+ */
+export function capaciteEffective(g, eff = null) {
+  const e = eff || g.effets || effetsActifs(g);
+  return Math.floor(g.capacite * e.capacite);
 }
 
 // ---- Canaux de distribution ---------------------------------------------
@@ -164,14 +175,15 @@ export function canauxOuvrables(g) {
 
 // ---- Coûts --------------------------------------------------------------
 
-export function coutUnitaire(m, { pays, savoir, employes, mult = 1 }) {
+export function coutUnitaire(m, { pays, savoir, employes, mult = 1, eff = null }) {
+  const e = eff || effetsNeutres();
   const remiseMatiere = employes && employes.materiaux > 0 ? 0.8 : 1;
   const base =
-    MOUVEMENTS[m.mvt].cout + 60 +
-    MATERIAUX[m.materiau].cout * remiseMatiere +
+    MOUVEMENTS[m.mvt].cout * (e.coutMouvement[m.mvt] || 1) + 60 +
+    MATERIAUX[m.materiau].cout * remiseMatiere * (e.coutMateriau[m.materiau] || 1) +
     somme(paliersDe(m), (p) => p.heures) * 25 + // main-d'œuvre de complication
     (m.finition ? FINITION.cout : 0);
-  return Math.round(base * PAYS[pays].coutMult * (1 - Math.min(0.15, savoir / 600)) * mult);
+  return Math.round(base * PAYS[pays].coutMult * (1 - Math.min(0.15, savoir / 600)) * mult * e.couts);
 }
 
 export function coutRD(mvtKey, profil) {
@@ -206,8 +218,10 @@ export function qualiteNouveau(mvtKey, { pays, profil, savoir, compls = [], fini
 export const masseSalariale = (employes) =>
   Object.entries(employes).reduce((s, [k, n]) => s + n * EMPLOYES[k].fixes, 0);
 
-export function coutsFixes({ employes, ateliersFixes = 0, canaux }) {
-  return FIXES_BASE + masseSalariale(employes) + ateliersFixes + fixesCanaux(canaux);
+export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null }) {
+  const e = eff || effetsNeutres();
+  const base = FIXES_BASE + masseSalariale(employes) * e.salaires + ateliersFixes + fixesCanaux(canaux);
+  return Math.round(base * e.fixesMult + e.fixesAjout);
 }
 
 /**
@@ -348,7 +362,8 @@ export function materiauxRecherchables(g) {
 // Playtest : la notoriété montait trop vite, la demande suivait sans effort.
 // Ralenti d'un cran de plus post-S3 : se faire un nom prend des années, et
 // c'est ce qui étire la rampe des deux premières décennies.
-export const gainMarketing = (g, pays) => Math.max(1, Math.round((4 - g.noto / 22) * PAYS[pays].mktMult));
+export const gainMarketing = (g, pays) =>
+  Math.max(1, Math.round((4 - g.noto / 22) * PAYS[pays].mktMult * (g.effets || effetsActifs(g)).gainNoto));
 export const gainChoc = (g, pays) => Math.max(3, Math.round((9 - g.noto / 14) * PAYS[pays].mktMult));
 
 // ---- Demande ------------------------------------------------------------
@@ -369,6 +384,9 @@ export const rendement = (valeur, concavite) => Math.pow(clamp(valeur, 0, 100) /
  */
 export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   const seg = SEGMENTS[m.seg];
+  // L'appelant peut fournir l'accumulateur déjà calculé (la simulation le fait
+  // une fois par trimestre) plutôt que de le refaire pour chaque modèle.
+  const eff = g.effets || effetsActifs(g);
   const prixBrut = num(prixTest !== null ? prixTest : m.prix);
   // Sans prix affiché, rien ne se vend : le joueur doit trancher.
   if (prixBrut <= 0) return 0;
@@ -382,26 +400,32 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
     MATERIAUX[m.materiau].idealMult *
     produit(paliersDe(m), (p) => p.prixMult) *
     (m.finition ? FINITION.prixMult : 1) *
-    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE));
+    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE)) *
+    eff.prixAcceptable;
 
   // Adhérence au prix : linéaire tant qu'on reste sous le prix acceptable,
   // écrasée par une puissance au-dessus. Vendre trop cher se paie très vite.
   const ratio = prixN / idealAdj;
   const priceFit =
     clamp(1.45 - ratio, 0.02, 1.1) * (ratio > 1 ? Math.pow(1 / ratio, ELASTICITE_PRIX) : 1);
-  const desirabilite = rendement(g.des, CONCAVITE_DESIRABILITE);
+  // Le plafond de désirabilité et son efficacité sont eux aussi des leviers
+  // d'époque : le traité sur le marché secondaire plafonne, la génération
+  // d'après-krach rend la rareté plus payante.
+  const desirabilite =
+    rendement(Math.min(g.des, eff.desPlafond), CONCAVITE_DESIRABILITE) * eff.desEffet;
   const desMult =
     m.seg === "connaisseurs" || m.seg === "bling" ? 0.45 + 1.11 * desirabilite : 0.85 + 0.33 * desirabilite;
   // Saturation calculée sur les ventes récentes : le marché se referme si on
   // l'inonde, mais il respire dès qu'on lève le pied.
-  const satMult = seg.pool / (seg.pool + (g.saturation[m.seg] || 0));
+  const pool = seg.pool * eff.pool;
+  const satMult = pool / (pool + (g.saturation[m.seg] || 0));
   const styleMult = STYLES[m.style].mult[m.seg];
 
   return (
     seg.base *
     rendement(g.noto, CONCAVITE_NOTORIETE) *
-    priceFit * porteeTotale(g.canaux) * desMult * satMult * fraicheur(m.age) * styleMult *
-    multEvenements(g.annee, g.t, m.seg, m.mvt) *
+    priceFit * porteeTotale(g.canaux) * eff.portee * desMult * satMult * fraicheur(m.age) * styleMult *
+    multDemande(g, m.seg, m.mvt, eff) *
     multExterne
   );
 }

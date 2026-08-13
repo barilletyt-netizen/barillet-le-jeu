@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "sim": "node scripts/simulation-longue.mjs",
-    "bots": "node scripts/bots.mjs"
+    "bots": "node scripts/bots.mjs",
+    "chrono": "node scripts/chronologie.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -5,10 +5,12 @@ import {
   CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX,
 } from "../data/config.js";
 import {
-  chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes, encadrement, fmtArgent,
-  fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, num, tauxInteret,
+  capaciteEffective, chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes,
+  encadrement, fmtArgent, fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, nbEmployes,
+  num, tauxInteret,
 } from "./formules.js";
 import { hasard, tirer as pick } from "./alea.js";
+import { effetsActifs, trimestreIndex } from "./effets.js";
 import { mondeInitial, evoluerMonde, breveConcurrent } from "./monde.js";
 import { journalTrimestre, MEMOIRE_JOURNAL } from "./journal.js";
 
@@ -20,6 +22,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
   const capital = Math.round(o.capital * (profil === "financier" ? 1.5 : 1));
   const etat = {
     annee: ANNEE_DEBUT, t: 1,
+    pays, profil, origine, // les effets d'époque en dépendent
     cash: capital, dette: o.dette,
     noto: 2 + o.reseau,
     cred: Math.max(0, o.cred + p.credBonus),
@@ -41,6 +44,7 @@ export function etatInitial({ pays, profil, origine, marque }) {
     marque: marque || "Votre marque",
     journal: [], opportunite: null, oppRecentes: [],
     journalRecent: [], // familles déjà passées en une de la Gazette
+    tirages: [], // { id, q } — mémoire courte des aléas et opportunités déjà vus
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -56,22 +60,71 @@ export function etatInitial({ pays, profil, origine, marque }) {
 }
 
 /**
+ * Époque de la marque. Sans elle, un catalogue profond propose une offre de
+ * rachat au troisième trimestre et un cambriolage de réserves vides.
+ */
+export function epoqueDe(g) {
+  const age = g.annee - ANNEE_DEBUT;
+  const n = nbEmployes(g.employes);
+  if (age > 15 || n > 10) return "maturite";
+  if (age < 5 && n < 3) return "debut";
+  return "croissance";
+}
+
+/**
+ * Poids de tirage d'une entrée. Deux règles, sans lesquelles soixante aléas se
+ * comportent comme dix :
+ *
+ * 1. **Mémoire courte** — ce qui vient d'être tiré revient quatre fois moins
+ *    souvent pendant trois ans, deux fois moins pendant trois de plus.
+ * 2. **Fenêtre d'époque** — hors de sa fenêtre, une entrée pèse zéro.
+ */
+export function poidsTirage(entree, g) {
+  const fenetre = entree.epoque;
+  if (fenetre && fenetre !== "toujours") {
+    const liste = Array.isArray(fenetre) ? fenetre : [fenetre];
+    if (!liste.includes("toujours") && !liste.includes(epoqueDe(g))) return 0;
+  }
+  const vu = (g.tirages || []).find((r) => r.id === entree.id);
+  if (!vu) return 1;
+  const ecoule = trimestreIndex(g.annee, g.t) - vu.q;
+  if (ecoule < 12) return 0.25;
+  if (ecoule < 24) return 0.5;
+  return 1;
+}
+
+/** Tirage pondéré sur le flux d'aléa de simulation. */
+function tirerPondere(liste, g) {
+  const poids = liste.map((x) => poidsTirage(x, g));
+  const total = poids.reduce((s, p) => s + p, 0);
+  if (total <= 0) return null;
+  let r = hasard() * total;
+  for (let i = 0; i < liste.length; i++) {
+    r -= poids[i];
+    if (r <= 0) return liste[i];
+  }
+  return liste[liste.length - 1];
+}
+
+/** Fréquences : le jeu peut se permettre d'être plus vivant, le catalogue est profond. */
+export const FREQ_ALEA = 0.45;
+export const FREQ_OPPORTUNITE = 0.5;
+
+/**
  * Tire une opportunité. Rien tant qu'aucun modèle n'est lancé — recevoir des
- * journalistes avant d'avoir la moindre montre n'avait aucun sens. Et on ne
- * repropose pas ce qui vient de passer.
+ * journalistes avant d'avoir la moindre montre n'avait aucun sens.
  */
 export function tirerOpportunite(etat) {
   if (etat.modeles.length === 0) return null;
-  if (hasard() > 0.4) return null;
-  const recentes = etat.oppRecentes || [];
-  let dispo = OPPORTUNITES.filter((o) => o.req(etat) && !recentes.includes(o.id));
-  if (dispo.length === 0) dispo = OPPORTUNITES.filter((o) => o.req(etat));
-  return dispo.length ? pick(dispo).id : null;
+  if (hasard() > FREQ_OPPORTUNITE) return null;
+  const dispo = OPPORTUNITES.filter((o) => o.req(etat));
+  const choisie = tirerPondere(dispo, etat);
+  return choisie ? choisie.id : null;
 }
 
 export function tirerAlea(gs) {
-  if (hasard() > 0.4) return null;
-  return pick(poolAleas(gs));
+  if (hasard() > FREQ_ALEA) return null;
+  return tirerPondere(poolAleas(gs), gs);
 }
 
 /**
@@ -96,9 +149,21 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   let depart = null;
   let ventesBrutes = 0, coutsProd = 0, caDirect = 0;
 
+  // Les effets durables des événements, empilés une fois pour tout le trimestre.
+  const eff = effetsActifs(gs);
+
   // Un événement historique remplace l'aléa du trimestre : pas deux chocs à la fois.
   const evtHisto = EVENEMENTS.find((e) => e.annee === gs.annee && e.t === gs.t) || null;
   const alea = evtHisto ? null : tirerAlea(gs);
+
+  // Effet ponctuel de l'événement sur les jauges, le trimestre où il tombe.
+  if (evtHisto && evtHisto.immediat) {
+    const im = evtHisto.immediat(gs) || {};
+    if (im.noto) noto = clamp(noto + im.noto, 0, 100);
+    if (im.cred) cred = clamp(cred + im.cred, 0, 100);
+    if (im.des) des = clamp(des + im.des, 0, 100);
+    if (im.savoir) savoir = clamp(savoir + im.savoir, 0, 100);
+  }
 
   let mProd = 1, mCoutU = 1, mDemande = 1;
   let modeles = gs.modeles.map((m) => ({ ...m }));
@@ -135,8 +200,9 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   // Heures disponibles : fondateur + équipe de production, corrigée par
   // l'encadrement, plafonnée par les postes de l'atelier.
   const enc = encadrement(employes);
+  const capacite = capaciteEffective(gs, eff);
   const heuresDispo = Math.floor(
-    Math.min(heuresRestantes + heuresEmployes(employes) * enc.efficacite, gs.capacite)
+    Math.min(heuresRestantes + heuresEmployes(employes) * enc.efficacite, capacite)
   );
   const heuresDemandees = chargeHeures(modeles);
   const capDepassee = heuresDemandees > heuresDispo;
@@ -161,12 +227,12 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     const prodEff = Math.round(Math.max(0, num(m.prod)) * scaleCap * mProd);
     heuresUtilisees += prodEff * heuresParPiece(m);
 
-    const cU = coutUnitaire(m, { pays, savoir, employes, mult: mCoutU });
+    const cU = coutUnitaire(m, { pays, savoir, employes, mult: mCoutU, eff });
     coutsProd += prodEff * cU;
 
     // L'état courant sert de base à la demande : les jauges déjà modifiées par
     // l'aléa comptent dès ce trimestre.
-    const etatDemande = { ...gs, noto, cred, des, saturation };
+    const etatDemande = { ...gs, noto, cred, des, saturation, effets: eff };
     let d = demandeBase(m, etatDemande, mDemande);
     if (d > 0) d *= 0.85 + hasard() * 0.3;
 
@@ -224,14 +290,15 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   if (gainSavoir > 0) savoir = clamp(savoir + gainSavoir, 0, 100);
 
   const interets = Math.round((gs.dette * tauxInteret(profil)) / 4);
-  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux };
+  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus - coutsProd - fixes - interets;
   cash += resultat;
 
   // Impôt sur le bénéfice, prélevé au dernier trimestre de l'exercice.
   const beneficeAnnuel = gs.resultatAnnee + resultat;
-  const impot = gs.t === 4 && beneficeAnnuel > 0 ? Math.round(beneficeAnnuel * IMPOT_TAUX) : 0;
+  const tauxImpot = Math.max(0, IMPOT_TAUX + eff.impotPoints / 100);
+  const impot = gs.t === 4 && beneficeAnnuel > 0 ? Math.round(beneficeAnnuel * tauxImpot) : 0;
   cash -= impot;
 
   // Les canaux qui font vivre l'image.
@@ -273,7 +340,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     heuresUtilisees, heuresDemandees, heuresDispo,
     heuresFondateur: Math.max(0, heuresRestantes),
     heuresEquipe: heuresEmployes(employes),
-    encadrement: enc, capacite: gs.capacite,
+    encadrement: enc, capacite,
     // Pour le journal.
     modelesPrets, acquis, depart,
     noto, cred, des, savoir, employes,
@@ -284,6 +351,11 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     ...gs, cash, modeles, segVendues, saturation, noto, cred, des, savoir, employes,
     complications, materiaux, recherche,
     journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash }],
+    // Mémoire courte des tirages : ce qui vient de sortir se raréfie.
+    tirages: alea
+      ? [{ id: alea.id, q: trimestreIndex(gs.annee, gs.t) },
+         ...(gs.tirages || []).filter((r) => r.id !== alea.id)].slice(0, 40)
+      : gs.tirages || [],
     // Mémoire de la Gazette : les sujets déjà titrés passent leur tour.
     journalRecent: [...rap.journal.familles.slice(0, 2), ...(gs.journalRecent || [])].slice(0, MEMOIRE_JOURNAL),
     revenusAnnee: gs.revenusAnnee + revenus,
