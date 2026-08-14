@@ -192,6 +192,18 @@ Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges,
 > Ne pas rouvrir un débat d'équilibrage en citant un chiffre d'avant cette
 > correction. Les seuls repères valables sont ceux produits après.
 >
+> ### Repère de jeu expert (août 2026)
+>
+> Un joueur qui connaît les mécaniques et joue vite atteint **le rang 30 avec
+> 300 M de trésorerie en 2023**, soit huit ans de partie — désirabilité 99,
+> savoir-faire 100. Les bots, eux, n'entrent au Top 50 qu'entre 2030 et 2047.
+>
+> L'écart expert/bot est donc de l'ordre de **quinze à vingt ans**, pas du
+> facteur deux qu'on supposait. Deux conséquences pour S6 : les critères
+> mesurés sur les bots sont un plancher très bas, et le début de partie est
+> probablement trop rapide pour qui sait quoi faire. À vérifier avec des
+> joueurs qui découvrent, pas avec celui qui a écrit le jeu.
+>
 > C'est la quatrième fois du projet que la distinction « on mesure le bot » /
 > « on mesure le jeu » a compté. Les trois précédentes : des bots morts de
 > notoriété nulle, un verdict vert par vacuité, un harnais qui achetait des
