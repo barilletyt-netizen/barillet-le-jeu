@@ -6,7 +6,7 @@ import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
   ATELIERS,
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
-  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES, DIRECTEURS,
+  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES, DIRECTEURS, DIRECTEUR_CONDITION,
   HEURES_DELEGUEES,
 } from "../data/config.js";
 import { PROPOSITIONS } from "../data/evenements.js";
@@ -815,14 +815,26 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           <div style={{ ...S.panel, marginBottom: 8 }}>
             <div style={S.steel}>DIRECTION — pas encore de candidature</div>
             <div style={{ ...S.steel, marginTop: 6 }}>
-              Passé une certaine taille, des directeurs se présentent : ils ne produisent rien, mais
-              les actions de leur domaine ne vous coûtent plus que {HEURES_DELEGUEES} h. Il faut{" "}
-              <span style={nbEmployes(g.employes) >= 10 ? S.green : S.gold}>
-                10 employés ({nbEmployes(g.employes)})
+              Un directeur ne produit rien, mais les actions de son domaine ne vous coûtent plus que{" "}
+              {HEURES_DELEGUEES} h. Il faut d'abord{" "}
+              <span style={nbEmployes(g.employes) >= 20 ? S.green : S.gold}>
+                20 employés ({nbEmployes(g.employes)})
               </span>{" "}
               et{" "}
-              <span style={g.cred >= 40 ? S.green : S.gold}>40 de crédibilité ({Math.round(g.cred)})</span>.
-              Les candidatures arrivent ensuite d'elles-mêmes.
+              <span style={g.cred >= 40 ? S.green : S.gold}>40 de crédibilité ({Math.round(g.cred)})</span>{" "}
+              — puis quinze employés et cinq points de plus par directeur suivant, sauf une fois passée
+              dans les dix premières mondiales.
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Chacun a de plus sa propre condition, faute de quoi il n'aurait rien à diriger :
+              {Object.entries(DIRECTEUR_CONDITION).map(([k, c]) => (
+                <div key={k} style={{ marginTop: 2 }}>
+                  {DIRECTEURS[k].icon}{" "}
+                  <span style={c.ok(g) ? S.green : S.steel}>
+                    {DIRECTEURS[k].nom} — {c.texte}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}

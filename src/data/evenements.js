@@ -9,7 +9,7 @@
 // engine/effets.js. `duree` en trimestres, `null` = permanent. `immediat`
 // applique un effet ponctuel sur les jauges au trimestre de l'événement.
 
-import { DIRECTEURS, DIRECTEUR_REQ } from "./config.js";
+import { DIRECTEURS, DIRECTEUR_REQ, DIRECTEUR_CONDITION } from "./config.js";
 
 const estSuisse = (g) => g.pays === "suisse";
 const anciennete = (g) => g.annee - 2015;
@@ -1354,8 +1354,12 @@ for (const [role, texte] of Object.entries(DIRECTEURS)) {
     cout: 0, heures: 40, epoque: "maturite",
     req: (g) => {
       if (g.directeurs && g.directeurs[role]) return false;
+      if (!DIRECTEUR_CONDITION[role].ok(g)) return false;
       const dejaLa = Object.values(g.directeurs || {}).filter(Boolean).length;
-      const req = DIRECTEUR_REQ(dejaLa, !!g.top50Depuis);
+      // Le Top 10 fait tomber les seuils croissants : à ce niveau, la maison
+      // n'a plus à prouver qu'elle peut se payer une direction.
+      const top10 = (g.rangs || []).some((r) => r <= 10);
+      const req = DIRECTEUR_REQ(dejaLa, top10);
       const effectif2 = Object.values(g.employes).reduce((s, n) => s + n, 0);
       return effectif2 >= req.employes && g.cred >= req.cred;
     },

@@ -426,10 +426,43 @@ export const DIRECTEURS = {
  * Il l'accélère : une fois dans les cinquante, les seuils croissants tombent
  * et le comité se complète au rythme où on peut le payer.
  */
-export const DIRECTEUR_REQ = (n, top50 = false) => ({
-  employes: 10 + (top50 ? 0 : n * 5),
-  cred: 40 + (top50 ? 0 : n * 5),
+export const DIRECTEUR_REQ = (n, top10 = false) => ({
+  employes: 20 + (top10 ? 0 : n * 15),
+  cred: 40 + (top10 ? 0 : n * 5),
 });
+
+/**
+ * Le prérequis propre à chaque rôle. Sans lui, le tirage proposait un DSI et un
+ * directeur de production dans les mêmes conditions, alors qu'ils ne dirigent
+ * pas la même chose : on subissait l'ordre au lieu de le construire. Ici, un
+ * directeur ne se présente que quand la maison a de quoi l'occuper.
+ */
+export const DIRECTEUR_CONDITION = {
+  production: {
+    texte: "deux agrandissements d'atelier",
+    ok: (g) => g.ateliers >= 2,
+  },
+  rh: {
+    texte: "un chef d'atelier en poste",
+    ok: (g) => g.employes.chef >= 1,
+  },
+  dsi: {
+    texte: "la vente en ligne ouverte",
+    ok: (g) => (g.canaux.ecommerce || 0) >= 1,
+  },
+  commercial: {
+    texte: "deux canaux ouverts en plus du direct",
+    ok: (g) => Object.entries(g.canaux).filter(([id, n]) => n > 0 && id !== "direct").length >= 2,
+  },
+  marketing: {
+    texte: "45 de notoriété",
+    ok: (g) => g.noto >= 45,
+  },
+  financier: {
+    texte: "une dette de plus de CHF 300'000, ou un exercice à 2 millions",
+    ok: (g) => g.dette > 300000 || g.revenusAnnee >= 2000000,
+  },
+};
 
 export const SALAIRES = {
   serree: {

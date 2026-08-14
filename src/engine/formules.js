@@ -1,7 +1,7 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
   EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS, SALAIRES,
-  DIRECTEURS, DIRECTEUR_REQ, HEURES_DELEGUEES, COUTS_H,
+  DIRECTEURS, DIRECTEUR_REQ, DIRECTEUR_CONDITION, HEURES_DELEGUEES, COUTS_H,
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
@@ -248,10 +248,15 @@ export function coutHeures(action, g) {
 /** Le prochain directeur recrutable, avec ses prérequis. */
 export function directeurRecrutable(g, role) {
   if (aDirecteur(g, role)) return null;
-  const req = DIRECTEUR_REQ(directeursDe(g).length);
+  const top10 = (g.rangs || []).some((r) => r <= 10);
+  const req = DIRECTEUR_REQ(directeursDe(g).length, top10);
+  const condition = DIRECTEUR_CONDITION[role];
   return {
-    role, ...DIRECTEURS[role], req,
-    ok: nbEmployes(g.employes) >= req.employes && g.cred >= req.cred,
+    role, ...DIRECTEURS[role], req, condition,
+    ok:
+      nbEmployes(g.employes) >= req.employes &&
+      g.cred >= req.cred &&
+      condition.ok(g),
   };
 }
 

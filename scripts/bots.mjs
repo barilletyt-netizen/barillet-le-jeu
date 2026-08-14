@@ -195,6 +195,7 @@ function croitre(g, seuil) {
 function diriger(g, ctx, seuil = 400000) {
   for (const role of ["production", "commercial", "rh", "marketing", "dsi", "financier"]) {
     const d = F.directeurRecrutable(g, role);
+    if (d && !C.DIRECTEUR_CONDITION[role].ok(g)) continue;
     // Un salaire de direction se juge sur douze trimestres, pas sur un.
     if (d && d.ok && g.cash > seuil + d.fixes * 12 && g.heures >= 40) {
       g = { ...g, heures: g.heures - 40, directeurs: { ...(g.directeurs || {}), [role]: true } };
