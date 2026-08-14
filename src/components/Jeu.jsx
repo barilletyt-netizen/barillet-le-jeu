@@ -730,6 +730,25 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         {/* Le comité de direction. On ne le recrute pas ici — les candidatures
             arrivent par l'interface de décision — mais on doit voir ce qu'il
             coûte et ce qu'il exonère. */}
+        {/* Tant qu'aucune candidature n'est arrivée, on ne savait pas que la
+            délégation existait ni ce qu'elle demandait. Le panneau annonce
+            désormais les prérequis et ce qui manque encore. */}
+        {directeursDe(g).length === 0 && nbEmployes(g.employes) >= 4 && (
+          <div style={{ ...S.panel, marginBottom: 8 }}>
+            <div style={S.steel}>DIRECTION — pas encore de candidature</div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Passé une certaine taille, des directeurs se présentent : ils ne produisent rien, mais
+              les actions de leur domaine ne vous coûtent plus que {HEURES_DELEGUEES} h. Il faut{" "}
+              <span style={nbEmployes(g.employes) >= 10 ? S.green : S.gold}>
+                10 employés ({nbEmployes(g.employes)})
+              </span>{" "}
+              et{" "}
+              <span style={g.cred >= 40 ? S.green : S.gold}>40 de crédibilité ({Math.round(g.cred)})</span>.
+              Les candidatures arrivent ensuite d'elles-mêmes.
+            </div>
+          </div>
+        )}
+
         {directeursDe(g).length > 0 && (
           <div style={{ ...S.panel, borderColor: "#4A7C9E", marginBottom: 8 }}>
             <div style={S.blue}>COMITÉ DE DIRECTION — {fmtArgent(masseDirection(g))}/trim.</div>
