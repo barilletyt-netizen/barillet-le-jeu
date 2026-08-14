@@ -235,6 +235,43 @@ Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-
 1. *Ralentir le début* pour que le plafond soit atteint vers 2055 plutôt que 2035 (cohérent avec l'intention « une à deux années avant le décollage », mais le début a déjà été durci deux fois) ;
 2. *Faire croître le marché lui-même* (pools indexés sur la croissance), pour que le plafond monte avec le temps et qu'il faille surpasser le marché, pas seulement le rejoindre.
 
+## 3 bis. Les directeurs — le troisième acte *(livré S4)*
+
+Diagnostic à l'origine : après 2050, les bots tournaient à 99% de capacité
+d'atelier avec 3,66 milliards en caisse et 19% du marché consommé. Ni l'argent
+ni les clients ne manquaient : il manquait un moyen de convertir l'un en
+l'autre. Le goulot final était le budget d'heures du fondateur — agrandir coûte
+60 h, embaucher 40 h, et il n'en a que 360.
+
+**Principe : un directeur ne multiplie rien, il exonère.** Les actions de sa
+catégorie tombent à 5 h. Les 360 heures du fondateur ne changent jamais.
+
+| rôle | salaire/trim. | exonère | et débloque |
+|---|---|---|---|
+| Directeur de production | 34'000 | agrandissements, embauches | la manufacture |
+| DRH | 26'000 | embauches, licenciements | risque social ÷ 2 |
+| DSI | 28'000 | actions de canal | palier e-commerce mondial |
+| Directeur commercial | 30'000 | canaux, soldes, distribution | portée +15% |
+| Directrice marketing | 28'000 | campagnes, presse, éditions | — |
+| Directeur financier | 25'000 | emprunts | impôt −4 points |
+
+Prérequis du premier : 10 employés et 40 de crédibilité. Chaque directeur
+supplémentaire exige +5 employés et +5 de crédibilité. Recrutement par
+l'interface de décision, un seul par rôle.
+
+**Règle intangible : le produit ne se délègue pas.** R&D, complications,
+matériaux et création de modèles restent aux heures du fondateur, quels que
+soient les directeurs. On délègue l'entreprise, jamais l'horlogerie.
+
+**La manufacture** — 50 postes, 22'500 h par trimestre, 6 M de francs et
+**quatre trimestres de chantier** avant le premier établi. Réservée au
+directeur de production. Le joueur engage la somme sur une demande qu'il aura
+dans un an : c'est un pari, pas un achat.
+
+*Mesure après implémentation : les quatre stratégies atteignent le Top 50 (deux
+auparavant), et l'occupation de l'atelier retombe de 99% à 12-21%. Le plafond
+de fin de partie s'est déplacé de la capacité vers la demande.*
+
 ## 4. Production & organisation
 (inchangé v0.3 : postes clés nommés avec stats + effectifs standard ; louer → construire ; Vallée de Joux/Neuchâtel = vivier, Paris = difficile ; départements Marketing/Finance/IT ; distribution directe/détaillants/boutiques/e-commerce ; fournisseurs avec stats, track record, coût, faillite possible ; verticalisation = accomplissement ultime, pas de simulation de label)
 
@@ -327,10 +364,12 @@ juge la trajectoire entière.
 | **Faillite** | trésorerie < −50'000 CHF | à chaque trimestre |
 | **Rachat** | accepter l'offre de `consolidation` (2045), ou dilution cumulée ≥ 50% | décision / au bilan annuel |
 | **La Succession** | atteindre 2065 sans faillite ni rachat — c'est la fin par défaut | fin de partie |
-| **La Marque Culte** | production ≤ 500 pièces/an **et** désirabilité ≥ 90, dix exercices consécutifs | au bilan annuel |
-| **L'Empire** | trois `rachatInde` acceptés **et** CA annuel ≥ 30 M | au bilan annuel |
+| **La Marque Culte** | production ≤ 500 pièces/an **et** désirabilité ≥ 90, dix exercices consécutifs, **et jamais plus d'un directeur en poste** | au bilan annuel |
+| **L'Empire** | trois `rachatInde` acceptés, **directeur de production en poste**, **et** CA annuel ≥ 30 M | au bilan annuel |
 | **La Montre du Siècle** | un modèle cumulant mouvement manufacture, tourbillon niveau 3, finition, qualité ≥ 12 **et** désirabilité de la marque ≥ 85 le trimestre de sa sortie | à la sortie d'étude |
 | **Le Scandale** | compteur de presse achetée cumulé ≥ 8 sur la partie, enquête déclenchée ≥ 2 fois, **et** crédibilité < 10 | à chaque trimestre |
+
+La direction rend les deux voies **mutuellement exclusives** : on ne bâtit pas un empire sans déléguer, et on ne reste pas une maison culte en recrutant six directeurs. C'est ce qui fait de la délégation un choix et non une progression obligée.
 
 Les fins alternatives ne sont pas exclusives de la Succession : elles se
 déclenchent quand leur condition est remplie et **remplacent** l'épilogue par

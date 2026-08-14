@@ -371,6 +371,56 @@ export const IMPOT_TAUX = 0.18;
  * sens aux employés : payer mal coûte moins cher et se paie autrement — en
  * grèves, en départs et en savoir-faire qui s'en va.
  */
+/**
+ * Les directeurs — le troisième acte.
+ *
+ * Un directeur ne multiplie rien : il **exonère**. Le fondateur garde ses 360
+ * heures pour toujours, mais les actions de la catégorie déléguée ne lui en
+ * coûtent presque plus. C'est ce qui débloque la croissance tardive sans
+ * toucher au budget d'heures.
+ *
+ * Règle intangible : **le produit ne se délègue pas.** R&D, complications,
+ * matériaux et création de modèles restent aux heures du fondateur, quels que
+ * soient les directeurs. On délègue l'entreprise, jamais l'horlogerie.
+ */
+export const HEURES_DELEGUEES = 5;
+
+export const DIRECTEURS = {
+  production: {
+    nom: "Directeur de production", icon: "🏭", fixes: 34000,
+    exonere: ["atelier", "embauche"],
+    desc: "Agrandissements et embauches à 5 h. Débloque la manufacture et l'embauche en lot.",
+  },
+  rh: {
+    nom: "Directrice des ressources humaines", icon: "👥", fixes: 26000,
+    exonere: ["embauche", "licenciement"],
+    desc: "Recrutement jusqu'à dix personnes en une fois, embauches à 5 h, risque social divisé par deux.",
+  },
+  dsi: {
+    nom: "Directeur des systèmes d'information", icon: "🖥", fixes: 28000,
+    exonere: ["canal"],
+    desc: "Actions de canal à 5 h. Débloque le palier e-commerce mondial, inaccessible autrement.",
+  },
+  commercial: {
+    nom: "Directeur commercial", icon: "🤝", fixes: 30000,
+    exonere: ["canal", "soldes", "distribution"],
+    desc: "Développement de réseau et négociations à 5 h, portée des canaux +15%.",
+  },
+  marketing: {
+    nom: "Directrice marketing", icon: "📣", fixes: 28000,
+    exonere: ["marketing", "choc", "presse", "edition"],
+    desc: "Campagnes, presse et éditions limitées à 5 h.",
+  },
+  financier: {
+    nom: "Directeur financier", icon: "💼", fixes: 25000,
+    exonere: ["emprunt"],
+    desc: "Emprunts à 5 h et à taux réduit, impôt allégé de 4 points.",
+  },
+};
+
+/** Prérequis du n-ième directeur : la structure doit précéder l'encadrement. */
+export const DIRECTEUR_REQ = (n) => ({ employes: 10 + n * 5, cred: 40 + n * 5 });
+
 export const SALAIRES = {
   serree: {
     nom: "Serrée", icon: "🪫", mult: 0.85, risque: 2, savoirAn: -1, efficacite: 0,
@@ -401,6 +451,13 @@ export const SALAIRES = {
 export const ATELIERS = {
   petit: { nom: "Un poste de travail", postes: 1, heures: 450, cout: 60000, fixes: 5000, heuresAction: 30 },
   grand: { nom: "Une halle de quatre postes", postes: 4, heures: 1800, cout: 200000, fixes: 14000, heuresAction: 60 },
+  // La manufacture ne s'achète pas, elle se construit : quatre trimestres
+  // entre le chèque et le premier établi. C'est un pari sur la demande qu'on
+  // aura dans un an, pas un achat.
+  manufacture: {
+    nom: "Une manufacture", postes: 50, heures: 22500, cout: 6000000, fixes: 190000,
+    heuresAction: 60, delai: 4, reqDirecteur: "production",
+  },
 };
 
 // L'atelier de départ accueille le fondateur et un compagnon.

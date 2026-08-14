@@ -4,9 +4,10 @@ import {
   PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
   CAPACITE_DEPART, HEURES_FONDATEUR, HEURES_PAR_SAVOIR, ANNEE_DEBUT,
   CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX, SALAIRES,
+  ATELIERS,
 } from "../data/config.js";
 import {
-  capaciteEffective, chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes,
+  aDirecteur, capaciteEffective, chargeHeures, clamp, coutUnitaire, coutsFixes, demandeBase, detailFixes,
   encadrement, fmtArgent, fraicheur, heuresEmployes, heuresParPiece, margeMoyenne, nbEmployes,
   num, tauxInteret,
 } from "./formules.js";
@@ -53,6 +54,8 @@ export function etatInitial({ pays, profil, origine, marque }) {
     anneesTop50: 0, // exercices clos passés dans les cinquante
     mods: [], // modificateurs durables posés par les aléas et les opportunités
     oppFaites: [], // propositions déjà tranchées, pour celles qui ne se proposent qu'une fois
+    directeurs: {}, // rôle → true. Un directeur exonère, il ne multiplie pas.
+    chantier: null, // manufacture en construction : { restant, heures, fixes }
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -94,7 +97,9 @@ export function poidsTirage(entree, g) {
     if (!liste.includes("toujours") && !liste.includes(epoqueDe(g))) return 0;
   }
   // Payer mal double le risque social, payer bien le divise par deux.
-  const social = entree.risqueSocial ? (SALAIRES[g.salaires] || SALAIRES.standard).risque : 1;
+  const social = entree.risqueSocial
+    ? (SALAIRES[g.salaires] || SALAIRES.standard).risque * (aDirecteur(g, "rh") ? 0.5 : 1)
+    : 1;
   const vu = (g.tirages || []).find((r) => r.id === entree.id);
   if (!vu) return social;
   const ecoule = trimestreIndex(g.annee, g.t) - vu.q;
@@ -325,6 +330,22 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   // La saturation se résorbe : un marché qu'on laisse respirer se rouvre.
   for (const k of Object.keys(saturation)) saturation[k] = Math.round(saturation[k] * SATURATION_DECROISSANCE);
 
+  // La manufacture se construit : le chèque est signé, les établis viendront.
+  let chantier = gs.chantier ? { ...gs.chantier, restant: gs.chantier.restant - 1 } : null;
+  let capaciteAcquise = 0;
+  let ateliersFixesAjout = 0;
+  let ateliersAjout = 0;
+  if (chantier && chantier.restant <= 0) {
+    capaciteAcquise = chantier.heures;
+    ateliersFixesAjout = chantier.fixes;
+    ateliersAjout = 1;
+    messagesDev.push(
+      "La manufacture est livrée : " + chantier.heures + " h de capacité par trimestre. " +
+      "Il reste à la remplir."
+    );
+    chantier = null;
+  }
+
   // Recherche en cours (complication ou matériau).
   let recherche = gs.recherche ? { ...gs.recherche, restant: gs.recherche.restant - 1 } : null;
   let complications = gs.complications;
@@ -379,14 +400,15 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   }
 
   const interets = Math.round((gs.dette * tauxInteret(profil) * eff.interets) / 4);
-  const contexteFixes = { employes, ateliers: gs.ateliers, ateliersFixes: gs.ateliersFixes || 0, canaux: gs.canaux, eff, salaires: gs.salaires };
+  const contexteFixes = { employes, ateliers: gs.ateliers + ateliersAjout, ateliersFixes: (gs.ateliersFixes || 0) + ateliersFixesAjout, canaux: gs.canaux, eff, salaires: gs.salaires, directeurs: gs.directeurs };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus + revenusRecurrents - coutsProd - fixes - interets - penaliteVolume;
   cash += resultat;
 
   // Impôt sur le bénéfice, prélevé au dernier trimestre de l'exercice.
   const beneficeAnnuel = gs.resultatAnnee + resultat;
-  const tauxImpot = Math.max(0, IMPOT_TAUX + eff.impotPoints / 100);
+  // Le directeur financier connaît les régimes : quatre points d'impôt en moins.
+  const tauxImpot = Math.max(0, IMPOT_TAUX + eff.impotPoints / 100 - (aDirecteur(gs, "financier") ? 0.04 : 0));
   const impot = gs.t === 4 && beneficeAnnuel > 0 ? Math.round(beneficeAnnuel * tauxImpot) : 0;
   cash -= impot;
 
@@ -450,6 +472,10 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     journal: [...gs.journal, { annee: gs.annee, t: gs.t, revenus, resultat: resultat - impot, cash,
       vendues: lignes.reduce((s2, l) => s2 + l.vendues, 0) }],
     mods: [...nettoyerMods(gs), ...modsPoses],
+    chantier,
+    capacite: gs.capacite + capaciteAcquise,
+    ateliers: gs.ateliers + ateliersAjout,
+    ateliersFixes: (gs.ateliersFixes || 0) + ateliersFixesAjout,
     prevente,
     // L'enquête solde l'ardoise : le compteur repart de zéro.
     presseAchetee: effetAlea.resetPresse ? 0 : gs.presseAchetee || 0,

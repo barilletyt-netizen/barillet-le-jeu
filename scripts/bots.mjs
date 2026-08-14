@@ -59,25 +59,27 @@ function lancerModele(g, ctx, { mvt, seg, style = "sport", mat = "acier", compls
   };
 }
 
-/** Fixe le prix d'un modèle en multiple du prix « acceptable » de son segment. */
+/**
+ * Fixe le prix d'un modèle en multiple du prix acceptable réel.
+ *
+ * Les bots recalculaient auparavant leur propre repère, sans la qualité, sans
+ * la crédibilité et sans les événements d'époque : ils étaient aveugles à tout
+ * ce qui déplace le prix acceptable, et l'équilibrage jauges/prix se mesurait
+ * donc à côté. On tarife maintenant sur la même fonction que le moteur.
+ */
 function tarifer(g, facteur) {
   return {
     ...g,
-    modeles: g.modeles.map((m) => {
-      if (m.statut !== "actif" || m.prix) return m;
-      const repere =
-        C.SEGMENTS[m.seg].ideal *
-        C.MATERIAUX[m.materiau].idealMult *
-        F.paliersDe(m).reduce((s, p) => s * p.prixMult, 1);
-      return { ...m, prix: Math.round(repere * facteur) };
-    }),
+    modeles: g.modeles.map((m) =>
+      m.statut !== "actif" || m.prix ? m : { ...m, prix: Math.round(F.prixAcceptable(m, g) * facteur) }
+    ),
   };
 }
 
 const embaucher = (g, poste) =>
-  g.heures < C.COUTS_H.embauche ? g : {
+  g.heures < F.coutHeures("embauche", g) ? g : {
     ...g,
-    heures: g.heures - C.COUTS_H.embauche,
+    heures: g.heures - F.coutHeures("embauche", g),
     employes: { ...g.employes, [poste]: g.employes[poste] + 1 },
     savoir: F.clamp(g.savoir + C.EMPLOYES[poste].savoir, 0, 100),
   };
@@ -110,16 +112,9 @@ const totalDemande = (g) => actifs(g).reduce((s, m) => s + F.estimerDemande(m, g
 function retarifer(g, facteur) {
   return {
     ...g,
-    modeles: g.modeles.map((m) => {
-      if (m.statut !== "actif") return m;
-      const seg = C.SEGMENTS[m.seg];
-      const idealAdj =
-        seg.ideal *
-        C.MATERIAUX[m.materiau].idealMult *
-        F.paliersDe(m).reduce((s, p) => s * p.prixMult, 1) *
-        (0.55 + m.qual / 14 + g.cred / 300);
-      return { ...m, prix: Math.round(idealAdj * facteur) };
-    }),
+    modeles: g.modeles.map((m) =>
+      m.statut !== "actif" ? m : { ...m, prix: Math.round(F.prixAcceptable(m, g) * facteur) }
+    ),
   };
 }
 
@@ -176,13 +171,37 @@ function croitre(g, seuil) {
     const grand = C.ATELIERS.grand, petit = C.ATELIERS.petit;
     const choix =
       g.cash > grand.cout + seuil ? grand : g.cash > petit.cout + seuil ? petit : null;
-    if (choix && g.heures >= choix.heuresAction) {
-      g = { ...g, heures: g.heures - choix.heuresAction, cash: g.cash - choix.cout,
+    const hAgrandir = F.aDirecteur(g, "production") ? C.HEURES_DELEGUEES : choix && choix.heuresAction;
+    if (choix && g.heures >= hAgrandir) {
+      g = { ...g, heures: g.heures - hAgrandir, cash: g.cash - choix.cout,
         ateliers: g.ateliers + 1, ateliersFixes: (g.ateliersFixes || 0) + choix.fixes,
         capacite: g.capacite + choix.heures };
       continue;
     }
     break;
+  }
+  return g;
+}
+
+/**
+ * Recrute la direction dès que la maison peut se la payer, et engage la
+ * manufacture quand l'atelier sature. C'est le troisième acte : sans lui, une
+ * marque riche reste bloquée par les heures du fondateur.
+ */
+function diriger(g, ctx, seuil = 400000) {
+  for (const role of ["production", "commercial", "rh", "marketing", "dsi", "financier"]) {
+    const d = F.directeurRecrutable(g, role);
+    // Un salaire de direction se juge sur douze trimestres, pas sur un.
+    if (d && d.ok && g.cash > seuil + d.fixes * 12 && g.heures >= 40) {
+      g = { ...g, heures: g.heures - 40, directeurs: { ...(g.directeurs || {}), [role]: true } };
+    }
+  }
+  // La manufacture : un pari, donc on ne l'engage qu'avec de la marge.
+  const m = C.ATELIERS.manufacture;
+  const h = F.aDirecteur(g, "production") ? C.HEURES_DELEGUEES : m.heuresAction;
+  if (F.aDirecteur(g, "production") && !g.chantier && g.cash > m.cout + seuil * 4 && g.heures >= h) {
+    g = { ...g, heures: g.heures - h, cash: g.cash - m.cout,
+      chantier: { restant: m.delai, heures: m.heures, fixes: m.fixes } };
   }
   return g;
 }
@@ -252,6 +271,7 @@ function margeur(g, ctx) {
   g = faceliftSiUtile(g, ctx, 150000);
   g = rechercher(g, ctx);
   g = ouvrirCanal(g, { privilegieMarge: true });
+  g = diriger(g, ctx);
   g = croitre(g, 200000);
   return produire(g);
 }
@@ -273,6 +293,7 @@ function volumiste(g, ctx) {
   g = retarifer(g, 0.8);
   g = faceliftSiUtile(g, ctx, 120000);
   g = ouvrirCanal(g, { seuil: 120000 });
+  g = diriger(g, ctx, 300000);
   g = croitre(g, 150000);
   return produire(g);
 }
@@ -294,6 +315,7 @@ function prestigieux(g, ctx) {
   g = faceliftSiUtile(g, ctx, 200000);
   g = rechercher(g, ctx, { seuil: 2 });
   g = ouvrirCanal(g, { privilegieMarge: true });
+  g = diriger(g, ctx);
   g = croitre(g, 200000);
   return produire(g);
 }
@@ -315,6 +337,7 @@ function equilibre(g, ctx) {
   g = faceliftSiUtile(g, ctx, 150000);
   g = rechercher(g, ctx);
   g = ouvrirCanal(g);
+  g = diriger(g, ctx);
   g = croitre(g, 200000);
   return produire(g);
 }

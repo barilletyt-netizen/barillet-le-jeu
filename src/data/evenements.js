@@ -9,6 +9,8 @@
 // engine/effets.js. `duree` en trimestres, `null` = permanent. `immediat`
 // applique un effet ponctuel sur les jauges au trimestre de l'événement.
 
+import { DIRECTEURS, DIRECTEUR_REQ } from "./config.js";
+
 const estSuisse = (g) => g.pays === "suisse";
 const anciennete = (g) => g.annee - 2015;
 
@@ -1325,6 +1327,42 @@ export const DECISIONS = [
     effetRefus: { cred: 3, msg: "Offre déclinée. La profession en prend note : crédibilité +3." },
   },
 ];
+
+/**
+ * Les six recrutements de direction. Ils passent par l'interface de décision
+ * comme le reste : un directeur se choisit, il ne se tire pas au sort.
+ *
+ * Un directeur exonère, il ne multiplie pas — voir DIRECTEURS dans config.js.
+ * Le prérequis monte avec le nombre de directeurs déjà en poste : la structure
+ * doit précéder l'encadrement, sinon on paie six salaires pour trois ateliers.
+ */
+const CANDIDATURES = {
+  production: "Un directeur de production venu d'une grande manufacture propose ses services. Il sait faire construire, et il sait remplir.",
+  rh: "Une DRH d'un groupe horloger cherche une maison à taille humaine. Elle recrute par dix et connaît tout le monde dans la vallée.",
+  dsi: "Un directeur des systèmes d'information vous explique que votre boutique en ligne date d'il y a quinze ans. Il n'a pas tort.",
+  commercial: "Un directeur commercial avec le carnet d'adresses de la profession entière. Il ouvre des portes que vous ne saviez pas fermées.",
+  marketing: "Une directrice marketing qui a fait trois marques avant la vôtre. Elle sait ce qu'une campagne coûte et ce qu'elle rapporte.",
+  financier: "Un directeur financier qui parle aux banques dans leur langue, et à l'administration fiscale dans la sienne.",
+};
+
+for (const [role, texte] of Object.entries(DIRECTEURS)) {
+  DECISIONS.push({
+    id: "recruter_" + role, type: "decision", titre: "Recruter : " + texte.nom.toLowerCase(),
+    texte: CANDIDATURES[role] + " Salaire : " + texte.fixes.toLocaleString("fr-CH").replace(/\s/g, "'") + " CHF par trimestre.",
+    cout: 0, heures: 40, epoque: "maturite",
+    req: (g) => {
+      if (g.directeurs && g.directeurs[role]) return false;
+      const dejaLa = Object.values(g.directeurs || {}).filter(Boolean).length;
+      const req = DIRECTEUR_REQ(dejaLa);
+      const effectif2 = Object.values(g.employes).reduce((s, n) => s + n, 0);
+      return effectif2 >= req.employes && g.cred >= req.cred;
+    },
+    // Le salaire n'est pas un modificateur : il entre dans les coûts fixes par
+    // masseDirection(). Le `req` suffit à interdire un second directeur du même rôle.
+    effet: { directeur: role },
+    msg: texte.nom + " rejoint la maison. " + texte.desc,
+  });
+}
 
 /** Tout ce qui peut être proposé au joueur, opportunités et décisions. */
 export const PROPOSITIONS = [...OPPORTUNITES, ...DECISIONS];

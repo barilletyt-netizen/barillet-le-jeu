@@ -1,6 +1,7 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
   EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS, SALAIRES,
+  DIRECTEURS, DIRECTEUR_REQ, HEURES_DELEGUEES, COUTS_H,
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
@@ -221,10 +222,46 @@ export function qualiteNouveau(mvtKey, { pays, profil, savoir, compls = [], fini
 export const masseSalariale = (employes) =>
   Object.entries(employes).reduce((s, [k, n]) => s + n * EMPLOYES[k].fixes, 0);
 
-export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard" }) {
+// ---- Directeurs ----------------------------------------------------------
+
+export const directeursDe = (g) =>
+  Object.keys(DIRECTEURS).filter((k) => g.directeurs && g.directeurs[k]);
+
+export const aDirecteur = (g, role) => !!(g.directeurs && g.directeurs[role]);
+
+/** Salaires des directeurs, hors masse salariale ordinaire. */
+export const masseDirection = (g) =>
+  directeursDe(g).reduce((s, k) => s + DIRECTEURS[k].fixes, 0);
+
+/**
+ * Coût en heures d'une action, une fois la délégation prise en compte. Le
+ * produit n'y figure jamais : la R&D, les complications et les matériaux
+ * restent au fondateur quoi qu'il arrive.
+ */
+export function coutHeures(action, g) {
+  const base = COUTS_H[action];
+  if (base == null) return 0;
+  const delegue = directeursDe(g).some((k) => DIRECTEURS[k].exonere.includes(action));
+  return delegue ? Math.min(base, HEURES_DELEGUEES) : base;
+}
+
+/** Le prochain directeur recrutable, avec ses prérequis. */
+export function directeurRecrutable(g, role) {
+  if (aDirecteur(g, role)) return null;
+  const req = DIRECTEUR_REQ(directeursDe(g).length);
+  return {
+    role, ...DIRECTEURS[role], req,
+    ok: nbEmployes(g.employes) >= req.employes && g.cred >= req.cred,
+  };
+}
+
+export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard", directeurs = null }) {
   const e = eff || effetsNeutres();
   const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
-  const base = FIXES_BASE + masseSalariale(employes) * e.salaires * politique + ateliersFixes + fixesCanaux(canaux);
+  const direction = masseDirection({ directeurs });
+  const base =
+    FIXES_BASE + (masseSalariale(employes) + direction) * e.salaires * politique +
+    ateliersFixes + fixesCanaux(canaux);
   return Math.round(base * e.fixesMult + e.fixesAjout);
 }
 
@@ -232,7 +269,7 @@ export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, sa
  * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
  * coûts » reste une intention : le joueur ne sait pas où appuyer.
  */
-export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard" }) {
+export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard", directeurs = null }) {
   const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
   const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
   for (const [k, n] of Object.entries(employes)) {
@@ -243,6 +280,9 @@ export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, sal
         detail: n > 1 ? fmtArgent(EMPLOYES[k].fixes) + " chacun" : null,
       });
     }
+  }
+  for (const k of directeursDe({ directeurs })) {
+    lignes.push({ libelle: DIRECTEURS[k].nom, montant: Math.round(DIRECTEURS[k].fixes * politique) });
   }
   if (ateliersFixes > 0) {
     lignes.push({
@@ -383,6 +423,28 @@ export const fraicheur = (age) => Math.max(0.35, 1 - 0.045 * Math.max(0, age - 4
 export const rendement = (valeur, concavite) => Math.pow(clamp(valeur, 0, 100) / 100, concavite);
 
 /**
+ * Le prix « acceptable » d'un modèle : ce que le marché est prêt à payer avant
+ * que l'élasticité ne morde. Il monte avec le matériau, les complications, la
+ * finition, la qualité et la crédibilité — et suit les événements d'époque.
+ *
+ * Exporté parce que les bots doivent tarifer là-dessus : tant qu'ils
+ * recalculaient leur propre repère, ils étaient aveugles à tout ce qui déplace
+ * le prix acceptable, et l'équilibrage jauges/prix se mesurait sur un angle
+ * mort.
+ */
+export function prixAcceptable(m, g, eff = null) {
+  const e = eff || g.effets || effetsActifs(g);
+  return (
+    SEGMENTS[m.seg].ideal *
+    MATERIAUX[m.materiau].idealMult *
+    produit(paliersDe(m), (p) => p.prixMult) *
+    (m.finition ? FINITION.prixMult : 1) *
+    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE)) *
+    e.prixAcceptable
+  );
+}
+
+/**
  * Source unique de vérité pour la demande. L'étude de marché et la simulation
  * l'appellent toutes les deux ; la simulation y ajoute seulement l'aléa.
  * `prixTest` permet de simuler un autre prix que celui du modèle.
@@ -398,15 +460,7 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   const prixN = Math.max(50, prixBrut);
   if (m.qual < seg.qualMin || g.noto < seg.notoMin) return 0;
 
-  // Le prix « acceptable » monte avec le matériau, les complications et la finition.
-  // La crédibilité élargit le prix acceptable, en rendements décroissants.
-  const idealAdj =
-    seg.ideal *
-    MATERIAUX[m.materiau].idealMult *
-    produit(paliersDe(m), (p) => p.prixMult) *
-    (m.finition ? FINITION.prixMult : 1) *
-    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE)) *
-    eff.prixAcceptable;
+  const idealAdj = prixAcceptable(m, g, eff);
 
   // Adhérence au prix : linéaire tant qu'on reste sous le prix acceptable,
   // écrasée par une puissance au-dessus. Vendre trop cher se paie très vite.
@@ -429,7 +483,7 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   return (
     seg.base *
     rendement(g.noto, CONCAVITE_NOTORIETE) *
-    priceFit * porteeTotale(g.canaux) * eff.portee * desMult * satMult * fraicheur(m.age) * styleMult *
+    priceFit * porteeTotale(g.canaux) * eff.portee * (aDirecteur(g, "commercial") ? 1.15 : 1) * desMult * satMult * fraicheur(m.age) * styleMult *
     multDemande(g, m.seg, m.mvt, eff) *
     multExterne
   );

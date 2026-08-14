@@ -10,7 +10,7 @@ import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
   ATELIERS,
-  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
@@ -20,6 +20,7 @@ import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
   gainChoc, gainMarketing, grilleDePrix, heuresRD, indemnite, margeMoyenne,
   nomComplications, num, paletteComplication, qualiteNouveau,
+  aDirecteur, coutHeures,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { hasard } from "./engine/alea.js";
@@ -199,7 +200,7 @@ export default function App() {
     const e = EMPLOYES[type];
     // Le salon des écoles paie une fois : la prochaine embauche coûte moitié
     // moins d'heures, et le nouveau venu arrive déjà formé.
-    const cout = g.embaucheFacile ? Math.round(COUTS_H.embauche / 2) : COUTS_H.embauche;
+    const cout = g.embaucheFacile ? Math.round(coutHeures("embauche", g) / 2) : coutHeures("embauche", g);
     if (!assez(cout)) return;
     setG({
       ...g,
@@ -217,11 +218,11 @@ export default function App() {
   // Se séparer d'un collaborateur : indemnité immédiate, salaire économisé ensuite.
   function licencier(type) {
     const e = EMPLOYES[type];
-    if (g.employes[type] <= 0 || !assez(COUTS_H.licenciement)) return;
+    if (g.employes[type] <= 0 || !assez(coutHeures("licenciement", g))) return;
     const cout = indemnite(type);
     setG({
       ...g,
-      heures: g.heures - COUTS_H.licenciement,
+      heures: g.heures - coutHeures("licenciement", g),
       cash: g.cash - cout,
       employes: { ...g.employes, [type]: g.employes[type] - 1 },
       messages: [
@@ -252,25 +253,25 @@ export default function App() {
   function action(type) {
     if (!g) return;
 
-    if (type === "marketing" && assez(COUTS_H.marketing, COUTS_CHF.marketing)) {
+    if (type === "marketing" && assez(coutHeures("marketing", g), COUTS_CHF.marketing)) {
       const gain = gainMarketing(g, pays);
-      setG({ ...g, heures: g.heures - COUTS_H.marketing, cash: g.cash - COUTS_CHF.marketing, noto: clamp(g.noto + gain, 0, 100),
+      setG({ ...g, heures: g.heures - coutHeures("marketing", g), cash: g.cash - COUTS_CHF.marketing, noto: clamp(g.noto + gain, 0, 100),
         messages: [...g.messages, "Marketing : notoriété +" + gain + "."] });
     }
 
-    if (type === "choc" && assez(COUTS_H.choc, COUTS_CHF.choc)) {
+    if (type === "choc" && assez(coutHeures("choc", g), COUTS_CHF.choc)) {
       const gain = gainChoc(g, pays);
-      setG({ ...g, heures: g.heures - COUTS_H.choc, cash: g.cash - COUTS_CHF.choc,
+      setG({ ...g, heures: g.heures - coutHeures("choc", g), cash: g.cash - COUTS_CHF.choc,
         noto: clamp(g.noto + gain, 0, 100), cred: clamp(g.cred - 2, 0, 100), des: clamp(g.des - 1, 0, 100),
         messages: [...g.messages, "Campagne choc : notoriété +" + gain + ", mais crédibilité −2 et désirabilité −1. Le buzz a un prix."] });
     }
 
-    if (type === "presse" && assez(COUTS_H.presse)) {
-      setG({ ...g, heures: g.heures - COUTS_H.presse, cred: clamp(g.cred + 2, 0, 100), noto: clamp(g.noto + 1, 0, 100),
+    if (type === "presse" && assez(coutHeures("presse", g))) {
+      setG({ ...g, heures: g.heures - coutHeures("presse", g), cred: clamp(g.cred + 2, 0, 100), noto: clamp(g.noto + 1, 0, 100),
         messages: [...g.messages, "Relations presse : crédibilité +2, notoriété +1."] });
     }
 
-    if (type === "etude" && assez(COUTS_H.etude, COUTS_CHF.etude)) {
+    if (type === "etude" && assez(coutHeures("etude", g), COUTS_CHF.etude)) {
       // L'étude ne dit plus « le » prix : elle chiffre la demande à trois prix.
       const lignes = g.modeles
         .filter((m) => m.statut === "actif")
@@ -280,14 +281,14 @@ export default function App() {
             .join(" · ");
           return m.nom + " : " + grille;
         });
-      setG({ ...g, heures: g.heures - COUTS_H.etude, cash: g.cash - COUTS_CHF.etude,
+      setG({ ...g, heures: g.heures - coutHeures("etude", g), cash: g.cash - COUTS_CHF.etude,
         messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre. " +
           (lignes.length ? lignes.join(" | ") : "Aucun modèle en vente.")] });
     }
 
 
 
-    if (type === "soldes" && assez(COUTS_H.soldes)) {
+    if (type === "soldes" && assez(coutHeures("soldes", g))) {
       let cash = 0, unites = 0;
       const modeles = g.modeles.map((m) => {
         if (m.stock > 0 && m.statut === "actif") {
@@ -298,21 +299,21 @@ export default function App() {
         return m;
       });
       if (unites === 0) return;
-      setG({ ...g, heures: g.heures - COUTS_H.soldes, cash: g.cash + cash, modeles, des: clamp(g.des - 8, 0, 100),
+      setG({ ...g, heures: g.heures - coutHeures("soldes", g), cash: g.cash + cash, modeles, des: clamp(g.des - 8, 0, 100),
         revenusAnnee: g.revenusAnnee + cash,
         messages: [...g.messages, "Soldes : " + unites + " pièces écoulées à −35% → +" + fmtArgent(cash) +
           ". Désirabilité −8 : brader laisse des traces."] });
     }
 
-    if (type === "kickstarter" && assez(COUTS_H.kickstarter) && !g.kickstarterFait && g.modeles.length > 0) {
+    if (type === "kickstarter" && assez(coutHeures("kickstarter", g)) && !g.kickstarterFait && g.modeles.length > 0) {
       const leve = Math.round(20000 + g.noto * 2500 + g.reseau * 8000);
-      setG({ ...g, heures: g.heures - COUTS_H.kickstarter, kickstarterFait: true, cash: g.cash + leve,
+      setG({ ...g, heures: g.heures - coutHeures("kickstarter", g), kickstarterFait: true, cash: g.cash + leve,
         noto: clamp(g.noto + 8, 0, 100), des: clamp(g.des + 4, 0, 100),
         messages: [...g.messages, "Kickstarter réussi : " + fmtArgent(leve) + " levés, notoriété +8, désirabilité +4."] });
     }
 
-    if (type === "emprunt" && assez(COUTS_H.emprunt)) {
-      setG({ ...g, heures: g.heures - COUTS_H.emprunt, cash: g.cash + COUTS_CHF.emprunt, dette: g.dette + COUTS_CHF.emprunt,
+    if (type === "emprunt" && assez(coutHeures("emprunt", g))) {
+      setG({ ...g, heures: g.heures - coutHeures("emprunt", g), cash: g.cash + COUTS_CHF.emprunt, dette: g.dette + COUTS_CHF.emprunt,
         messages: [...g.messages, "Emprunt : +" + fmtArgent(COUTS_CHF.emprunt) + " (taux " + (profil === "financier" ? "4" : "6") + "%/an)."] });
     }
 
@@ -327,10 +328,25 @@ export default function App() {
   // n'accumulent jamais assez pour la halle, la halle pour le passage à l'échelle.
   function agrandirAtelier(taille) {
     const a = ATELIERS[taille];
-    if (!a || !assez(a.heuresAction, a.cout)) return;
+    if (!a) return;
+    const h = aDirecteur(g, "production") ? HEURES_DELEGUEES : a.heuresAction;
+    if (!assez(h, a.cout)) return;
+    // La manufacture ne se livre pas le jour du chèque : quatre trimestres de
+    // chantier, et une demande à deviner un an à l'avance.
+    if (a.delai) {
+      if (!aDirecteur(g, "production") || g.chantier) return;
+      setG({
+        ...g, heures: g.heures - h, cash: g.cash - a.cout,
+        chantier: { restant: a.delai, heures: a.heures, fixes: a.fixes },
+        messages: [...g.messages,
+          "Manufacture engagée : " + fmtArgent(a.cout) + " versés, livraison dans " + a.delai +
+          " trimestres. " + a.postes + " postes, " + fmtArgent(a.fixes) + " de charges par trimestre ensuite."],
+      });
+      return;
+    }
     setG({
       ...g,
-      heures: g.heures - a.heuresAction,
+      heures: g.heures - h,
       cash: g.cash - a.cout,
       ateliers: g.ateliers + 1,
       ateliersFixes: (g.ateliersFixes || 0) + a.fixes,
@@ -346,8 +362,8 @@ export default function App() {
   function facelift(i) {
     const m = g.modeles[i];
     const cout = coutFacelift(m, profil);
-    if (!assez(COUTS_H.facelift, cout)) return;
-    setG({ ...g, heures: g.heures - COUTS_H.facelift, cash: g.cash - cout,
+    if (!assez(coutHeures("facelift", g), cout)) return;
+    setG({ ...g, heures: g.heures - coutHeures("facelift", g), cash: g.cash - cout,
       modeles: g.modeles.map((x, j) => (j === i ? { ...x, age: 0 } : x)),
       messages: [...g.messages, "Facelift de « " + m.nom + " » : fraîcheur restaurée. Coût : " + fmtArgent(cout) + "."] });
   }
@@ -355,10 +371,10 @@ export default function App() {
   function edition(i) {
     const m = g.modeles[i];
     const cout = 50 * coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
-    if (!assez(COUTS_H.edition, cout)) return;
+    if (!assez(coutHeures("edition", g), cout)) return;
     const vendues = Math.round(50 * clamp(0.25 + g.des / 80, 0.2, 1));
     const ca = Math.round(vendues * Math.max(50, num(m.prix)) * 1.6 * margeMoyenne(g.canaux));
-    setG({ ...g, heures: g.heures - COUTS_H.edition, cash: g.cash - cout + ca,
+    setG({ ...g, heures: g.heures - coutHeures("edition", g), cash: g.cash - cout + ca,
       des: clamp(g.des + 8, 0, 100), cred: clamp(g.cred - 1, 0, 100),
       revenusAnnee: g.revenusAnnee + ca,
       messages: [...g.messages, "Édition limitée « " + m.nom + " » ×50 : " + vendues + " vendues à prix fort → +" +
@@ -424,6 +440,7 @@ export default function App() {
     if (e.embaucheFacile) etat.embaucheFacile = true;
     if (e.engagementVolume) etat.engagementVolume = true;
     if (e.capacitePlus) etat.capacite = g.capacite + e.capacitePlus;
+    if (e.directeur) etat.directeurs = { ...(g.directeurs || {}), [e.directeur]: true };
 
     // Écouler du stock : tout, ou un plafond de pièces.
     if (e.ecoulerStock) {
