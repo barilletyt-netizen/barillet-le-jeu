@@ -70,6 +70,12 @@ export default function Brief({ onContinuer, onRetour }) {
             pas. L'étude de marché chiffre la demande à plusieurs prix.
           </Regle>
 
+          <Regle titre="L'impôt tombe au quatrième trimestre">
+            Chaque année, au T4, 18% du bénéfice annuel partent aux impôts — d'un coup, sur un exercice
+            entier. Une année rentable se solde donc par un prélèvement qu'il faut avoir anticipé : la
+            trésorerie de décembre n'est pas celle de janvier.
+          </Regle>
+
           <Regle titre="Développer prend du temps">
             Une montre lancée en R&D sort au bout d'un à six trimestres. Rien n'est instantané, ni les
             modèles, ni les complications, ni la réputation.

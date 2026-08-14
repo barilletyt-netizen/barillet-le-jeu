@@ -17,7 +17,7 @@ import {
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
   materiauxRecherchables, nbEmployes, nbProduction, nomComplications, num, paletteComplication,
   porteeTotale, qualiteNouveau, tresorerie, conseilFinancable, detailFixes, coutsFixes,
-  MARGE_CONSEIL_TRIMESTRES, aDirecteur, coutHeures, directeursDe, masseDirection,
+  MARGE_CONSEIL_TRIMESTRES, aDirecteur, aIngenieur, coutHeures, directeursDe, masseDirection,
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
@@ -28,7 +28,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const [showJournal, setShowJournal] = useState(false);
   const [confirmeAbandon, setConfirmeAbandon] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
-  const [panneau, setPanneau] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
+  const [panneau, setPanneau] = useState(null);
+  const [toutMontrer, setToutMontrer] = useState(false); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
     compls: [], finition: false, nom: nomDeModele(),
@@ -72,6 +73,16 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const coutU = (m) => coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
 
   const ok = (heures, cash = 0) => g.heures >= heures && (cash <= 0 || g.cash >= cash);
+  /**
+   * Style d'une action. Ce qu'on ne peut plus s'offrir ce trimestre disparaît
+   * par défaut : avec vingt actions, une liste où tout reste affiché devient
+   * un menu à rallonge qu'on ne lit plus. Le bouton « tout montrer » les
+   * ramène, pour qu'on puisse quand même voir ce qui existe.
+   */
+  const act = (heures, cash = 0) => {
+    const dispo = ok(heures, cash);
+    return { ...S.action(dispo), ...(!dispo && !toutMontrer ? { display: "none" } : {}) };
+  };
   const heuresRDModele = heuresRD(COUTS_H.rd, g.employes);
   const recherchables = [...complicationsRecherchables(g, profil), ...materiauxRecherchables(g)];
   const verrouillees = complicationsVerrouillees(g);
@@ -400,10 +411,18 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         ))}
 
         <div style={S.h2}>ACTIONS — {fmtH(g.heures)} disponibles</div>
+        <button
+          style={{ ...S.ghost, marginTop: 0, marginBottom: 8 }}
+          onClick={() => setToutMontrer(!toutMontrer)}
+        >
+          {toutMontrer
+            ? "Masquer ce que je ne peux pas faire ce trimestre"
+            : "Tout montrer, y compris ce qui est hors budget"}
+        </button>
 
         <div style={S.h3}>PRODUIT</div>
         {panneau !== "rd" && (
-          <button style={S.action(ok(heuresRDModele))} onClick={() => ok(heuresRDModele) && setPanneau("rd")}>
+          <button style={act(heuresRDModele)} onClick={() => ok(heuresRDModele) && setPanneau("rd")}>
             ⌚ Nouvelle R&D <span style={S.steel}>({fmtH(heuresRDModele)} + coût, 1 à 6 trim.)</span>{fait("rd")}
           </button>
         )}
@@ -425,7 +444,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               </button>
             </div>
             {Object.entries(MOUVEMENTS).map(([k, mv]) => {
-              const bloque = k === "manufacture" && profil !== "ingenieur";
+              // Un ingénieur embauché débloque la manufacture au même titre que le
+              // profil : c'est ce que dit la fiche du poste, et ce que vérifie le
+              // moteur pour les complications.
+              const bloque = k === "manufacture" && !aIngenieur(g, profil);
               return (
                 <button
                   key={k}
@@ -561,14 +583,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         <button
-          style={S.action(ok(coutHeures("facelift", g)) && actifs.length > 0)}
+          style={act((coutHeures("facelift", g)) && actifs.length > 0)}
           onClick={() => actifs.length > 0 && ok(coutHeures("facelift", g)) && setPicker(picker === "facelift" ? null : "facelift")}
         >
           ✨ Facelift d'un modèle{" "}
           <span style={S.steel}>({fmtH(coutHeures("facelift", g))} + 75% du coût R&D) — restaure la fraîcheur</span>{fait("facelift")}
         </button>
         <button
-          style={S.action(ok(coutHeures("edition", g)) && actifs.length > 0)}
+          style={act((coutHeures("edition", g)) && actifs.length > 0)}
           onClick={() => actifs.length > 0 && ok(coutHeures("edition", g)) && setPicker(picker === "edition" ? null : "edition")}
         >
           💎 Édition limitée ×50{" "}
@@ -756,7 +778,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         {panneau !== "embauche" && (
-          <button style={S.action(ok(coutHeures("embauche", g)))} onClick={() => ok(coutHeures("embauche", g)) && setPanneau("embauche")}>
+          <button style={act(coutHeures("embauche", g))} onClick={() => ok(coutHeures("embauche", g)) && setPanneau("embauche")}>
             👥 Embaucher{" "}
             <span style={S.steel}>({fmtH(coutHeures("embauche", g))}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>{fait("embauche")}
           </button>
@@ -835,7 +857,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         {nbEmployes(g.employes) > 0 && panneau !== "equipe" && (
-          <button style={S.action(ok(coutHeures("licenciement", g)))} onClick={() => setPanneau("equipe")}>
+          <button style={act(coutHeures("licenciement", g))} onClick={() => setPanneau("equipe")}>
             👋 Se séparer d'un collaborateur{" "}
             <span style={S.steel}>({fmtH(coutHeures("licenciement", g))} + indemnité) — allège les coûts fixes</span>{fait("licenciement")}
           </button>
@@ -934,7 +956,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             return (
               <button
                 key={cle}
-                style={S.action(ok(h, a.cout))}
+                style={act(h, a.cout)}
                 onClick={jouer("atelier-" + cle, () => actions.agrandirAtelier(cle))}
               >
                 🏭 {a.nom}{" "}
@@ -949,34 +971,34 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           })}
 
         <div style={S.h3}>IMAGE</div>
-        <button style={S.action(ok(coutHeures("marketing", g), COUTS_CHF.marketing))} onClick={jouer("marketing", () => actions.action("marketing"))}>
+        <button style={act(coutHeures("marketing", g), COUTS_CHF.marketing)} onClick={jouer("marketing", () => actions.action("marketing"))}>
           📣 Marketing{" "}
           <span style={S.steel}>({fmtH(coutHeures("marketing", g))}, {fmtArgent(COUTS_CHF.marketing)}) — notoriété +{gainMarketing(g, pays)}</span>{fait("marketing")}
         </button>
-        <button style={S.action(ok(coutHeures("choc", g), COUTS_CHF.choc))} onClick={jouer("choc", () => actions.action("choc"))}>
+        <button style={act(coutHeures("choc", g), COUTS_CHF.choc)} onClick={jouer("choc", () => actions.action("choc"))}>
           💥 Campagne choc{" "}
           <span style={S.steel}>
             ({fmtH(coutHeures("choc", g))}, {fmtArgent(COUTS_CHF.choc)}) — notoriété +{gainChoc(g, pays)}, crédibilité −2, désirabilité −1
           </span>{fait("choc")}
         </button>
-        <button style={S.action(ok(coutHeures("presse", g)))} onClick={jouer("presse", () => actions.action("presse"))}>
+        <button style={act(coutHeures("presse", g))} onClick={jouer("presse", () => actions.action("presse"))}>
           📰 Relations presse <span style={S.steel}>({fmtH(coutHeures("presse", g))}) — crédibilité +2</span>{fait("presse")}
         </button>
-        <button style={S.action(ok(coutHeures("etude", g), COUTS_CHF.etude))} onClick={jouer("etude", () => actions.action("etude"))}>
+        <button style={act(coutHeures("etude", g), COUTS_CHF.etude)} onClick={jouer("etude", () => actions.action("etude"))}>
           🔍 Étude de marché{" "}
           <span style={S.steel}>({fmtH(coutHeures("etude", g))}, {fmtArgent(COUTS_CHF.etude)}) — la demande à trois prix différents</span>{fait("etude")}
         </button>
 
         <div style={S.h3}>COMMERCE</div>
         <button
-          style={S.action(ok(coutHeures("soldes", g)) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
+          style={act(coutHeures("soldes", g)) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif")}
           onClick={jouer("soldes", () => actions.action("soldes"))}
         >
           🏷 Soldes <span style={S.steel}>({fmtH(coutHeures("soldes", g))}) — tout le stock à −35%, désirabilité −8</span>{fait("soldes")}
         </button>
         {!g.kickstarterFait && (
           <button
-            style={S.action(ok(coutHeures("kickstarter", g)) && g.modeles.length > 0)}
+            style={act((coutHeures("kickstarter", g)) && g.modeles.length > 0)}
             onClick={jouer("kickstarter", () => actions.action("kickstarter"))}
           >
             🚀 Kickstarter{" "}
@@ -985,7 +1007,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         <div style={S.h3}>FINANCE</div>
-        <button style={S.action(ok(coutHeures("emprunt", g)))} onClick={jouer("emprunt", () => actions.action("emprunt"))}>
+        <button style={act(coutHeures("emprunt", g))} onClick={jouer("emprunt", () => actions.action("emprunt"))}>
           🏦 Emprunt{" "}
           <span style={S.steel}>
             ({fmtH(coutHeures("emprunt", g))}) — +{fmtArgent(COUTS_CHF.emprunt)}, taux {profil === "financier" ? "4" : "6"}%

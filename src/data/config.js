@@ -133,7 +133,7 @@ export const EMPLOYES = {
 // embauche (retour de beta : la pénalité tombait dès le premier horloger et
 // rendait le démarrage incompréhensible).
 export const ENCADREMENT_SANS_CHEF = 3;
-export const ENCADREMENT_PAR_CHEF = 5;
+export const ENCADREMENT_PAR_CHEF = 7;
 // Efficacité plancher quand personne n'encadre l'atelier.
 export const ENCADREMENT_PLANCHER = 0.55;
 // Indemnité de licenciement, en trimestres de salaire.

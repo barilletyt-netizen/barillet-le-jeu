@@ -1,9 +1,14 @@
+import { useEffect } from "react";
 import { S } from "../styles.js";
 import { revenusTop50 } from "../data/monde.js";
 import { voisinsVivants } from "../engine/monde.js";
 import { fmtArgent, fmtM } from "../engine/formules.js";
 
 export default function BilanAnnuel({ b, marque, journal, monde, onContinuer }) {
+  // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
+  // au milieu de la page précédente et il faut remonter à la main.
+  useEffect(() => window.scrollTo(0, 0), []);
+
   const v = voisinsVivants(monde, b.rang, b.annee);
   const geants = monde.geants;
   const trims = journal.filter((j) => j.annee === b.annee);

@@ -1,8 +1,13 @@
+import { useEffect } from "react";
 import { S } from "../styles.js";
 import { fmtArgent, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
 import Journal from "./Journal.jsx";
 
 export default function Rapport({ r, onContinuer }) {
+  // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
+  // au milieu de la page précédente et il faut remonter à la main.
+  useEffect(() => window.scrollTo(0, 0), []);
+
   // Le journal a la priorité : on n'affiche le rappel que s'il n'en a pas parlé.
   const dejaDit = (source) => (r.journal ? r.journal.sources.includes(source) : false);
   return (
