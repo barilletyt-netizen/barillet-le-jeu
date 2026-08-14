@@ -135,8 +135,11 @@ export function tirerOpportunite(etat) {
   // Les décisions liées à un événement historique ne se tirent pas au sort :
   // c'est la date qui les amène.
   const faites = etat.oppFaites || [];
+  // Les recrutements de direction ne passent pas par le tirage : ils sont un
+  // palier qu'on franchit, pas une chance qu'on attend. Les diluer parmi
+  // quarante propositions revenait à ne jamais les proposer.
   const dispo = PROPOSITIONS.filter(
-    (o) => !o.surEvenement && !(o.uneFois && faites.includes(o.id)) && o.req(etat)
+    (o) => !o.surEvenement && !o.recrutement && !(o.uneFois && faites.includes(o.id)) && o.req(etat)
   );
   const choisie = tirerPondere(dispo, etat);
   return choisie ? choisie.id : null;

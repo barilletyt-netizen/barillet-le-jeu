@@ -17,7 +17,7 @@ import {
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
   materiauxRecherchables, nbEmployes, nbProduction, nomComplications, num, paletteComplication,
   porteeTotale, qualiteNouveau, tresorerie, conseilFinancable, detailFixes, coutsFixes,
-  MARGE_CONSEIL_TRIMESTRES, aDirecteur, aIngenieur, coutHeures, directeursDe, masseDirection,
+  MARGE_CONSEIL_TRIMESTRES, aDirecteur, aIngenieur, coutHeures, directeurRecrutable, directeursDe, masseDirection,
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
@@ -837,6 +837,55 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Recruter un directeur est une action, pas une chance : diluée parmi
+            quarante propositions tirées au sort, elle ne se présentait jamais. */}
+        {Object.keys(DIRECTEURS).some((k) => {
+          const d = directeurRecrutable(g, k);
+          return d && d.ok;
+        }) && (
+          <>
+            {panneau !== "direction" && (
+              <button style={act(40)} onClick={() => setPanneau("direction")}>
+                🎩 Recruter un directeur{" "}
+                <span style={S.steel}>({fmtH(40)}) — ses actions ne vous coûteront plus que {HEURES_DELEGUEES} h</span>
+              </button>
+            )}
+            {panneau === "direction" && (
+              <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
+                {Object.keys(DIRECTEURS).map((k) => {
+                  const d = directeurRecrutable(g, k);
+                  if (!d) return null;
+                  return (
+                    <button
+                      key={k}
+                      style={{ ...S.btn(false), opacity: d.ok ? 1 : 0.4 }}
+                      disabled={!d.ok}
+                      onClick={() => {
+                        actions.recruterDirecteur(k);
+                        marquer("direction");
+                        setPanneau(null);
+                      }}
+                    >
+                      {d.icon} <span style={S.gold}>{d.nom}</span>{" "}
+                      <span style={S.steel}>
+                        — {fmtArgent(d.fixes)}/trim · {d.desc}
+                        {!d.ok && " · manque : " + [
+                          nbEmployes(g.employes) < d.req.employes ? d.req.employes + " employés" : null,
+                          g.cred < d.req.cred ? d.req.cred + " de crédibilité" : null,
+                          !d.condition.ok(g) ? d.condition.texte : null,
+                        ].filter(Boolean).join(", ")}
+                      </span>
+                    </button>
+                  );
+                })}
+                <button style={S.ghost} onClick={() => setPanneau(null)}>
+                  Annuler
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {directeursDe(g).length > 0 && (

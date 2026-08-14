@@ -10,7 +10,7 @@ import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
   ATELIERS,
-  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE, ENCADREMENT_PAR_CHEF,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE, ENCADREMENT_PAR_CHEF, DIRECTEURS,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
@@ -20,7 +20,7 @@ import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
   gainChoc, gainMarketing, grilleDePrix, heuresRD, indemnite, margeMoyenne,
   nomComplications, num, paletteComplication, qualiteNouveau,
-  aDirecteur, coutHeures, heuresModele, heuresParPiece, heuresProductionDispo,
+  aDirecteur, coutHeures, directeurRecrutable, heuresModele, heuresParPiece, heuresProductionDispo,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { hasard } from "./engine/alea.js";
@@ -232,6 +232,23 @@ export default function App() {
     const libre = Math.max(0, heuresProductionDispo(g) - autres);
     const n = Math.floor(libre / heuresParPiece(m));
     setG({ ...g, modeles: g.modeles.map((x, j) => (j === i ? { ...x, prod: n } : x)) });
+  }
+
+  /**
+   * Recruter un directeur. C'est une action du panneau d'équipe et non une
+   * proposition tirée au sort : une maison qui remplit les conditions ne doit
+   * pas attendre que le hasard lui présente le bon rôle.
+   */
+  function recruterDirecteur(role) {
+    const d = directeurRecrutable(g, role);
+    if (!d || !d.ok || !assez(40)) return;
+    setG({
+      ...g,
+      heures: g.heures - 40,
+      directeurs: { ...(g.directeurs || {}), [role]: true },
+      messages: [...g.messages, DIRECTEURS[role].nom + " rejoint la maison. " + DIRECTEURS[role].desc +
+        " Salaire : " + fmtArgent(DIRECTEURS[role].fixes) + "/trimestre."],
+    });
   }
 
   function embaucher(type) {
@@ -807,7 +824,7 @@ export default function App() {
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
           facelift, edition, opportunite, politiqueSalariale, embaucherEquipe, produireAuMax,
-          fermerCanal, retirerModele,
+          fermerCanal, retirerModele, recruterDirecteur,
           setProd, setPrix,
           finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}

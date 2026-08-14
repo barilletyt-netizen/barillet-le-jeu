@@ -1351,7 +1351,7 @@ for (const [role, texte] of Object.entries(DIRECTEURS)) {
   DECISIONS.push({
     id: "recruter_" + role, type: "decision", titre: "Recruter : " + texte.nom.toLowerCase(),
     texte: CANDIDATURES[role] + " Salaire : " + texte.fixes.toLocaleString("fr-CH").replace(/\s/g, "'") + " CHF par trimestre.",
-    cout: 0, heures: 40, epoque: "maturite",
+    cout: 0, heures: 40, epoque: "maturite", recrutement: true,
     req: (g) => {
       if (g.directeurs && g.directeurs[role]) return false;
       if (!DIRECTEUR_CONDITION[role].ok(g)) return false;
