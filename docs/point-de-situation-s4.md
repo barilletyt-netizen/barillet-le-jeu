@@ -178,8 +178,35 @@ chaîne. Placé en S6, ou S5 si les assets arrivent tôt.
 
 ---
 
-## 8. Reste du S4 initial, non traité
+## 8. Prochaine session — ordre arrêté
+
+L'équilibrage est **clos jusqu'à S6**. Ne pas le rouvrir avec de vrais joueurs
+plutôt qu'avec des bots.
+
+1. **Les cinq fins alternatives, en entier.** Priorité absolue : c'est ce qui
+   achève la restructuration du Top 50 en jalon. Sans elles, la deuxième moitié
+   de partie n'a pas de but. Conditions chiffrées déjà arbitrées en § 9 du lore
+   (Succession, Marque Culte, Empire, Montre du Siècle, Scandale), avec leur
+   ordre de priorité et leurs exclusions mutuelles par la direction.
+2. **Le tutoriel** — trois à cinq pages courtes, consultables **avant** la
+   partie et **rappelables en jeu** depuis les endroits où le vocabulaire
+   apparaît : ébauche, manufacture, complication, anglage. Pas de mur de texte
+   au démarrage. Ces pages servent aussi de script vidéo pour la chaîne.
+3. **Les canaux Baselworld** (écart n° 3) — l'exode doit forcer la bascule
+   foires → e-commerce. En portée globale, il n'est qu'un malus.
+
+Si une seule session ne suffit pas pour les trois : **livrer les fins
+complètes et s'arrêter proprement.**
+
+---
+
+## 9. Reste du S4 initial, non traité
 
 Objectifs quinquennaux · les 20 YouTubeurs (bloqués sur les accords Frank sans
 C, Flyback, Clément Entretemps) · déblocage progressif des actions · combos et
 synergies.
+
+## 10. Après : S5
+
+Assets — sprites par couches, avatars, animations. Le verdict de tous les
+testeurs est « austère », et c'est le seul chantier qui y répond.
