@@ -368,6 +368,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                       value={m.prod}
                       onChange={(e) => actions.setProd(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
                     />
+                    {/* Combien de pièces de plus une embauche permet-elle ? La
+                        question n'a pas à se résoudre par tâtonnement. */}
+                    <button
+                      style={{ ...S.ghost, marginTop: 4, padding: "2px 6px", fontSize: 11 }}
+                      onClick={() => actions.produireAuMax(i)}
+                    >
+                      MAX
+                    </button>
                   </label>
                   <div style={S.steel}>
                     Coût/pièce
@@ -796,6 +804,19 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        {nbEmployes(g.employes) >= 3 && (
+          <button
+            style={act(coutHeures("embauche", g) * 2)}
+            onClick={jouer("equipe", () => actions.embaucherEquipe())}
+          >
+            👥 Embaucher une équipe complète{" "}
+            <span style={S.steel}>
+              ({fmtH(coutHeures("embauche", g) * 2)}) — quatre horlogers et le chef qui les encadre,
+              soit {fmtH(4 * HEURES_EMPLOYE)} de production
+            </span>
+            {fait("equipe")}
+          </button>
+        )}
         {panneau !== "embauche" && (
           <button style={act(coutHeures("embauche", g))} onClick={() => ok(coutHeures("embauche", g)) && setPanneau("embauche")}>
             👥 Embaucher{" "}

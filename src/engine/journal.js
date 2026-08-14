@@ -116,8 +116,12 @@ function articlesPossibles({ rap, gs, actions, marque, monde, faitsMonde }) {
   const tres = tresorerie({ ...gs, cash: rap.cash, journal: [...gs.journal, { resultat: rap.resultatNet }] });
   const vendues = rap.lignes.reduce((s, l) => s + l.vendues, 0);
   const stock = rap.lignes.reduce((s, l) => s + l.stock, 0);
-  const rupture = rap.lignes.find((l) => l.vendues > 0 && l.stock === 0);
-  const vieillissant = rap.lignes.find((l) => l.fraicheur < 0.5);
+  // Quand plusieurs références sont en rupture ou fatiguées, on en tire une au
+  // hasard plutôt que de toujours nommer la première de la liste : sinon c'est
+  // le même modèle qui fait la une pendant dix ans.
+  const auHasard = (liste) => (liste.length ? liste[Math.floor(hasardTexte() * liste.length)] : undefined);
+  const rupture = auHasard(rap.lignes.filter((l) => l.vendues > 0 && l.stock === 0));
+  const vieillissant = auHasard(rap.lignes.filter((l) => l.fraicheur < 0.5));
   const age = rap.annee - 2015;
   const effectif = Object.values(rap.employes || {}).reduce((s, n) => s + n, 0);
   const MAJ = marque.toUpperCase();

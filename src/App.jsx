@@ -10,7 +10,7 @@ import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
   ATELIERS,
-  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
@@ -20,7 +20,7 @@ import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
   gainChoc, gainMarketing, grilleDePrix, heuresRD, indemnite, margeMoyenne,
   nomComplications, num, paletteComplication, qualiteNouveau,
-  aDirecteur, coutHeures,
+  aDirecteur, coutHeures, heuresModele, heuresParPiece, heuresProductionDispo,
 } from "./engine/formules.js";
 import { etatInitial, simulateQuarter, tirerOpportunite } from "./engine/simulation.js";
 import { hasard } from "./engine/alea.js";
@@ -194,6 +194,40 @@ export default function App() {
         "Recherche lancée : " + intitule + ". " + duree + " trim., " + fmtH(heures) + " et " + fmtArgent(palier.rd) + ".",
       ],
     });
+  }
+
+  /**
+   * L'équipe complète d'un coup : quatre horlogers et le chef qui les encadre.
+   * Retour de test — répéter « embaucher » cinq fois par trimestre pendant
+   * vingt ans n'est pas une décision, c'est une corvée.
+   */
+  function embaucherEquipe() {
+    const cout = coutHeures("embauche", g) * 2;
+    if (!assez(cout)) return;
+    const employes = { ...g.employes, horloger: g.employes.horloger + 4, chef: g.employes.chef + 1 };
+    setG({
+      ...g, heures: g.heures - cout, employes,
+      savoir: clamp(g.savoir + EMPLOYES.horloger.savoir, 0, 100),
+      messages: [...g.messages,
+        "Équipe complète embauchée : quatre horlogers et un chef d'atelier, soit " +
+        fmtH(4 * HEURES_EMPLOYE) + " de production encadrée. Coûts fixes +" +
+        fmtArgent(4 * EMPLOYES.horloger.fixes + EMPLOYES.chef.fixes) + "/trimestre."],
+    });
+  }
+
+  /**
+   * Verse toutes les heures libres sur un modèle. Sans ça, il faut deviner
+   * combien de pièces de plus une embauche permet, et tâtonner.
+   */
+  function produireAuMax(i) {
+    const m = g.modeles[i];
+    if (!m || m.statut !== "actif") return;
+    const autres = g.modeles.reduce(
+      (s, x, j) => s + (j !== i && x.statut === "actif" ? heuresModele(x) : 0), 0
+    );
+    const libre = Math.max(0, heuresProductionDispo(g) - autres);
+    const n = Math.floor(libre / heuresParPiece(m));
+    setG({ ...g, modeles: g.modeles.map((x, j) => (j === i ? { ...x, prod: n } : x)) });
   }
 
   function embaucher(type) {
@@ -718,7 +752,8 @@ export default function App() {
         g={g} ctx={ctx} marque={marque} saveMsg={saveMsg} autosaveAt={autosaveAt}
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
-          facelift, edition, opportunite, politiqueSalariale, setProd, setPrix,
+          facelift, edition, opportunite, politiqueSalariale, embaucherEquipe, produireAuMax,
+          setProd, setPrix,
           finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}
       />

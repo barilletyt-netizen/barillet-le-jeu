@@ -1355,7 +1355,7 @@ for (const [role, texte] of Object.entries(DIRECTEURS)) {
     req: (g) => {
       if (g.directeurs && g.directeurs[role]) return false;
       const dejaLa = Object.values(g.directeurs || {}).filter(Boolean).length;
-      const req = DIRECTEUR_REQ(dejaLa);
+      const req = DIRECTEUR_REQ(dejaLa, !!g.top50Depuis);
       const effectif2 = Object.values(g.employes).reduce((s, n) => s + n, 0);
       return effectif2 >= req.employes && g.cred >= req.cred;
     },

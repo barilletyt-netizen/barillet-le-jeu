@@ -418,8 +418,18 @@ export const DIRECTEURS = {
   },
 };
 
-/** Prérequis du n-ième directeur : la structure doit précéder l'encadrement. */
-export const DIRECTEUR_REQ = (n) => ({ employes: 10 + n * 5, cred: 40 + n * 5 });
+/**
+ * Prérequis du n-ième directeur : la structure doit précéder l'encadrement.
+ *
+ * Le Top 50 n'ouvre pas la délégation — l'y enfermer punirait deux fois une
+ * maison qui stagne, en lui retirant justement l'outil qui la débloquerait.
+ * Il l'accélère : une fois dans les cinquante, les seuils croissants tombent
+ * et le comité se complète au rythme où on peut le payer.
+ */
+export const DIRECTEUR_REQ = (n, top50 = false) => ({
+  employes: 10 + (top50 ? 0 : n * 5),
+  cred: 40 + (top50 ? 0 : n * 5),
+});
 
 export const SALAIRES = {
   serree: {
@@ -454,6 +464,12 @@ export const ATELIERS = {
   // La manufacture ne s'achète pas, elle se construit : quatre trimestres
   // entre le chèque et le premier établi. C'est un pari sur la demande qu'on
   // aura dans un an, pas un achat.
+  // Un étage se prend d'un bloc : à trente postes, on cesse de cliquer halle
+  // par halle pendant dix trimestres.
+  etage: {
+    nom: "Un étage complet", postes: 30, heures: 13500, cout: 1300000, fixes: 92000,
+    heuresAction: 60,
+  },
   manufacture: {
     nom: "Une manufacture", postes: 50, heures: 22500, cout: 6000000, fixes: 190000,
     heuresAction: 60, delai: 4, reqDirecteur: "production",
