@@ -174,6 +174,29 @@ Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges,
 
 ## 3 bis. Équilibrage — méthode et état (Phase B, en cours)
 
+> ### ⚠ Avertissement : toute mesure antérieure à août 2026 est caduque
+>
+> Jusqu'à cette date, les bots d'équilibrage **fixaient leurs prix avec leur
+> propre formule**, qui ignorait la qualité du modèle, la crédibilité de la
+> marque et les multiplicateurs d'époque. Ils étaient donc aveugles à tout ce
+> qui déplace le prix acceptable — c'est-à-dire à une bonne moitié du modèle
+> économique du jeu.
+>
+> **Conséquence : nos conclusions sur la domination du haut de gamme étaient
+> partiellement des artefacts.** Une fois la tarification corrigée
+> (`prixAcceptable()` devient la source unique, partagée par le moteur et les
+> bots), le Margeur perd 60 M de chiffre et sept ans d'avance, le Prestigieux
+> 36 M. Les deux stratégies qu'on croyait dominantes l'étaient en partie parce
+> qu'on les mesurait mal.
+>
+> Ne pas rouvrir un débat d'équilibrage en citant un chiffre d'avant cette
+> correction. Les seuls repères valables sont ceux produits après.
+>
+> C'est la quatrième fois du projet que la distinction « on mesure le bot » /
+> « on mesure le jeu » a compté. Les trois précédentes : des bots morts de
+> notoriété nulle, un verdict vert par vacuité, un harnais qui achetait des
+> ateliers qu'il ne pouvait pas payer.
+
 ### Méthode
 Quatre bots stratèges (`npm run bots`) jouent 2015-2065 sur dix graines reproductibles : **le Margeur** (prix 1,35× le prix acceptable), **le Volumiste** (0,8×, portée maximale), **le Prestigieux** (jauges d'abord, 1,1×), **l'Équilibré**. Sortie par bot : année d'entrée au Top 50, faillites, CA et rang médians. Verdict automatique sur les critères.
 

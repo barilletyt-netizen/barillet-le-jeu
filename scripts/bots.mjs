@@ -37,6 +37,7 @@ const argTxt = (nom, defaut) => {
 const PAYS = argTxt("pays", "suisse");
 const SANS = argTxt("sans", null);
 const SEUL = argTxt("bot", null);
+const MAX_GAMME = arg("gamme", 99);
 
 // ---- Briques communes -----------------------------------------------------
 
@@ -147,7 +148,10 @@ function entretenirImage(g, ctx, { notoCible, presseAussi = false }) {
  * son plafond de saturation : la seule façon de continuer à croître est
  * d'ouvrir de nouvelles lignes, comme le ferait un joueur.
  */
-function elargirGamme(g, ctx, plan) {
+function elargirGamme(g, ctx, planBrut) {
+  // `--gamme N` plafonne la largeur de gamme : c'est ainsi qu'on mesure si
+  // huit références valent réellement plus que deux.
+  const plan = planBrut.slice(0, MAX_GAMME);
   const rang = g.modeles.length;
   const suivant = plan[rang];
   if (!suivant) return g;
@@ -262,6 +266,8 @@ function margeur(g, ctx) {
     { mvt: "ebauche", seg: "connaisseurs", style: "dress", compls: ["date"] },
     { mvt: "ebauche", seg: "bling", style: "squelette", compls: ["chrono", "gmt"] },
     { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse" },
+    { mvt: "ebauche", seg: "bling", style: "dress" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "squelette" },
   ]);
   // 1,20× le prix acceptable : le prix premium qu'un joueur avisé tient
   // vraiment. Au-delà (1,35×), l'élasticité ne laisse plus rien à vendre —
@@ -288,6 +294,8 @@ function volumiste(g, ctx) {
     { mvt: "ebauche", seg: "lifestyle" },
     { mvt: "quartz", seg: "grandpublic", style: "dress" },
     { mvt: "quartz", seg: "lifestyle", style: "sport" },
+    { mvt: "quartz", seg: "lifestyle", style: "plongeuse" },
+    { mvt: "ebauche", seg: "grandpublic" },
   ]);
   g = tarifer(g, 0.8);
   g = retarifer(g, 0.8);
@@ -309,6 +317,8 @@ function prestigieux(g, ctx) {
     { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse", compls: ["date"] },
     { mvt: "ebauche", seg: "bling", style: "squelette", compls: ["chrono"] },
     { mvt: "ebauche", seg: "lifestyle" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "sport" },
+    { mvt: "ebauche", seg: "bling", style: "dress" },
   ]);
   g = tarifer(g, 1.1);
   g = retarifer(g, 1.1);
@@ -331,6 +341,8 @@ function equilibre(g, ctx) {
     { mvt: "quartz", seg: "grandpublic", style: "plongeuse" },
     { mvt: "ebauche", seg: "bling" },
     { mvt: "ebauche", seg: "lifestyle", style: "dress" },
+    { mvt: "quartz", seg: "lifestyle", style: "squelette" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse" },
   ]);
   g = tarifer(g, 1.0);
   g = retarifer(g, 1.0);

@@ -246,6 +246,21 @@ export const EVENEMENTS = [
     ],
   },
   {
+    annee: 2036, t: 1, id: "retourMilieu",
+    titre: "Le milieu de gamme reprend des couleurs",
+    texte: "Dix ans que la profession ne jure que par les extrêmes : la pièce à mille francs et celle à cent mille. Une génération d'acheteurs qui n'a connu que ce choix redécouvre qu'il existe quelque chose entre les deux — et que c'est précisément ce qu'on porte tous les jours.",
+    // Atténue `polarisation` (2026) sans l'annuler : elle avait posé
+    // ×0.82 / ×0.88 / ×1.18 / ×1.30, il en reste environ la moitié. Placé dix
+    // ans après le choc et non vingt : la compensation arrivait si tard que
+    // les stratégies de volume ne s'en relevaient pas.
+    mods: [
+      { quoi: "demande", seg: ["grandpublic"], mult: 1.10, duree: null },
+      { quoi: "demande", seg: ["lifestyle"], mult: 1.07, duree: null },
+      { quoi: "demande", seg: ["connaisseurs"], mult: 0.93, duree: null },
+      { quoi: "demande", seg: ["bling"], mult: 0.88, duree: null },
+    ],
+  },
+  {
     annee: 2036, t: 3, id: "salonUnique",
     titre: "Le salon unique",
     texte: "Après vingt ans de guerre des salons, la profession se range derrière un seul rendez-vous mondial. Y être devient obligatoire, ne pas y être devient une déclaration.",
@@ -319,19 +334,6 @@ export const EVENEMENTS = [
     mods: [
       { quoi: "demande", seg: ["bling"], mult: 0.70, duree: null },
       { quoi: "demande", seg: ["connaisseurs"], mult: 1.20, duree: null },
-    ],
-  },
-  {
-    annee: 2045, t: 1, id: "retourMilieu",
-    titre: "Le milieu de gamme reprend des couleurs",
-    texte: "Deux ans après le krach, les acheteurs qui visaient le très haut de gamme n'y sont plus. Ceux qui restent veulent une montre qu'on porte, pas une qu'on range. Les maisons redécouvrent qu'entre la pièce à mille francs et celle à cent mille, il y a un marché — celui qu'elles avaient laissé filer vingt ans plus tôt.",
-    // Atténue `polarisation` (2026) sans l'annuler : elle avait posé
-    // ×0.82 / ×0.88 / ×1.18 / ×1.30, il en reste environ la moitié.
-    mods: [
-      { quoi: "demande", seg: ["grandpublic"], mult: 1.10, duree: null },
-      { quoi: "demande", seg: ["lifestyle"], mult: 1.07, duree: null },
-      { quoi: "demande", seg: ["connaisseurs"], mult: 0.93, duree: null },
-      { quoi: "demande", seg: ["bling"], mult: 0.88, duree: null },
     ],
   },
   {
