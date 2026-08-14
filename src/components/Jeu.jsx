@@ -80,8 +80,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
    * un menu à rallonge qu'on ne lit plus. Le bouton « tout montrer » les
    * ramène, pour qu'on puisse quand même voir ce qui existe.
    */
-  const act = (heures, cash = 0) => {
-    const dispo = ok(heures, cash);
+  const act = (heures, cash = 0, aussi = true) => {
+    const dispo = ok(heures, cash) && aussi;
     return { ...S.action(dispo), ...(!dispo && !toutMontrer ? { display: "none" } : {}) };
   };
   const heuresRDModele = heuresRD(COUTS_H.rd, g.employes);
@@ -621,14 +621,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         <button
-          style={act((coutHeures("facelift", g)) && actifs.length > 0)}
+          style={act(coutHeures("facelift", g), 0, actifs.length > 0)}
           onClick={() => actifs.length > 0 && ok(coutHeures("facelift", g)) && setPicker(picker === "facelift" ? null : "facelift")}
         >
           ✨ Facelift d'un modèle{" "}
           <span style={S.steel}>({fmtH(coutHeures("facelift", g))} + 75% du coût R&D) — restaure la fraîcheur</span>{fait("facelift")}
         </button>
         <button
-          style={act((coutHeures("edition", g)) && actifs.length > 0)}
+          style={act(coutHeures("edition", g), 0, actifs.length > 0)}
           onClick={() => actifs.length > 0 && ok(coutHeures("edition", g)) && setPicker(picker === "edition" ? null : "edition")}
         >
           💎 Édition limitée ×50{" "}
@@ -1138,14 +1138,14 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
 
         <div style={S.h3}>COMMERCE</div>
         <button
-          style={act(coutHeures("soldes", g)) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif")}
+          style={act(coutHeures("soldes", g), 0, g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
           onClick={jouer("soldes", () => actions.action("soldes"))}
         >
           🏷 Soldes <span style={S.steel}>({fmtH(coutHeures("soldes", g))}) — tout le stock à −35%, désirabilité −8</span>{fait("soldes")}
         </button>
         {!g.kickstarterFait && (
           <button
-            style={act((coutHeures("kickstarter", g)) && g.modeles.length > 0)}
+            style={act(coutHeures("kickstarter", g), 0, g.modeles.length > 0)}
             onClick={jouer("kickstarter", () => actions.action("kickstarter"))}
           >
             🚀 Kickstarter{" "}
