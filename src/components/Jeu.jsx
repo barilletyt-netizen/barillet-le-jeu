@@ -29,7 +29,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const [confirmeAbandon, setConfirmeAbandon] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
   const [panneau, setPanneau] = useState(null);
-  const [toutMontrer, setToutMontrer] = useState(false); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
+  const [toutMontrer, setToutMontrer] = useState(false);
+  const [retirer, setRetirer] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
     compls: [], finition: false, nom: nomDeModele(),
@@ -382,6 +383,19 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                     <br />
                     <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtArgent(coutU(m))}</span>
                   </div>
+                  {/* Emplacement du sprite : 64×64, à remplir en S5. En attendant,
+                      le cadre tient la place pour que la mise en page ne bouge pas
+                      le jour où les dessins arrivent. */}
+                  <div
+                    style={{
+                      width: 64, height: 64, border: "1px dashed #2A3A2C", borderRadius: 2,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#4A5A4C", fontSize: 10, textAlign: "center", lineHeight: 1.2,
+                    }}
+                    title="Sprite 64×64 — session S5"
+                  >
+                    sprite<br />64×64
+                  </div>
                   <div style={S.steel}>
                     Heures
                     <br />
@@ -398,6 +412,22 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                     <span style={{ color: fraicheur(m.age) < 0.6 ? "#D06050" : "#EDE6D6", fontSize: 20 }}>
                       {Math.round(fraicheur(m.age) * 100)}%
                     </span>
+                    {/* Retirer une référence : proposé quand elle a fait son
+                        temps, pour ne pas accumuler dix lignes fatiguées. */}
+                    {fraicheur(m.age) < 0.6 && (
+                      <>
+                        <br />
+                        <button
+                          style={{ ...S.ghost, marginTop: 4, padding: "2px 6px", fontSize: 11 }}
+                          onClick={() => {
+                            if (retirer === i) actions.retirerModele(i);
+                            else setRetirer(i);
+                          }}
+                        >
+                          {retirer === i ? "CONFIRMER LE RETRAIT" : "RETIRER DU CATALOGUE"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div style={{ ...S.steel, marginTop: 6 }}>
@@ -644,6 +674,46 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           Plus de portée = plus de volume accessible. Mais chaque canal encaisse sa part : les détaillants
           agréés vendent large et prennent 45%.
         </div>
+        {/* Se retirer d'un canal, comme on se sépare d'un employé : ça allège
+            les coûts fixes et ça coûte de la portée. Le direct ne se ferme pas. */}
+        {Object.entries(g.canaux).filter(([id, n]) => n > 0 && id !== "direct").length > 0 && (
+          <>
+            {panneau !== "fermerCanal" && (
+              <button style={act(coutHeures("canal", g))} onClick={() => setPanneau("fermerCanal")}>
+                🚪 Se retirer d'un canal{" "}
+                <span style={S.steel}>({fmtH(coutHeures("canal", g))}) — allège les coûts fixes, coûte de la portée</span>
+              </button>
+            )}
+            {panneau === "fermerCanal" && (
+              <div style={{ ...S.panel, borderColor: "#D06050" }}>
+                {Object.entries(g.canaux)
+                  .filter(([id, n]) => n > 0 && id !== "direct")
+                  .map(([id, n]) => {
+                    const p = CANAUX[id].paliers[n - 1];
+                    return (
+                      <button
+                        key={id}
+                        style={S.btn(false)}
+                        onClick={() => {
+                          actions.fermerCanal(id);
+                          marquer("canal");
+                          setPanneau(null);
+                        }}
+                      >
+                        {CANAUX[id].icon} <span style={S.gold}>{CANAUX[id].nom}</span>{" "}
+                        <span style={S.steel}>
+                          — quitter « {p.nom} » : portée −{p.portee}, fixes −{fmtArgent(p.fixes)}/trim
+                        </span>
+                      </button>
+                    );
+                  })}
+                <button style={S.ghost} onClick={() => setPanneau(null)}>
+                  Annuler
+                </button>
+              </div>
+            )}
+          </>
+        )}
         {panneau !== "canaux" && canaux.length > 0 && (
           <button style={S.action(true)} onClick={() => setPanneau("canaux")}>
             🏪 Développer la distribution <span style={S.steel}>— ouvrir ou agrandir un canal</span>{fait("canal")}
@@ -811,8 +881,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           >
             👥 Embaucher une équipe complète{" "}
             <span style={S.steel}>
-              ({fmtH(coutHeures("embauche", g) * 2)}) — quatre horlogers et le chef qui les encadre,
-              soit {fmtH(4 * HEURES_EMPLOYE)} de production
+              ({fmtH(coutHeures("embauche", g) * 2)}) — {ENCADREMENT_PAR_CHEF} horlogers et le chef qui
+              les encadre, soit {fmtH(ENCADREMENT_PAR_CHEF * HEURES_EMPLOYE)} de production
             </span>
             {fait("equipe")}
           </button>
@@ -1028,6 +1098,31 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           🔍 Étude de marché{" "}
           <span style={S.steel}>({fmtH(coutHeures("etude", g))}, {fmtArgent(COUTS_CHF.etude)}) — la demande à trois prix différents</span>{fait("etude")}
         </button>
+        {/* Le résultat s'affiche ici, sous le bouton qui l'a produit. Il partait
+            auparavant dans le fil de messages en haut de page, en un seul bloc :
+            on ne savait pas qu'il s'était passé quelque chose. */}
+        {g.etude && (
+          <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
+            <span style={S.blue}>
+              Étude de marché — T{g.etude.t} {g.etude.annee}
+            </span>
+            {g.etude.lignes.length === 0 && <div style={S.steel}>Aucun modèle en vente.</div>}
+            {g.etude.lignes.map((l) => (
+              <div key={l.nom} style={{ marginTop: 8 }}>
+                <span style={S.gold}>{l.nom}</span>
+                {l.points.map((p) => (
+                  <div key={p.prix} style={S.steel}>
+                    {fmtArgent(p.prix)} <span style={{ color: "#EDE6D6" }}>→ ~{fmtNb(p.demande)} pièces</span>{" "}
+                    · {fmtArgent(p.ca)} de chiffre
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div style={{ ...S.steel, marginTop: 8 }}>
+              Demande estimée au prochain trimestre, à production suffisante.
+            </div>
+          </div>
+        )}
 
         <div style={S.h3}>COMMERCE</div>
         <button

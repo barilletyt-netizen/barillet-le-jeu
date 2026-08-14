@@ -10,7 +10,7 @@ import BetaFermee from "./components/BetaFermee.jsx";
 import {
   BETA_FERMEE,
   ATELIERS,
-  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE,
+  CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE, ENCADREMENT_PAR_CHEF,
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
@@ -204,14 +204,18 @@ export default function App() {
   function embaucherEquipe() {
     const cout = coutHeures("embauche", g) * 2;
     if (!assez(cout)) return;
-    const employes = { ...g.employes, horloger: g.employes.horloger + 4, chef: g.employes.chef + 1 };
+    const employes = {
+      ...g.employes,
+      horloger: g.employes.horloger + ENCADREMENT_PAR_CHEF,
+      chef: g.employes.chef + 1,
+    };
     setG({
       ...g, heures: g.heures - cout, employes,
       savoir: clamp(g.savoir + EMPLOYES.horloger.savoir, 0, 100),
       messages: [...g.messages,
-        "Équipe complète embauchée : quatre horlogers et un chef d'atelier, soit " +
-        fmtH(4 * HEURES_EMPLOYE) + " de production encadrée. Coûts fixes +" +
-        fmtArgent(4 * EMPLOYES.horloger.fixes + EMPLOYES.chef.fixes) + "/trimestre."],
+        "Équipe complète embauchée : " + ENCADREMENT_PAR_CHEF + " horlogers et un chef d'atelier, soit " +
+        fmtH(ENCADREMENT_PAR_CHEF * HEURES_EMPLOYE) + " de production encadrée. Coûts fixes +" +
+        fmtArgent(ENCADREMENT_PAR_CHEF * EMPLOYES.horloger.fixes + EMPLOYES.chef.fixes) + "/trimestre."],
     });
   }
 
@@ -268,6 +272,26 @@ export default function App() {
   }
 
   // Ouvrir ou monter d'un palier un canal de distribution.
+  /**
+   * Fermer un canal. Comme on se sépare d'un employé : ça soulage les coûts
+   * fixes, ça coûte de la portée, et ça ne se rouvre qu'en repayant le palier.
+   */
+  function fermerCanal(id) {
+    const niveau = g.canaux[id] || 0;
+    if (niveau <= 0 || id === "direct") return;
+    if (!assez(coutHeures("canal", g))) return;
+    const p = CANAUX[id].paliers[niveau - 1];
+    setG({
+      ...g,
+      heures: g.heures - coutHeures("canal", g),
+      canaux: { ...g.canaux, [id]: niveau - 1 },
+      des: clamp(g.des - 2, 0, 100),
+      messages: [...g.messages,
+        CANAUX[id].nom + " — palier « " + p.nom + " » fermé : portée −" + p.portee +
+        ", coûts fixes −" + fmtArgent(p.fixes) + "/trimestre. Désirabilité −2 : se retirer se remarque."],
+    });
+  }
+
   function ouvrirCanal(palier) {
     if (palier.manque.length || !assez(palier.heures, palier.cout)) return;
     setG({
@@ -315,9 +339,16 @@ export default function App() {
             .join(" · ");
           return m.nom + " : " + grille;
         });
+      // Le résultat ne part plus dans le fil de messages en haut de page : on
+      // le garde structuré et l'écran l'affiche sous le bouton qui l'a produit.
       setG({ ...g, heures: g.heures - coutHeures("etude", g), cash: g.cash - COUTS_CHF.etude,
-        messages: [...g.messages, "Étude de marché — demande estimée au prochain trimestre. " +
-          (lignes.length ? lignes.join(" | ") : "Aucun modèle en vente.")] });
+        etude: {
+          annee: g.annee, t: g.t,
+          lignes: g.modeles.filter((m) => m.statut === "actif").map((m) => ({
+            nom: m.nom,
+            points: grilleDePrix(m, g).map((x) => ({ prix: x.prix, demande: x.demande, ca: x.ca })),
+          })),
+        } });
     }
 
 
@@ -390,6 +421,29 @@ export default function App() {
         "Atelier agrandi : " + a.postes + " poste" + (a.postes > 1 ? "s" : "") + " de plus, soit +" +
         fmtH(a.heures) + " par trimestre. Coûts fixes +" + fmtArgent(a.fixes) + "/trimestre.",
       ],
+    });
+  }
+
+  /**
+   * Retirer une référence du catalogue. Le stock restant part au prix coûtant,
+   * les heures cessent d'y aller, et la ligne disparaît de la collection —
+   * sans quoi on accumule dix modèles fatigués qu'on fait défiler à chaque
+   * trimestre.
+   */
+  function retirerModele(i) {
+    const m = g.modeles[i];
+    if (!m || m.statut !== "actif") return;
+    const solde = Math.round(m.stock * Math.max(50, num(m.prix)) * 0.5 * margeMoyenne(g.canaux));
+    setG({
+      ...g,
+      cash: g.cash + solde,
+      revenusAnnee: g.revenusAnnee + solde,
+      modeles: g.modeles.filter((_, j) => j !== i),
+      des: clamp(g.des - 1, 0, 100),
+      messages: [...g.messages,
+        "« " + m.nom + " » retirée du catalogue" +
+        (m.stock > 0 ? " — " + m.stock + " pièces soldées à moitié prix, +" + fmtArgent(solde) : "") +
+        ". Désirabilité −1 : une référence qu'on arrête laisse des clients derrière."],
     });
   }
 
@@ -753,6 +807,7 @@ export default function App() {
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
           facelift, edition, opportunite, politiqueSalariale, embaucherEquipe, produireAuMax,
+          fermerCanal, retirerModele,
           setProd, setPrix,
           finTrimestre, passerAnnee, sauvegarder, abandonner,
         }}
