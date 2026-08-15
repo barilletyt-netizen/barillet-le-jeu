@@ -1,212 +1,185 @@
-# BARILLET — point de situation S4
-### Intégration du lot de contenu · branche `chantier-post-beta` · 16 commits
+# BARILLET — bilan de S4
+### Branche `chantier-post-beta` · 32 commits · sauvegarde v10 · août 2026
+
+> Ce document remplace la version rédigée en cours de session, dont les chiffres
+> étaient antérieurs à la correction de tarification et donc caducs.
 
 ---
 
-## 1. Où on en est
+## 1. S4 est terminée
 
-Le brief S4 comptait huit étapes. **Sept sont livrées, la huitième ne l'est pas.**
+Les huit étapes du brief sont livrées, plus quatre chantiers qui n'y figuraient
+pas et que la mesure a rendus nécessaires.
 
-| étape | état |
+| | avant S4 | maintenant |
+|---|---|---|
+| événements historiques | 5 | **57** — un par année au moins, aucun trou |
+| aléas | 10 | **54** |
+| opportunités | 5 | **26** |
+| décisions | 0 | **23** |
+
+Les treize entrées « manquantes » du lot initial n'en sont plus : les douze
+marquées *(choix)* sont devenues des décisions, `copieConcurrent` est un aléa
+ordinaire, et six recrutements de direction se sont ajoutés.
+
+**Outils de mesure** : `npm run sim` (santé, 40 parties), `npm run bots`
+(équilibrage, options `--pays`, `--sans <evt>`, `--bot`, `--gamme`, `--plafond`,
+`--opp`, `--opp-cat`, `--opp-une`), `npm run chrono` (couverture et effets
+cumulés).
+
+---
+
+## 2. Les trois résultats qui comptent
+
+### La chronologie a rendu le jeu gagnable
+
+Sans toucher à une seule formule de demande. Le critère bloqué depuis des mois
+est tombé le jour où le monde a cessé d'être vide entre 2024 et 2065.
+
+### La correction de tarification a invalidé nos conclusions antérieures
+
+Les bots fixaient leurs prix avec leur propre formule, sans la qualité, sans la
+crédibilité, sans les multiplicateurs d'époque. Ils étaient aveugles à la moitié
+du modèle économique. **La domination du haut de gamme, qu'on tenait pour
+acquise depuis des mois, était partiellement un artefact de mesure** : une fois
+corrigée, le Margeur perd 60 M et sept ans d'avance.
+
+C'est la quatrième fois du projet que la distinction « on mesure le bot » /
+« on mesure le jeu » a coûté du temps. Un avertissement est posé en tête de la
+section équilibrage du lore.
+
+### Les directeurs ont débloqué la fin de partie
+
+Diagnostic : après 2050, les bots tournaient à **99% de capacité d'atelier avec
+3,66 milliards en caisse et 19% du marché consommé**. Ni l'argent ni les clients
+ne manquaient — il manquait un moyen de convertir l'un en l'autre. Le goulot
+final était le budget d'heures du fondateur.
+
+Un directeur **exonère** au lieu de multiplier : les actions de son domaine
+tombent à 5 h, les 360 heures du fondateur ne bougent jamais. Six rôles, chacun
+avec sa condition propre. Après implémentation, l'occupation d'atelier retombe à
+12-21% et **les quatre stratégies atteignent le Top 50**, contre deux.
+
+---
+
+## 3. État de l'équilibrage — clos jusqu'à S6
+
+```
+bot          | entrée Top 50 | ans dedans | y finit | en sort | faillites | CA médian
+Margeur      |          2047 |          6 |    0/10 |   10/10 |         0 | 214 M
+Volumiste    |          2041 |          8 |    0/10 |   10/10 |         0 | 148 M
+Prestigieux  |          2030 |         36 |    9/10 |    1/10 |         0 | 278 M
+Équilibré    |          2047 |         16 |    2/10 |    8/10 |         0 | 229 M
+```
+
+| critère | état |
 |---|---|
-| 1 · règles de tirage | ✅ livrée |
-| 2 · chronologie complète | ✅ livrée |
-| 3 · aléas | ⚠️ 55 sur 68 |
-| 4 · presse achetée + enquête | ✅ livrée |
-| 5 · familles de journal | ✅ livrée |
-| 6 · politique salariale | ✅ livrée |
-| 7 · opportunités | ✅ livrée (26/26) |
-| 8 · entrées à choix | ❌ non commencée |
+| le jeu est gagnable (≥ 2 stratégies au Top 50) | ✅ 4 sur 4 |
+| aucune stratégie n'écrase les autres en CA (< 5×) | ✅ 1,9× |
+| la meilleure y est encore en 2065 (majorité) | ✅ 9/10 |
+| au moins une stratégie viable en sort | ✅ les quatre |
+| l'Équilibré ne fait pas faillite | ✅ 0 |
+| aucune stratégie ne domine (écart d'entrée < 10 ans) | ❌ **17 ans** |
 
-**Volumes :**
+**Le seul critère en échec est l'écart d'entrée**, tenu par le seul Prestigieux
+qui entre en 2030 quand les autres arrivent en 2041-2047.
 
-| | avant S4 | maintenant | visé |
-|---|---|---|---|
-| événements | 5 | **57** | 51 |
-| aléas | 10 | **55** | 68 |
-| opportunités | 5 | **26** | 26 |
+**Deux réserves de méthode**, plus importantes que le tableau :
 
-Les 13 aléas manquants sont les 12 marqués *(choix)* dans le lot v2 et
-`copieConcurrent`. Ils ne sont **pas** saisis dans le catalogue : ils attendent
-l'interface de décision de l'étape 8, sans laquelle ils se liraient comme des
-aléas subis — exactement l'inverse de l'intention.
+1. **La cible de « finir dans le Top 50 sur 3 à 5 graines » est dépassée par le
+   haut** : le Prestigieux y finit 9 fois sur 10. Rester est devenu trop facile
+   pour lui.
+2. **Un joueur expert atteint le rang 30 en 2023**, huit ans de partie, quand
+   les bots n'entrent qu'entre 2030 et 2047. **L'écart expert/bot est de quinze
+   à vingt ans, pas du facteur deux** qu'on supposait. Les critères mesurés sur
+   les bots sont donc un plancher très bas, et le début de partie est
+   probablement trop rapide pour qui sait quoi faire.
 
-Le format de sauvegarde passe en **v10** (l'état porte désormais le pays, le
-profil, la politique salariale, la mémoire des tirages, les modificateurs
-durables, le compteur de complaisances et l'historique des rangs).
+Conclusion : on ne rouvrira pas l'équilibrage avec des robots. Il faut des
+joueurs qui découvrent.
 
 ---
 
-## 2. Le trou de 42 ans est comblé
+## 4. Ce que la mesure a dit des opportunités
 
-`npm run chrono` vérifie et affiche : **aucune année vide de 2015 à 2065**,
-57 événements dont 34 à effet permanent.
+Accepter tout contre ne rien accepter vaut **1,6× à 2,3×** selon la stratégie.
+Aucune n'est un passage obligé : elles sont des bifurcations, comme voulu.
 
-Les chiffres 2015-2026 sont ceux du lot, non arrondis. La répartition
-trimestrielle est respectée (les événements ne sont pas regroupés en T1).
+La bissection par entrée a en revanche désigné des pièges, corrigés :
+`horlogerLegendaire` coûtait un double salaire à perpétuité sans jamais rien
+produire ; `salonAmerique` et `localCentreVille` étaient trop chers pour ce
+qu'ils donnaient. `concoursDesign` reste un pari assumé.
 
-**Empilement des effets permanents**, multiplicateurs de demande cumulés :
+Elle a aussi révélé un vrai défaut : **une proposition à effet définitif pouvait
+revenir indéfiniment**. Le label Swiss made repassait tous les trois ans et
+chaque refus multipliait le prix acceptable par 0,85 — cinq refus et la marque
+était morte d'un cumul invisible. Toute proposition portant un modificateur sans
+durée, une dilution ou une fin de partie ne se propose plus qu'une fois.
 
-| gamme | 2035 | 2050 | 2065 |
-|---|---|---|---|
-| grand public | ×0,87 | ×0,75 | ×0,75 |
-| lifestyle | ×1,19 | ×1,25 | ×1,25 |
-| connaisseurs | ×1,46 | ×2,11 | ×1,50 |
-| bling | ×1,61 | ×1,45 | ×0,51 |
-
-Aucune gamme ne descend sous ×0,4. Le quartz tombe à ×0,30 en grand public
-après 2050, mais c'est `finQuartz` qui le veut explicitement.
-
-En parallèle, les coûts montent : ×1,30 sur la production en 2065, ×1,19 sur
-les charges fixes plus 12'800 CHF par trimestre en ajouts secs, ×1,22 sur les
-salaires.
+**Angle mort restant** : `labelSwissMade` n'est pas mesurable en l'état, parce
+que les bots ne modélisent pas l'effet du label sur leurs propres prix.
 
 ---
 
-## 3. Ce que la chronologie a changé au jeu
+## 5. Ce qui reste à faire, par ordre arrêté
 
-**Le jeu est devenu gagnable.** C'est le fait marquant de la session : le
-critère (a) de la Phase B, bloqué depuis des mois, est rempli sans qu'on ait
-touché à une seule formule de demande. Deux stratégies sur quatre entrent au
-Top 50.
+### 1. Les cinq fins alternatives — priorité absolue
 
-```
-bot          | Top 50 (médiane) | faillites | CA médian 2065 | rang
-Margeur      |             2041 |         0 | CHF 229'461'650 |   56
-Volumiste    |                — |         0 |  CHF 93'697'102 |  110
-Prestigieux  |             2033 |         0 | CHF 228'044'232 |   57
-Équilibré    |                — |         4 |   CHF 1'196'598 | 1086
-```
+C'est ce qui achève la restructuration du Top 50 en jalon. Sans elles, la
+deuxième moitié de partie n'a pas de but : entrer dans les cinquante ne termine
+plus rien, et rien d'autre ne prend le relais.
 
-**Trois critères restent en échec, et ils tiennent au contenu, pas au code :**
+Conditions déjà arbitrées en § 9 du lore, avec ordre de priorité et exclusions
+mutuelles. **Codées à ce jour : la Succession (sous le nom « temps ») et le
+Rachat par décision. Manquent : Marque Culte, Empire, Montre du Siècle,
+Scandale.**
 
-1. **Entrée au Top 50 en 2033**, sept ans trop tôt. Le Prestigieux surfe sur
-   `polarisation` dès 2026.
-2. **Écart de CA de 191×** entre la meilleure et la pire stratégie survivante.
-3. **L'Équilibré meurt 4 fois sur 10.** En trace, il ne s'effondre pas : il
-   plafonne à 1 M de chiffre dès 2020 et n'en bouge plus.
+### 2. Le tutoriel
 
-**Diagnostic.** Deux causes cumulées, l'une de demande, l'autre de coûts.
+Trois à cinq pages courtes, consultables **avant** la partie et **rappelables en
+jeu** depuis les endroits où le vocabulaire apparaît — ébauche, manufacture,
+complication, anglage. Pas de mur de texte au démarrage. Ces pages servent aussi
+de script vidéo pour la chaîne. C'est le retour de beta le plus fréquent.
 
-- **La demande** : `polarisation` (2026) déplace définitivement le marché vers
-  le haut de gamme. Un événement d'atténuation a été ajouté en 2045
-  (`retourMilieu`) sur demande : il ramène l'écart grand public / connaisseurs
-  de 3,3× à 2,8× en 2050, et fait remonter le Volumiste de 87 à 94 M. Ça
-  corrige sans effacer le pari de gamme, mais ça arrive dix-neuf ans après le
-  choc.
-- **Les coûts** : `bns` impose **+18% de coûts permanents dès le premier
-  trimestre** à un joueur suisse. S'y ajoutent `carbone`, `energie`, `matieres`
-  et `transmission`. Une stratégie à marge fine n'accumule jamais la
-  trésorerie nécessaire à l'agrandissement, et reste bloquée à un employé
-  pendant quarante ans. C'est le suspect principal de la mort de l'Équilibré.
+### 3. Les canaux Baselworld (écart n° 3)
 
-Aucune formule de demande n'a été touchée, conformément au brief.
+`swatchBaselworld`, `exodeBaselworld` et `salonUnique` portent aujourd'hui une
+portée globale au lieu de modificateurs par canal, et le canal « salon de
+Genève » n'existe pas. **L'exode doit forcer la bascule foires → e-commerce** :
+c'est tout son intérêt, et en portée globale il n'est qu'un malus.
+
+### 4. S5 — les assets
+
+Sprites par couches, avatars, animations. Le verdict de tous les testeurs est
+« austère », et c'est le seul chantier qui y réponde. Les emplacements 64×64
+sont déjà posés dans les fiches de modèle.
 
 ---
 
-## 4. Un angle mort de la mesure
+## 6. Ce sur quoi le game designer doit trancher
 
-**Les bots n'acceptent aucune opportunité** — zéro occurrence dans le harnais.
-Les 26 opportunités, dont les 21 nouvelles, ne sont donc mesurées par rien.
-
-La question posée en fin de brief — « si `licenceMarque`, `familyOffice`,
-`rachatFournisseur` ou `contratOEM` devient un passage obligé plutôt qu'une
-bifurcation, dis-le-moi » — **est sans réponse**. Y répondre suppose
-d'apprendre aux bots à arbitrer une opportunité, ce qui est un chantier à part
-entière : il faut leur donner une politique de décision, sinon on mesure la
-politique et non l'opportunité.
-
-C'est la lacune la plus sérieuse de cette session.
-
----
-
-## 5. Écarts assumés par rapport au brief
-
-1. **Les effets sont devenus déclaratifs.** Cinq événements tenaient dans une
-   fonction écrite à la main ; cinquante-sept avec trente-quatre effets
-   permanents, non. Un module d'empilement (`engine/effets.js`) additionne des
-   modificateurs typés. C'est ce qui rend l'étape 2 vérifiable par un test.
-2. **Les heures par pièce sont devenues de la capacité.** « Heures +15% » se
-   code « capacité ×0,87 » : même résultat, sans propager l'accumulateur dans
-   les dix fonctions qui comptent des heures.
-3. **Trois effets de canal sont approximés en portée globale**
-   (`swatchBaselworld`, `exodeBaselworld`, `salonUnique`). Le lot demandait des
-   modificateurs par canal et la création d'un canal « salon de Genève ». C'est
-   la déviation la moins fidèle du lot et elle mérite une reprise.
-4. **Le tirage de scandale du voyage de presse a été retiré**, remplacé par le
-   compteur de complaisances. Les deux faisaient doublon, et c'est le compteur
-   qui était demandé.
-5. **Deux aléas ont perdu leur coût en heures** (`venteCaritative`,
-   `ecolePartenariat`) : un aléa se subit dans le rapport, il n'a pas de bouton
-   pour dépenser des heures. Ils devraient passer en aléas à choix à l'étape 8.
-6. **Quatre mécaniques ont été ajoutées** parce que quatre opportunités
-   promettaient un effet qu'aucun code ne tenait : précommande avec échéance et
-   pénalité, engagement de volume, revenu récurrent, embauche facilitée.
+1. **L'écart d'entrée de 17 ans se corrige-t-il, ou s'assume-t-il ?** Le
+   Prestigieux entre en 2030 parce qu'il surfe sur `polarisation` dès 2026. Le
+   corriger suppose de retoucher un événement structurant ; l'assumer suppose de
+   dire qu'une stratégie de prestige *doit* décoller plus vite.
+2. **Faut-il ralentir le début de partie ?** Le repère expert (rang 30 en huit
+   ans) suggère que oui, mais aucun bot ne le montre. À trancher avec des
+   playtests, pas avec le harnais.
+3. **Les objectifs quinquennaux du S4 initial** n'ont pas été faits. Ils
+   visaient exactement le problème que les fins alternatives vont traiter — y
+   a-t-il encore lieu de les ajouter ?
+4. **Les 20 YouTubeurs** restent bloqués sur les accords Frank sans C, Flyback
+   et Clément Entretemps.
 
 ---
 
-## 6. Décisions attendues
+## 7. Points de vigilance techniques
 
-1. **`bns` doit-il rester à +18% permanent ?** C'est le levier le plus probable
-   de la mort de l'Équilibré. Trois options : le laisser (le joueur doit
-   apprendre à couvrir ses coûts), lui donner une durée, ou le compenser par un
-   événement de reprise plus tôt que 2045.
-2. **L'entrée au Top 50 en 2033 est-elle acceptable ?** Le critère disait
-   « aucune stratégie avant 2040 ». Soit on ralentit le début, soit on révise le
-   critère maintenant que le jeu est enfin gagnable.
-3. **Faut-il apprendre aux bots à arbitrer les opportunités ?** Sans ça, un
-   quart du contenu de S4 reste non mesuré.
-4. **L'étape 8 est-elle prioritaire sur le reste de S4 ?** Les 12 aléas à choix
-   et les trois événements à décision (`robotEtabli`, `espace`, l'offre de
-   rachat de `consolidation`) attendent une interface. Le brief disait que
-   c'était « la moitié de la variété perçue ».
-
----
-
-## 7. Backlog ajouté
-
-**Tutoriel « l'horlogerie en quelques pages »**, pour les néophytes qui veulent
-une aide au départ. Le jeu suppose acquis un vocabulaire qui ne l'est pas :
-ébauche, manufacture, anglage, complication. Trois à cinq pages courtes,
-consultables avant la partie et **rappelables en jeu** depuis les endroits où
-le vocabulaire apparaît — un mur de texte au démarrage se saute. Contenu
-pressenti : ce qu'il y a dans une montre ; quartz / ébauche / manufacture, ce
-que chacun coûte et rapporte ; les quatre gammes et leur clientèle ; ce qu'une
-complication prend et ce qu'elle rend ; pourquoi les trois jauges d'image ne se
-rattrapent pas à l'argent. Ces pages sont aussi un script de vidéo pour la
-chaîne. Placé en S6, ou S5 si les assets arrivent tôt.
-
----
-
-## 8. Prochaine session — ordre arrêté
-
-L'équilibrage est **clos jusqu'à S6**. Ne pas le rouvrir avec de vrais joueurs
-plutôt qu'avec des bots.
-
-1. **Les cinq fins alternatives, en entier.** Priorité absolue : c'est ce qui
-   achève la restructuration du Top 50 en jalon. Sans elles, la deuxième moitié
-   de partie n'a pas de but. Conditions chiffrées déjà arbitrées en § 9 du lore
-   (Succession, Marque Culte, Empire, Montre du Siècle, Scandale), avec leur
-   ordre de priorité et leurs exclusions mutuelles par la direction.
-2. **Le tutoriel** — trois à cinq pages courtes, consultables **avant** la
-   partie et **rappelables en jeu** depuis les endroits où le vocabulaire
-   apparaît : ébauche, manufacture, complication, anglage. Pas de mur de texte
-   au démarrage. Ces pages servent aussi de script vidéo pour la chaîne.
-3. **Les canaux Baselworld** (écart n° 3) — l'exode doit forcer la bascule
-   foires → e-commerce. En portée globale, il n'est qu'un malus.
-
-Si une seule session ne suffit pas pour les trois : **livrer les fins
-complètes et s'arrêter proprement.**
-
----
-
-## 9. Reste du S4 initial, non traité
-
-Objectifs quinquennaux · les 20 YouTubeurs (bloqués sur les accords Frank sans
-C, Flyback, Clément Entretemps) · déblocage progressif des actions · combos et
-synergies.
-
-## 10. Après : S5
-
-Assets — sprites par couches, avatars, animations. Le verdict de tous les
-testeurs est « austère », et c'est le seul chantier qui y répond.
+- **`BETA_FERMEE` vaut `false` sur cette branche** et `true` sur `main`. Un
+  merge rouvrirait la beta publique : à remettre à `true` dans le commit de
+  merge.
+- **Sauvegarde v10** : les parties antérieures ne se rechargent pas. La forme de
+  l'état a trop changé.
+- **Deux retours de test non traités** : la navigation dans une collection
+  nombreuse reste laborieuse au-delà de six références, et un décrochage
+  d'affichage des heures disponibles vers 100 salariés n'a jamais été reproduit.

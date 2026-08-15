@@ -193,8 +193,9 @@ la simulation utilisent la même formule, la simulation y ajoutant seulement l'a
 
 - **S3 — narratif** : récit trimestriel généré, brèves des concurrents, classement
   vivant (revenus du Top 50 qui évoluent), page d'introduction.
-- **S4 — rythme** *(en cours)* : chronologie 2015-2065 et catalogue d'aléas livrés ;
-  restent les 21 opportunités, les aléas à choix et les objectifs quinquennaux,
+- **S4 — rythme** *(livrée)* : chronologie 2015-2065, 54 aléas, 26 opportunités,
+  23 décisions, politique salariale, directeurs et manufacture. Voir
+  `docs/point-de-situation-s4.md`. Restent les objectifs quinquennaux,
   les 20 YouTubeurs. C'est aussi là qu'il faudra replacer le **déblocage progressif
   des actions**, qui est sorti du plan révisé.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, audio.
