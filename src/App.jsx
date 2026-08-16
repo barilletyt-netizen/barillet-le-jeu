@@ -15,6 +15,7 @@ import {
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
 import { trimestreIndex } from "./engine/effets.js";
+import { evaluerFin, scandaleAtteint } from "./engine/fins.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
@@ -157,7 +158,8 @@ export default function App() {
           compls, finition: !!nm.finition,
           // Aucun prix imposé : le joueur le fixe quand le modèle sort d'étude.
           prix: "",
-          qual: qualiteNouveau(nm.mvt, {
+          savoirCreation: g.savoir,
+      qual: qualiteNouveau(nm.mvt, {
             pays, profil, savoir: g.savoir, compls, finition: !!nm.finition,
           }),
           prod: 0, stock: 0, age: 0, statut: "dev", devRestant: duree,
@@ -546,6 +548,7 @@ export default function App() {
     if (e.engagementVolume) etat.engagementVolume = true;
     if (e.capacitePlus) etat.capacite = g.capacite + e.capacitePlus;
     if (e.directeur) etat.directeurs = { ...(g.directeurs || {}), [e.directeur]: true };
+    if (e.rachatInde) etat.rachatsIndes = (g.rachatsIndes || 0) + 1;
 
     // Écouler du stock : tout, ou un plafond de pièces.
     if (e.ecoulerStock) {
@@ -691,6 +694,15 @@ export default function App() {
       setPhase("fin");
       return;
     }
+    // Le Scandale n'attend pas 2065 : la maison va bien, c'est le fondateur
+    // qui est écarté.
+    if (scandaleAtteint(gs2)) {
+      setG(gs2);
+      setFinInfo({ type: "alternative", fin: "scandale", annee: g.annee, revenus: gs2.revenusAnnee,
+        rang: g.meilleurRang, etat: gs2 });
+      setPhase("fin");
+      return;
+    }
     setRapport(rap);
     if (g.t >= 4) {
       const rang = rangPour(gs2.revenusAnnee, g.annee);
@@ -762,9 +774,11 @@ export default function App() {
     const anneesTop50 = (g.anneesTop50 || 0) + (rang <= 50 ? 1 : 0);
 
     if (nouvelleAnnee > ANNEE_FIN) {
+      const etatFinal = { ...g, top50Depuis, anneesTop50 };
+      const fin = evaluerFin(etatFinal, { rang });
       setFinInfo({
-        type: "temps", annee: ANNEE_FIN, revenus: g.revenusAnnee, rang, meilleurRang,
-        top50Depuis, anneesTop50,
+        type: "alternative", fin: fin.id, annee: ANNEE_FIN, revenus: g.revenusAnnee, rang,
+        meilleurRang, top50Depuis, anneesTop50, etat: etatFinal,
       });
       setPhase("fin");
       setBilanAnnuel(null);

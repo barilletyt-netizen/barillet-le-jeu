@@ -383,41 +383,34 @@ pas.
 - **Nouvelles des concurrents** : chaque trimestre, 1–2 brèves du monde (« Rolodex ouvre une boutique à Shanghai », « Ublot signe un footballeur », « Ferrand-Roux en difficulté — rachat possible »).
 - **Page d'introduction** au lancement d'une partie : le pitch (créer une marque pérenne, viser le Top 50), les règles de base, le contexte 2015.
 
-## 9. Fins de partie
+## 9. Fins de partie *(conditions du lot final S5 — font foi)*
 
-**Changement de structure (S4) : entrer au Top 50 ne termine plus la partie.**
-Le pitch est « créer une marque pérenne » — durer est le test, entrer ne l'est
-pas. L'entrée devient un jalon : cérémonie annuelle spéciale, une de la
-Gazette, et la partie continue jusqu'en 2065. L'état de partie garde l'année
-d'entrée et le nombre d'exercices passés dans les cinquante ; l'écran de fin
-juge la trajectoire entière.
+Voir `docs/barillet-lot-final-S5.md` § 5. Les conditions ci-dessous remplacent
+toute version antérieure de ce document.
 
-### Conditions chiffrées
+Ordre de priorité en cas de cumul : **Scandale > Empire > Montre du Siècle >
+Marque Culte > Succession.**
 
-| fin | condition | vérification |
+| fin | condition | quand |
 |---|---|---|
 | **Faillite** | trésorerie < −50'000 CHF | à chaque trimestre |
-| **Rachat** | accepter l'offre de `consolidation` (2045), ou dilution cumulée ≥ 50% | décision / au bilan annuel |
-| **La Succession** | atteindre 2065 sans faillite ni rachat — c'est la fin par défaut | fin de partie |
-| **La Marque Culte** | production ≤ 500 pièces/an **et** désirabilité ≥ 90, dix exercices consécutifs, **et jamais plus d'un directeur en poste** | au bilan annuel |
-| **L'Empire** | trois `rachatInde` acceptés, **directeur de production en poste**, **et** CA annuel ≥ 30 M | au bilan annuel |
-| **La Montre du Siècle** | un modèle cumulant mouvement manufacture, tourbillon niveau 3, finition, qualité ≥ 12 **et** désirabilité de la marque ≥ 85 le trimestre de sa sortie | à la sortie d'étude |
-| **Le Scandale** | compteur de presse achetée cumulé ≥ 8 sur la partie, enquête déclenchée ≥ 2 fois, **et** crédibilité < 10 | à chaque trimestre |
+| **Rachat** | accepter l'offre de `consolidation` (2045) | décision |
+| **Le Scandale** | complaisances ≥ 6 **et** enquête ≥ 2 fois — **ou** crédibilité sous 10 après avoir dépassé 50 | à chaque trimestre |
+| **L'Empire** | 3 indépendants rachetés, directeur de production, rang ≤ 100, ≥ 200 M en caisse | 2065 |
+| **La Montre du Siècle** | un modèle tourbillon manufacture, qualité ≥ 17, un palier 3, savoir-faire ≥ 80 à sa création, **et** entré au musée | 2065 |
+| **La Marque Culte** | catalogue jamais au-dessus de 5 références **et** désirabilité ≥ 90 dix exercices d'affilée | 2065 |
+| **La Succession** | arriver en 2065 vivant et indépendant | 2065 |
 
-La direction rend les deux voies **mutuellement exclusives** : on ne bâtit pas un empire sans déléguer, et on ne reste pas une maison culte en recrutant six directeurs. C'est ce qui fait de la délégation un choix et non une progression obligée.
+**La qualité n'est pas plafonnée, et c'est un choix.** Un modèle à trois
+complications, mouvement manufacture, or et finition maison atteint 17 sur une
+échelle affichée sur 10. Le calcul ne borne rien, et la Montre du Siècle repose
+sur ce dépassement. Décision du game designer : ne pas corriger. Quiconque
+toucherait à `qualiteNouveau()` doit savoir qu'il rendrait cette fin
+inatteignable.
 
-Les fins alternatives ne sont pas exclusives de la Succession : elles se
-déclenchent quand leur condition est remplie et **remplacent** l'épilogue par
-défaut. Si plusieurs sont remplies en 2065, l'ordre de priorité est Scandale >
-Empire > Montre du Siècle > Marque Culte > Succession.
-
-**Épilogue de la Succession**, modulé par : l'année d'entrée au Top 50 (jamais /
-tardive / précoce), le nombre d'exercices tenus dedans, et le rang final. Une
-maison entrée en 2042 et sortie en 2058 ne raconte pas la même histoire qu'une
-maison entrée en 2050 et encore là en 2065.
-
-*(Conditions arbitrées en S4, implémentation à venir : seule la Succession —
-sous le nom « temps » — et le Rachat par décision sont codés.)*
+**L'écran de fin révèle les cinq destins à chaque partie** : celui qu'on a
+obtenu en clair, les quatre autres en indices sans le moindre chiffre. C'est le
+principal levier de rejouabilité du jeu.
 
 ## 10. Direction artistique (moodboard fourni par Julien, 5 références)
 - **Style : flat pixel art à gros contour sombre**, formes lisibles, fond uni clair ou carte colorée

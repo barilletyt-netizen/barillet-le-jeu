@@ -56,6 +56,13 @@ export function etatInitial({ pays, profil, origine, marque }) {
     oppFaites: [], // propositions déjà tranchées, pour celles qui ne se proposent qu'une fois
     directeurs: {}, // rôle → true. Un directeur exonère, il ne multiplie pas.
     chantier: null, // manufacture en construction : { restant, heures, fixes }
+    // Compteurs des fins de partie (lot final S5, § 5).
+    enquetes: 0, // fois où l'enquête sur la presse achetée a frappé
+    credMax: 0, // plus haute crédibilité atteinte — le Scandale s'y réfère
+    rachatsIndes: 0, // maisons indépendantes rachetées
+    museeExpo: false, // une pièce est entrée au musée
+    maxReferences: 0, // plus grand catalogue jamais tenu
+    desHauteAns: 0, // années consécutives à désirabilité ≥ 90
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
@@ -480,8 +487,19 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     ateliers: gs.ateliers + ateliersAjout,
     ateliersFixes: (gs.ateliersFixes || 0) + ateliersFixesAjout,
     prevente,
-    // L'enquête solde l'ardoise : le compteur repart de zéro.
+    // L'enquête solde l'ardoise : le compteur repart de zéro. Mais on retient
+    // combien de fois elle a frappé — le Scandale se compte en récidives.
     presseAchetee: effetAlea.resetPresse ? 0 : gs.presseAchetee || 0,
+    enquetes: (gs.enquetes || 0) + (effetAlea.resetPresse ? 1 : 0),
+    credMax: Math.max(gs.credMax || 0, cred),
+    museeExpo: gs.museeExpo || (alea && alea.id === "museeExpo") || false,
+    maxReferences: Math.max(
+      gs.maxReferences || 0,
+      modeles.filter((m) => m.statut === "actif").length
+    ),
+    // Dix ans de désirabilité tenue au-dessus de 90 : on compte les exercices
+    // clos, et la série repart de zéro dès qu'elle casse.
+    desHauteAns: gs.t === 4 ? (des >= 90 ? (gs.desHauteAns || 0) + 1 : 0) : gs.desHauteAns || 0,
     // Une décision portée par un événement passe devant l'opportunité du
     // trimestre : c'est la date qui l'amène, on ne la remet pas au tirage.
     decisionEvt: evtHisto && evtHisto.decision
