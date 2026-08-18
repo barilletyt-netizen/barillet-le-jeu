@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { S } from "../styles.js";
 import { fmtArgent, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
 import Journal from "./Journal.jsx";
+import Lettre from "./Lettre.jsx";
 
-export default function Rapport({ r, onContinuer }) {
+export default function Rapport({ r, lettre, reactionMentor, objectif, onContinuer }) {
   // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
   // au milieu de la page précédente et il faut remonter à la main.
   useEffect(() => window.scrollTo(0, 0), []);
@@ -19,6 +20,9 @@ export default function Rapport({ r, onContinuer }) {
 
         {/* Le journal remplace la chronique en paragraphes : on le parcourt. */}
         <Journal j={r.journal} />
+
+        {/* La lettre du mentor, sous la Gazette : un autre papier, une autre voix. */}
+        <Lettre lettre={lettre} reaction={reactionMentor} objectif={objectif} />
 
         {r.evt && !dejaDit("evt") && (
           <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>

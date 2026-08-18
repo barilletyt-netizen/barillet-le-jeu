@@ -11,11 +11,13 @@ import {
   BETA_FERMEE,
   ATELIERS,
   CANAUX, COUTS_CHF, COUTS_H, EMPLOYES, COMPLICATIONS, SALAIRES, HEURES_DELEGUEES, HEURES_EMPLOYE, ENCADREMENT_PAR_CHEF, DIRECTEURS,
-  MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_FIN, HEURES_FONDATEUR,
+  MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, ANNEE_DEBUT, ANNEE_FIN, HEURES_FONDATEUR,
 } from "./data/config.js";
 import { PROPOSITIONS } from "./data/evenements.js";
 import { trimestreIndex } from "./engine/effets.js";
 import { evaluerFin, scandaleAtteint } from "./engine/fins.js";
+import { passageAnnee, choisirObjectif, periodeQuiOuvre } from "./engine/mentor.js";
+import { LETTRES } from "./data/olivier.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
@@ -98,6 +100,9 @@ export default function App() {
     // L'économie reste en CHF ; seule la devise d'affichage suit le pays.
     setDevise(pays);
     const etat = etatInitial({ pays, profil, origine, marque });
+    // Olivier écrit dès 2015 : la première lettre ouvre la partie.
+    etat.objectif = choisirObjectif(periodeQuiOuvre(ANNEE_DEBUT), etat);
+    etat.lettre = { auteur: "Olivier", scellee: false, texte: LETTRES[ANNEE_DEBUT] };
     setG(etat);
     persister(etat);
     setPhase("play");
@@ -752,7 +757,8 @@ export default function App() {
       setPhase("annuel");
       return;
     }
-    const etat = { ...g, t: g.t + 1, heures: HEURES_FONDATEUR, actionsTour: [] };
+    // Une lettre et sa réaction ne se lisent qu'une fois.
+    const etat = { ...g, t: g.t + 1, heures: HEURES_FONDATEUR, actionsTour: [], lettre: null, reactionMentor: null };
     etat.opportunite = etat.decisionEvt || tirerOpportunite(etat);
     etat.decisionEvt = null;
     etat.messages = ["T" + etat.t + " " + etat.annee + " — à vous de jouer.", ...g.messages];
@@ -789,9 +795,10 @@ export default function App() {
     // indépendants montent et descendent, et ça alimente les brèves.
     const { monde, faits } = evoluerMonde(g.monde, g.annee);
 
+    const { etat: apresMentor, lettre, reaction } = passageAnnee(g, nouvelleAnnee, { rang });
     const etat = {
-      ...g, annee: nouvelleAnnee, t: 1, heures: HEURES_FONDATEUR, actionsTour: [],
-      monde, faitsMonde: faits,
+      ...apresMentor, annee: nouvelleAnnee, t: 1, heures: HEURES_FONDATEUR, actionsTour: [],
+      monde, faitsMonde: faits, lettre, reactionMentor: reaction,
       revenusAnneePrec: g.revenusAnnee, revenusAnnee: 0, meilleurRang,
       top50Depuis, anneesTop50,
       messages: ["T1 " + nouvelleAnnee + " — nouvelle année."],
@@ -847,7 +854,15 @@ export default function App() {
   }
 
   if (phase === "rapport" && rapport) {
-    return <Rapport r={rapport} onContinuer={continuerApresRapport} />;
+    return (
+      <Rapport
+        r={rapport}
+        lettre={g.lettre}
+        reactionMentor={g.reactionMentor}
+        objectif={g.objectif}
+        onContinuer={continuerApresRapport}
+      />
+    );
   }
 
   if (phase === "annuel" && bilanAnnuel) {

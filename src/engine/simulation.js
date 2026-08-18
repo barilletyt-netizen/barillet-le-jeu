@@ -64,6 +64,8 @@ export function etatInitial({ pays, profil, origine, marque }) {
     museeExpo: false, // une pièce est entrée au musée
     maxReferences: 0, // plus grand catalogue jamais tenu
     desHauteAns: 0, // années consécutives à désirabilité ≥ 90
+    objectif: null, // l'objectif proposé par Olivier pour la période en cours
+    objectifsReussis: [],
     // Actions prises pendant le trimestre en cours : matière première du récit.
     actionsTour: [],
     monde: mondeInitial(),
