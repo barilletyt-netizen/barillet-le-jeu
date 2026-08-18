@@ -184,7 +184,7 @@ export default function App() {
    * id, le niveau visé et les coûts de ce palier précis.
    */
   function rechercher(palier) {
-    const heures = heuresRD(palier.rdHeures, g.employes);
+    const heures = heuresRD(palier.rdHeures, g.employes, g);
     if (!assez(heures, palier.rd) || g.recherche) return;
     const duree = Math.max(1, palier.dev - (g.employes.ingenieur > 0 ? 1 : 0));
     const intitule =

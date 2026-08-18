@@ -206,7 +206,9 @@ export function dureeDev(mvtKey, profil, employes) {
   return Math.max(1, d);
 }
 
-export function heuresRD(base, employes) {
+export function heuresRD(base, employes, g = null) {
+  // Le directeur technique délègue la recherche — jamais la création de modèle.
+  if (g && aDirecteur(g, "technique")) return HEURES_DELEGUEES;
   if (employes && employes.ingenieur > 0) return Math.max(30, Math.round(base * 0.6));
   return base;
 }
@@ -381,7 +383,20 @@ export function complicationsRecherchables(g, profil) {
         type: "complication", id: k, famille: c.nom, niveau: prochain, acquis,
         ...c.niveaux[prochain - 1],
         ingenieur: !!c.ingenieur, manufacture: !!c.manufacture,
-        bloque: !!c.ingenieur && !aIngenieur(g, profil),
+        ingenieursRequis: c.ingenieursRequis || 0,
+        directeurRequis: c.directeurRequis || null,
+        bloque:
+          (!!c.ingenieur && !aIngenieur(g, profil)) ||
+          (c.ingenieursRequis && g.employes.ingenieur < c.ingenieursRequis) ||
+          (c.directeurRequis && !aDirecteur(g, c.directeurRequis)),
+        manque: [
+          c.ingenieursRequis && g.employes.ingenieur < c.ingenieursRequis
+            ? c.ingenieursRequis + " ingénieurs employés (" + g.employes.ingenieur + ")"
+            : null,
+          c.directeurRequis && !aDirecteur(g, c.directeurRequis)
+            ? DIRECTEURS[c.directeurRequis].nom.toLowerCase() + " en poste"
+            : null,
+        ].filter(Boolean),
       };
     })
     .filter(Boolean);
@@ -415,7 +430,12 @@ export function materiauxRecherchables(g) {
     .map(([k, mat]) => ({
       type: "materiau", id: k, famille: mat.nom, nom: mat.nom,
       rdHeures: mat.rdHeures, rd: mat.rd, dev: mat.dev,
-      bloque: g.employes.materiaux === 0,
+      experts: mat.experts || 1,
+      bloque: g.employes.materiaux < (mat.experts || 1),
+      manque:
+        g.employes.materiaux < (mat.experts || 1)
+          ? (mat.experts || 1) + " experts matériaux employés (" + g.employes.materiaux + ")"
+          : null,
     }));
 }
 

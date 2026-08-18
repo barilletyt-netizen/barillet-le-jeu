@@ -170,6 +170,10 @@ function croitre(g, seuil) {
       g.capacite - g.heures - F.heuresEmployes(g.employes) * F.encadrement(g.employes).efficacite;
     if (F.encadrement(g.employes).manque > 0 && g.cash > seuil) { g = embaucher(g, "chef"); continue; }
     if (libres >= C.HEURES_EMPLOYE * 0.5 && g.cash > seuil) { g = embaucher(g, "horloger"); continue; }
+    // Les prérequis métier se préparent : les matériaux exigent jusqu'à quatre
+    // experts employés simultanément, le tourbillon quatre ingénieurs.
+    if (g.employes.materiaux < 4 && g.cash > seuil * 3) { g = embaucher(g, "materiaux"); continue; }
+    if (g.employes.ingenieur < 4 && g.cash > seuil * 4) { g = embaucher(g, "ingenieur"); continue; }
     // On prend la halle si on peut se la payer, sinon le petit palier : c'est
     // ce qui permet à une stratégie de volume de monter par petits pas.
     const grand = C.ATELIERS.grand, petit = C.ATELIERS.petit;
@@ -193,7 +197,7 @@ function croitre(g, seuil) {
  * marque riche reste bloquée par les heures du fondateur.
  */
 function diriger(g, ctx, seuil = 400000) {
-  for (const role of ["production", "commercial", "rh", "marketing", "dsi", "financier"]) {
+  for (const role of ["production", "technique", "commercial", "rh", "marketing", "dsi", "financier"]) {
     const d = F.directeurRecrutable(g, role);
     if (d && !C.DIRECTEUR_CONDITION[role].ok(g)) continue;
     // Un salaire de direction se juge sur douze trimestres, pas sur un.
@@ -473,6 +477,8 @@ function partie(bot, seed, ctx, origine, politique = null, filtre = null) {
         // De quoi diagnostiquer un plafond : est-ce l'atelier, le marché ou la caisse ?
         heuresUtilisees: rap.heuresUtilisees, capacite: rap.capacite, heuresDispo: rap.heuresDispo,
         saturation: { ...g.saturation }, ateliers: g.ateliers, dette: g.dette,
+        materiaux: Object.keys(g.materiaux).length, or: !!g.materiaux.or,
+        experts: g.employes.materiaux, ingenieurs: g.employes.ingenieur,
       });
       if (rang <= 50 && anneeTop50 === null) anneeTop50 = g.annee;
       g.revenusAnneePrec = g.revenusAnnee;
@@ -590,7 +596,10 @@ if (process.argv.includes("--plafond")) {
         String(med((p) => p.equipe)).padStart(7) + " | " +
         F.fmtArgent(med((p) => p.cash)).padStart(13) + " | " +
         F.fmtArgent(med((p) => p.ca)).padStart(11) + " | " +
-        String(med((p) => p.rang)).padStart(4) + " | " + sat.join(" ")
+        String(med((p) => p.rang)).padStart(4) + " | " + sat.join(" ") +
+        "  | mat " + med((p) => p.materiaux) + " · or " +
+        (pts.filter((p) => p.or).length + "/" + pts.length) +
+        " · exp " + med((p) => p.experts) + " · ing " + med((p) => p.ingenieurs)
       );
     }
     console.log("");

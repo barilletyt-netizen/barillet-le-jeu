@@ -1075,7 +1075,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               niveau {COMPL_NIVEAU_REQUIS} pour ouvrir la suivante de l'arbre.
             </div>
             {recherchables.map((c) => {
-              const h = heuresRD(c.rdHeures, g.employes);
+              const h = heuresRD(c.rdHeures, g.employes, g);
               const jouable = !c.bloque && ok(h, c.rd);
               return (
                 <button
@@ -1101,7 +1101,15 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                     {c.type === "complication"
                       ? " · +" + c.heures + " h/pièce, qualité +" + c.qual + ", prix acceptable ×" + c.prixMult
                       : ""}
-                    {c.bloque ? (c.type === "materiau" ? " · 🧪 expert matériaux requis" : " · ⚙ ingénieur requis") : ""}
+                    {/* Ce qui manque, nommément : un blocage muet envoie le
+                        joueur chercher dans le lore ce qu'il lui faut. */}
+                    {c.bloque && c.manque && c.manque.length
+                      ? " · manque : " + (Array.isArray(c.manque) ? c.manque.join(", ") : c.manque)
+                      : c.bloque
+                        ? c.type === "materiau"
+                          ? " · 🧪 expert matériaux requis"
+                          : " · ⚙ ingénieur requis"
+                        : ""}
                     {c.manufacture ? " · manufacture requise" : ""}
                   </span>
                 </button>

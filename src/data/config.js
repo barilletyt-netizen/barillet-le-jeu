@@ -165,10 +165,10 @@ export const STYLES = {
 // explosait. `req` enchaîne l'apprentissage des alliages.
 export const MATERIAUX = {
   acier: { nom: "Acier", cout: 0, idealMult: 1, req: null, rdHeures: 0, rd: 0, dev: 0, acquisDepart: true },
-  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, req: null, rdHeures: 80, rd: 30000, dev: 1 },
-  titane: { nom: "Titane", cout: 320, idealMult: 1.5, req: "bronze", rdHeures: 160, rd: 120000, dev: 2 },
-  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, req: "titane", rdHeures: 200, rd: 200000, dev: 2 },
-  or: { nom: "Or", cout: 2500, idealMult: 2.6, req: "titane", rdHeures: 240, rd: 350000, dev: 3 },
+  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, req: null, rdHeures: 80, rd: 30000, dev: 1, experts: 1 },
+  titane: { nom: "Titane", cout: 320, idealMult: 1.5, req: "bronze", rdHeures: 160, rd: 120000, dev: 2, experts: 2 },
+  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, req: "titane", rdHeures: 200, rd: 200000, dev: 2, experts: 3 },
+  or: { nom: "Or", cout: 2500, idealMult: 2.6, req: "titane", rdHeures: 240, rd: 350000, dev: 3, experts: 4 },
 };
 
 // Nombre maximum de complications sur une même montre.
@@ -228,7 +228,10 @@ export const COMPLICATIONS = {
     ],
   },
   tourbillon: {
+    // Prérequis métier : quatre ingénieurs à l'établi et un directeur
+    // technique en poste. C'est la pièce qui ne se fait pas seul.
     nom: "Tourbillon", req: "reserve", ingenieur: true, manufacture: true,
+    ingenieursRequis: 4, directeurRequis: "technique",
     niveaux: [
       { nom: "Tourbillon une cage", heures: 12, rdHeures: 300, rd: 600000, dev: 5, qual: 2, prixMult: 2.6 },
       { nom: "Tourbillon volant", heures: 14, rdHeures: 380, rd: 900000, dev: 5, qual: 2, prixMult: 3.2 },
@@ -416,6 +419,15 @@ export const DIRECTEURS = {
     exonere: ["emprunt"],
     desc: "Emprunts à 5 h et à taux réduit, impôt allégé de 4 points.",
   },
+  // Le septième rôle, créé pour la haute horlogerie. Il exonère la recherche —
+  // complications et matériaux — mais **pas la création de modèle** : la règle
+  // intangible tient, le produit se conçoit aux heures du fondateur.
+  technique: {
+    nom: "Directeur technique", icon: "⚙", fixes: 30000,
+    exonere: ["recherche"],
+    desc: "Recherches de complication et de matériau à 5 h. Seul à pouvoir mener un tourbillon. " +
+      "La création de modèle reste à vos heures.",
+  },
 };
 
 /**
@@ -461,6 +473,10 @@ export const DIRECTEUR_CONDITION = {
   financier: {
     texte: "une dette de plus de CHF 300'000, ou un exercice à 2 millions",
     ok: (g) => g.dette > 300000 || g.revenusAnnee >= 2000000,
+  },
+  technique: {
+    texte: "deux ingénieurs employés et 50 de savoir-faire",
+    ok: (g) => g.employes.ingenieur >= 2 && g.savoir >= 50,
   },
 };
 
