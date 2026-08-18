@@ -94,7 +94,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const marge = margeMoyenne(g.canaux);
   const tres = tresorerie(g);
   const libres = dispoProd - charge;
-  const fixes = coutsFixes({ ...g, salaires: g.salaires, directeurs: g.directeurs });
+  const fixes = coutsFixes({ ...g, salaires: g.salaires, directeurs: g.directeurs, modeles: g.modeles });
   // Un conseil ne pousse à une dépense que si le joueur garde de quoi tenir.
   const peut = (montant) => conseilFinancable(g, montant);
   const [voirFixes, setVoirFixes] = useState(false);
@@ -762,7 +762,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         </button>
         {voirFixes && (
           <div style={S.panel}>
-            {detailFixes({ ...g, directeurs: g.directeurs }).map((l, i) => (
+            {detailFixes({ ...g, directeurs: g.directeurs, modeles: g.modeles }).map((l, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
                 <span style={S.steel}>
                   {l.libelle}

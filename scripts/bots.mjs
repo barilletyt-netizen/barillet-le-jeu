@@ -344,6 +344,14 @@ function equilibre(g, ctx) {
     { mvt: "ebauche", seg: "lifestyle", style: "dress" },
     { mvt: "quartz", seg: "lifestyle", style: "squelette" },
     { mvt: "ebauche", seg: "connaisseurs", style: "plongeuse" },
+    // Au-delà de huit, on décline dans des gammes déjà occupées : c'est là que
+    // la cannibalisation doit se voir, et c'est ce qu'on veut mesurer.
+    { mvt: "quartz", seg: "grandpublic", style: "dress" },
+    { mvt: "ebauche", seg: "connaisseurs", style: "squelette" },
+    { mvt: "quartz", seg: "lifestyle", style: "sport" },
+    { mvt: "ebauche", seg: "bling", style: "dress" },
+    { mvt: "quartz", seg: "grandpublic", style: "sport" },
+    { mvt: "ebauche", seg: "lifestyle", style: "plongeuse" },
   ]);
   g = tarifer(g, 1.0);
   g = retarifer(g, 1.0);

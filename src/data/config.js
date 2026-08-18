@@ -517,3 +517,24 @@ export const FIXES_BASE = 12000;
 // ---- Crédibilité (rééquilibrage S2) -------------------------------------
 export const CRED_SAVOIR_SEUIL = 60; // savoir-faire ≥ 60 → +1 crédibilité par an
 export const CRED_ANCIENNETE_ANS = 5; // +1 crédibilité tous les 5 ans d'existence
+
+/**
+ * Effet de catalogue (lot final S5, § 3).
+ *
+ * Deux modèles visant la même gamme additionnaient leur demande : huit
+ * références valaient huit fois deux, ce qui poussait à empiler sans fin. Une
+ * maison qui multiplie les déclinaisons dilue son identité — trois pénalités
+ * économiques le traduisent, sans jamais poser de limite dure au nombre de
+ * références.
+ */
+export const CATALOGUE_SANS_MALUS = 6; // au-delà, la désirabilité se dilue
+export const ENTRETIEN_REF_CHF = 4000; // par référence active et par trimestre
+export const ENTRETIEN_REF_H = 15; // heures d'atelier, par référence et par trimestre
+
+/**
+ * Concavité de la largeur de gamme dans une même famille. À 1 les modèles
+ * s'additionneraient comme avant ; à 0 le second ne rapporterait rien du tout,
+ * ce qui reviendrait à interdire les déclinaisons. Entre les deux, une gamme
+ * profonde capte davantage qu'un modèle unique, mais de moins en moins.
+ */
+export const CONCAVITE_GAMME = 0.6;

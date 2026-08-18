@@ -5,6 +5,7 @@ import {
   ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
   INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
   CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
+  CONCAVITE_GAMME, ENTRETIEN_REF_CHF, ENTRETIEN_REF_H, CATALOGUE_SANS_MALUS,
 } from "../data/config.js";
 import { effetsActifs, effetsNeutres, multDemande } from "./effets.js";
 import { devise, enDevise } from "./devise.js";
@@ -124,7 +125,9 @@ export function heuresProductionDispo(g) {
  */
 export function capaciteEffective(g, eff = null) {
   const e = eff || g.effets || effetsActifs(g);
-  return Math.floor(g.capacite * e.capacite);
+  // Le catalogue se paie aussi en heures : stock à gérer, pièces détachées,
+  // références à tenir à jour. Une gamme large mange l'atelier.
+  return Math.max(0, Math.floor(g.capacite * e.capacite) - heuresCatalogue(g));
 }
 
 // ---- Canaux de distribution ---------------------------------------------
@@ -260,13 +263,13 @@ export function directeurRecrutable(g, role) {
   };
 }
 
-export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard", directeurs = null }) {
+export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard", directeurs = null, modeles = null }) {
   const e = eff || effetsNeutres();
   const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
   const direction = masseDirection({ directeurs });
   const base =
     FIXES_BASE + (masseSalariale(employes) + direction) * e.salaires * politique +
-    ateliersFixes + fixesCanaux(canaux);
+    ateliersFixes + fixesCanaux(canaux) + (modeles ? nbReferences({ modeles }) * ENTRETIEN_REF_CHF : 0);
   return Math.round(base * e.fixesMult + e.fixesAjout);
 }
 
@@ -274,7 +277,7 @@ export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, sa
  * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
  * coûts » reste une intention : le joueur ne sait pas où appuyer.
  */
-export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard", directeurs = null }) {
+export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard", directeurs = null, modeles = null }) {
   const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
   const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
   for (const [k, n] of Object.entries(employes)) {
@@ -298,6 +301,14 @@ export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, sal
   for (const [id, n] of Object.entries(canaux)) {
     const p = paliersCanal(id, n);
     if (p && p.fixes > 0) lignes.push({ libelle: CANAUX[id].nom + " — " + p.nom, montant: p.fixes });
+  }
+  const refs = modeles ? nbReferences({ modeles }) : 0;
+  if (refs > 0) {
+    lignes.push({
+      libelle: "Entretien du catalogue (" + refs + " référence" + (refs > 1 ? "s" : "") + ")",
+      montant: refs * ENTRETIEN_REF_CHF,
+      detail: fmtArgent(ENTRETIEN_REF_CHF) + " chacune",
+    });
   }
   return lignes;
 }
@@ -450,6 +461,46 @@ export function prixAcceptable(m, g, eff = null) {
 }
 
 /**
+ * Attrait relatif d'un modèle dans sa gamme : ce qui lui fait gagner ou perdre
+ * des clients face à ses propres voisins de catalogue. Qualité, fraîcheur,
+ * style, et le prix rapporté à ce que la gamme accepte.
+ */
+export function attraitModele(m, g, eff = null) {
+  const ideal = prixAcceptable(m, g, eff);
+  const prixN = Math.max(50, num(m.prix) || ideal);
+  return Math.max(
+    0.05,
+    (m.qual / 10) * fraicheur(m.age) * STYLES[m.style].mult[m.seg] * Math.min(1.4, ideal / prixN)
+  );
+}
+
+/** Les références actives d'une même gamme, celles avec qui il faut partager. */
+export const voisinsDeGamme = (m, g) =>
+  (g.modeles || []).filter((x) => x.statut === "actif" && x.seg === m.seg);
+
+/**
+ * Part de la gamme qui revient à ce modèle. Deux références visant la même
+ * clientèle ne s'additionnent plus : elles se partagent le marché au prorata
+ * de leur attrait. Une gamme profonde capte tout de même davantage qu'un
+ * modèle seul — mais de moins en moins, d'où la concavité.
+ */
+export function partDeGamme(m, g, eff = null) {
+  const voisins = voisinsDeGamme(m, g);
+  if (voisins.length <= 1) return 1;
+  const attraits = voisins.map((x) => attraitModele(x, g, eff));
+  const total = attraits.reduce((s, a) => s + a, 0);
+  const part = attraitModele(m, g, eff) / total;
+  return part * Math.pow(voisins.length, CONCAVITE_GAMME);
+}
+
+/** Ce que coûte un catalogue, par trimestre : stock, pièces, références. */
+export const nbReferences = (g) => (g.modeles || []).filter((m) => m.statut === "actif").length;
+export const entretienCatalogue = (g) => nbReferences(g) * ENTRETIEN_REF_CHF;
+export const heuresCatalogue = (g) => nbReferences(g) * ENTRETIEN_REF_H;
+/** Références au-delà desquelles la rareté perçue commence à se diluer. */
+export const excesCatalogue = (g) => Math.max(0, nbReferences(g) - CATALOGUE_SANS_MALUS);
+
+/**
  * Source unique de vérité pour la demande. L'étude de marché et la simulation
  * l'appellent toutes les deux ; la simulation y ajoute seulement l'aléa.
  * `prixTest` permet de simuler un autre prix que celui du modèle.
@@ -488,7 +539,9 @@ export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   return (
     seg.base *
     rendement(g.noto, CONCAVITE_NOTORIETE) *
-    priceFit * porteeTotale(g.canaux) * eff.portee * (aDirecteur(g, "commercial") ? 1.15 : 1) * desMult * satMult * fraicheur(m.age) * styleMult *
+    priceFit * porteeTotale(g.canaux) * eff.portee * (aDirecteur(g, "commercial") ? 1.15 : 1) *
+    desMult * satMult * fraicheur(m.age) * styleMult *
+    partDeGamme(m, g, eff) *
     multDemande(g, m.seg, m.mvt, eff) *
     multExterne
   );

@@ -4,6 +4,7 @@ import {
   PAYS, ORIGINES, EMPLOYES, EMPLOYES_VIDE, COMPLICATIONS, MATERIAUX, CANAUX, CANAUX_VIDE,
   CAPACITE_DEPART, HEURES_FONDATEUR, HEURES_PAR_SAVOIR, ANNEE_DEBUT,
   CRED_SAVOIR_SEUIL, CRED_ANCIENNETE_ANS, SATURATION_DECROISSANCE, IMPOT_TAUX, SALAIRES,
+  CATALOGUE_SANS_MALUS,
   ATELIERS,
 } from "../data/config.js";
 import {
@@ -410,7 +411,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
   }
 
   const interets = Math.round((gs.dette * tauxInteret(profil) * eff.interets) / 4);
-  const contexteFixes = { employes, ateliers: gs.ateliers + ateliersAjout, ateliersFixes: (gs.ateliersFixes || 0) + ateliersFixesAjout, canaux: gs.canaux, eff, salaires: gs.salaires, directeurs: gs.directeurs };
+  const contexteFixes = { employes, ateliers: gs.ateliers + ateliersAjout, ateliersFixes: (gs.ateliersFixes || 0) + ateliersFixesAjout, canaux: gs.canaux, eff, salaires: gs.salaires, directeurs: gs.directeurs, modeles };
   const fixes = coutsFixes(contexteFixes);
   const resultat = revenus + revenusRecurrents - coutsProd - fixes - interets - penaliteVolume;
   cash += resultat;
@@ -428,6 +429,13 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     if (CANAUX[id].bonusCred) cred = clamp(cred + CANAUX[id].bonusCred, 0, 100);
     if (CANAUX[id].bonusDes) des = clamp(des + CANAUX[id].bonusDes, 0, 100);
   }
+
+  // Dilution du catalogue : au-delà de six références, la rareté perçue baisse
+  // d'un point par référence et par trimestre. Rien n'interdit d'en avoir
+  // vingt — mais plus personne ne les attend.
+  const refsActives = modeles.filter((m) => m.statut === "actif").length;
+  const dilution = Math.max(0, refsActives - CATALOGUE_SANS_MALUS);
+  if (dilution > 0) des = Math.max(0, des - dilution);
 
   // Déclin naturel des jauges : rien n'est acquis.
   noto = Math.max(0, noto - Math.max(2, Math.round(noto * 0.05)));
@@ -469,7 +477,7 @@ export function simulateQuarter(gs, heuresRestantes, ctx) {
     heuresUtilisees, heuresDemandees, heuresDispo,
     heuresFondateur: Math.max(0, heuresRestantes),
     heuresEquipe: heuresEmployes(employes),
-    encadrement: enc, capacite,
+    encadrement: enc, capacite, refsActives, dilution,
     // Pour le journal.
     modelesPrets, acquis, depart,
     noto, cred, des, savoir, employes,
