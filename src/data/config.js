@@ -12,14 +12,24 @@
 // c'est la seule ligne à vérifier.
 export const BETA_FERMEE = false;
 
-// Liens de l'écran de fermeture. Un lien à null s'affiche en texte simple :
-// mieux vaut pas de lien qu'un lien mort sur une page publique.
+// Les liens de la maison, affichés sur l'écran d'accueil — beta ouverte comme
+// fermée. Un lien à null s'affiche en texte simple : mieux vaut pas de lien
+// qu'un lien mort sur une page publique.
 // Discord volontairement absent : l'invitation passe par la description de la
 // vidéo et la newsletter, pas par le jeu.
 export const LIENS = {
   youtube: "https://www.youtube.com/@barilletmontre",
+  instagram: "https://www.instagram.com/barilletmontre",
+  newsletter: "https://barillet.beehiiv.com/",
   discord: null,
 };
+
+/** Ce qu'on affiche, dans l'ordre, et sous quel nom. */
+export const LIENS_PUBLICS = [
+  { cle: "youtube", icone: "▶", nom: "La chaîne" },
+  { cle: "instagram", icone: "◉", nom: "Instagram" },
+  { cle: "newsletter", icone: "✉", nom: "La newsletter" },
+];
 
 // ---- Temps et budget d'heures -------------------------------------------
 
