@@ -1,14 +1,16 @@
 {
   "name": "barillet-le-jeu",
   "private": true,
-  "version": "0.6.2",
+  "version": "0.10.0",
   "type": "module",
   "description": "Barillet — le jeu. Simulation de gestion horlogère, tour par tour trimestriel.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sim": "node scripts/simulation-longue.mjs"
+    "sim": "node scripts/simulation-longue.mjs",
+    "bots": "node scripts/bots.mjs",
+    "chrono": "node scripts/chronologie.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

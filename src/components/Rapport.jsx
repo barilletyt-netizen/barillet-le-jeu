@@ -1,7 +1,16 @@
+import { useEffect } from "react";
 import { S } from "../styles.js";
 import { fmtArgent, fmtH, fmtNb, fmtPct } from "../engine/formules.js";
+import Journal from "./Journal.jsx";
+import Lettre from "./Lettre.jsx";
 
-export default function Rapport({ r, onContinuer }) {
+export default function Rapport({ r, lettre, reactionMentor, objectif, onContinuer }) {
+  // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
+  // au milieu de la page précédente et il faut remonter à la main.
+  useEffect(() => window.scrollTo(0, 0), []);
+
+  // Le journal a la priorité : on n'affiche le rappel que s'il n'en a pas parlé.
+  const dejaDit = (source) => (r.journal ? r.journal.sources.includes(source) : false);
   return (
     <div style={S.root}>
       <div style={{ ...S.wrap, paddingTop: 24 }}>
@@ -9,14 +18,20 @@ export default function Rapport({ r, onContinuer }) {
           Rapport T{r.t} {r.annee}
         </div>
 
-        {r.evt && (
+        {/* Le journal remplace la chronique en paragraphes : on le parcourt. */}
+        <Journal j={r.journal} />
+
+        {/* La lettre du mentor, sous la Gazette : un autre papier, une autre voix. */}
+        <Lettre lettre={lettre} reaction={reactionMentor} objectif={objectif} />
+
+        {r.evt && !dejaDit("evt") && (
           <div style={{ ...S.panel, borderColor: "#C9A227", marginTop: 12 }}>
             <span style={S.gold}>⚡ {r.evt.titre}</span>
             <br />
             <span style={S.steel}>{r.evt.texte}</span>
           </div>
         )}
-        {r.alea && (
+        {r.alea && !dejaDit("alea") && (
           <div style={{ ...S.panel, borderColor: "#4A7C9E", marginTop: 12 }}>
             <span style={S.blue}>🎲 {r.alea.titre}</span>
             <br />
@@ -80,12 +95,32 @@ export default function Rapport({ r, onContinuer }) {
           <div>
             Revenus encaissés <span style={{ float: "right", ...S.green }}>{fmtArgent(r.revenus)}</span>
           </div>
+          {r.revenusRecurrents > 0 && (
+            <div>
+              Contrats et licences{" "}
+              <span style={{ float: "right", ...S.green }}>+{fmtArgent(r.revenusRecurrents)}</span>
+            </div>
+          )}
           <div>
             Production <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.coutsProd)}</span>
           </div>
+          {r.penaliteVolume > 0 && (
+            <div>
+              Pénalité d'engagement de volume{" "}
+              <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.penaliteVolume)}</span>
+            </div>
+          )}
           <div>
             Coûts fixes <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.fixes)}</span>
           </div>
+          {/* Décomposition : « couper des coûts » doit être actionnable. */}
+          {r.detailFixes &&
+            r.detailFixes.map((l, i) => (
+              <div key={i} style={{ ...S.steel, paddingLeft: 12 }}>
+                {l.libelle}
+                <span style={{ float: "right" }}>−{fmtArgent(l.montant)}</span>
+              </div>
+            ))}
           <div>
             Intérêts <span style={{ float: "right", ...S.red }}>−{fmtArgent(r.interets)}</span>
           </div>

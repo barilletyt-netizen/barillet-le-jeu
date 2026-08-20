@@ -153,9 +153,9 @@ function batisseur(g, ctx, seuilInvest = 250000) {
       g = embaucher(g, "horloger");
       continue;
     }
-    if (g.cash > C.ATELIER_COUT + seuilInvest && g.heures >= C.COUTS_H.atelier) {
-      g = { ...g, heures: g.heures - C.COUTS_H.atelier, cash: g.cash - C.ATELIER_COUT,
-        ateliers: g.ateliers + 1, capacite: g.capacite + C.ATELIER_HEURES };
+    if (g.cash > C.ATELIERS.grand.cout + seuilInvest && g.heures >= C.ATELIERS.grand.heuresAction) {
+      g = { ...g, heures: g.heures - C.ATELIERS.grand.heuresAction, cash: g.cash - C.ATELIERS.grand.cout,
+        ateliers: g.ateliers + 1, ateliersFixes: (g.ateliersFixes || 0) + C.ATELIERS.grand.fixes, capacite: g.capacite + C.ATELIERS.grand.heures };
       continue;
     }
     break;

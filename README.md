@@ -1,5 +1,8 @@
 # Barillet — le jeu
 
+> **Beta vague 2 ouverte** (v0.10.0). Sauvegarde `barillet-save-v10` : les
+> parties de la vague 1 ne se rechargent pas, l'état a trop changé.
+
 Simulation de gestion horlogère, tour par tour trimestriel. Vous fondez une marque en 2015
 et vous avez cinquante ans pour entrer au « Stanley Morgan Top 50 ».
 
@@ -28,7 +31,7 @@ changer cette valeur.
 
 ### Session 1 — portage
 Le prototype validé, porté sous Vite + React : UI « établi », 6 jauges, demande par
-segment, événements 2015-2023, aléas, opportunités, classement annuel, sauvegarde
+segment, chronologie 2015-2065, aléas, opportunités, classement annuel, sauvegarde
 localStorage (automatique en début de trimestre + bouton manuel), déploiement Pages.
 
 ### Session 2 — moteur (spec v0.5)
@@ -123,6 +126,59 @@ testeurs en cours restent lisibles.
   de sous-encadrement est passée en bandeau, au même rang que l'alerte de
   faillite, avec les heures perdues du trimestre.
 
+### Phase A post-beta (v0.7.0)
+
+Les points 1 à 6 du patch UX étaient déjà livrés en v0.6.1/v0.6.2 (barre de statut,
+alerte de faillite, « fait ✓ », générateur de noms, devise par pays, témoin
+d'autosave). Nouveautés de cette phase :
+
+- **Le fondateur encadre ses 3 premiers employés** sans chef d'atelier. La
+  pénalité d'efficacité ne s'applique qu'au-delà : le chef devient un palier de
+  croissance, plus un prérequis à la première embauche.
+- **Les conseils vérifient la faisabilité** : aucun message ne recommande une
+  dépense qui ferait passer la trésorerie sous trois trimestres de coûts fixes.
+  Sous ce seuil, la formulation devient neutre et informative, sans injonction.
+- **Production explicite** : le bandeau d'heures dit que le solde sert à
+  produire, un badge « ⚠ production non réglée » marque tout modèle actif à
+  zéro, et un rappel apparaît avant de clore le trimestre.
+- **Coûts fixes décomposés** : panneau dépliable en jeu et détail ligne à ligne
+  dans le rapport (structure, salaires par poste, agrandissements, canaux).
+
+### Refonte des heures par gamme (v0.8)
+
+Le temps de fabrication est désormais porté par la gamme visée — 1 h en grand
+public, 2 h en lifestyle, 12 h chez les connaisseurs, 30 h en bling — et non
+plus par le mouvement. Échelle arbitrée sur le réel horloger.
+
+Effet mesuré aux bots (`npm run bots`) : la marge par heure d'atelier passe d'un
+écart de 18× à 1,8× entre gammes, et l'écart de chiffre d'affaires entre
+stratégies de 75× à **2,1×**. Le Volumiste, qui mourait sur 10 parties sur 10,
+survit désormais sur 10 sur 10 — le déclencheur était l'ajout d'un **petit
+palier d'atelier** (1 poste, 60 000 CHF) : sans lui, une stratégie de volume
+n'accumulait jamais les 350 000 CHF nécessaires à la grande halle et restait
+bloquée à un employé pendant cinquante ans.
+
+Quatre des cinq critères d'équilibrage sont tenus. Le cinquième — la meilleure
+stratégie doit entrer au Top 50 entre 2050 et 2065 — reste ouvert : les bots
+plafonnent vers 2035 et restent plats, si bien qu'aucun seuil ne peut créer de
+couloir. Détail et pistes dans le lore, section équilibrage.
+
+### S3 — couche narrative (v0.9)
+
+- **La Gazette du Balancier** (`src/engine/journal.js`) : le trimestre en une de
+  journal, papier ivoire sur l'UI sombre. Chaque fait candidat porte un poids et
+  c'est le plus fort qui fait la une, dont on ne garde que trois — un trimestre
+  de crise et un trimestre calme ne se lisent pas pareil. La première version
+  était une chronique en prose : les testeurs cessaient de la lire au bout de
+  trois tours parce que l'ordre était figé et que tout y était raconté.
+- **Classement vivant** (`src/engine/monde.js`) : les géants voient leurs revenus
+  dériver chaque année et peuvent se doubler ; les indépendants gardent leur
+  identité et gagnent ou perdent des places, avec flèche de tendance. Leurs
+  revenus restent déduits de la table des rangs, donc toujours cohérents.
+- **Brèves des concurrents** tirées en priorité des faits réels de l'année.
+- **Contexte 2015** dans la page d'introduction : taux plancher, Apple Watch,
+  ralentissement chinois.
+
 ## Structure
 
 ```
@@ -140,7 +196,9 @@ la simulation utilisent la même formule, la simulation y ajoutant seulement l'a
 
 - **S3 — narratif** : récit trimestriel généré, brèves des concurrents, classement
   vivant (revenus du Top 50 qui évoluent), page d'introduction.
-- **S4 — rythme** : objectifs quinquennaux, événements 2026-2065, aléas complets,
+- **S4 — rythme** *(livrée)* : chronologie 2015-2065, 54 aléas, 26 opportunités,
+  23 décisions, politique salariale, directeurs et manufacture. Voir
+  `docs/point-de-situation-s4.md`. Restent les objectifs quinquennaux,
   les 20 YouTubeurs. C'est aussi là qu'il faudra replacer le **déblocage progressif
   des actions**, qui est sorti du plan révisé.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, audio.

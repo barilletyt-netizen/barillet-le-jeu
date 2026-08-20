@@ -6,7 +6,11 @@
 // Drapeau unique : à true, l'application ne sert que l'écran de fermeture. Le
 // jeu reste intégralement dans le code, rien n'est supprimé — repasser à false
 // suffit à rouvrir (beta de novembre).
-export const BETA_FERMEE = true;
+//
+// ATTENTION : `main` sert le panneau de fermeture (true). Sur la branche de
+// chantier il est à false pour pouvoir jouer et tester. Au moment de rouvrir,
+// c'est la seule ligne à vérifier.
+export const BETA_FERMEE = false;
 
 // Liens de l'écran de fermeture. Un lien à null s'affiche en texte simple :
 // mieux vaut pas de lien qu'un lien mort sur une page publique.
@@ -120,12 +124,16 @@ export const EMPLOYES = {
   },
   chef: {
     nom: "Chef d'atelier", icon: "📋", production: false, fixes: 14000, savoir: 1,
-    desc: "Encadre jusqu'à " + 5 + " personnes en production. Sans lui, l'atelier perd en efficacité.",
+    desc: "Encadre 5 personnes de production de plus, au-delà des 3 que vous gérez vous-même.",
   },
 };
 
-// Encadrement : au-delà de ce ratio, il faut des chefs d'atelier.
-export const ENCADREMENT_PAR_CHEF = 5;
+// Encadrement. Le fondateur gère lui-même ses premiers employés : le chef
+// d'atelier est un palier de croissance, pas un prérequis à la première
+// embauche (retour de beta : la pénalité tombait dès le premier horloger et
+// rendait le démarrage incompréhensible).
+export const ENCADREMENT_SANS_CHEF = 3;
+export const ENCADREMENT_PAR_CHEF = 7;
 // Efficacité plancher quand personne n'encadre l'atelier.
 export const ENCADREMENT_PLANCHER = 0.55;
 // Indemnité de licenciement, en trimestres de salaire.
@@ -135,11 +143,13 @@ export const EMPLOYES_VIDE = { horloger: 0, decorateur: 0, ingenieur: 0, materia
 
 // ---- Produit ------------------------------------------------------------
 
-// heures = heures d'atelier consommées par pièce produite.
+// heures = supplément d'atelier par pièce, en plus des heures de la gamme.
+// Un mouvement maison se termine et se règle à la main : il coûte du temps par
+// dessus le standard de finition du segment. Ébauche et quartz s'assemblent.
 export const MOUVEMENTS = {
-  quartz: { nom: "Quartz", cout: 20, qual: 2, rd: 8000, dev: 1, heures: 1, desc: "Mouvement à ~CHF 20. 1 trim. de dev. 1 h d'atelier/pièce." },
-  ebauche: { nom: "Mécanique (ébauche)", cout: 220, qual: 5, rd: 35000, dev: 3, heures: 3, desc: "Ébauche à ~CHF 220. 3 trim. de dev. 3 h d'atelier/pièce." },
-  manufacture: { nom: "Manufacture", cout: 2500, qual: 8, rd: 400000, dev: 6, heures: 10, desc: "Mouvement maison à ~CHF 2'500. 6 trim. 10 h/pièce. Ingénieur requis." },
+  quartz: { nom: "Quartz", cout: 20, qual: 2, rd: 8000, dev: 1, heures: 0, desc: "Mouvement à ~CHF 20. 1 trim. de dev." },
+  ebauche: { nom: "Mécanique (ébauche)", cout: 220, qual: 5, rd: 35000, dev: 3, heures: 0, desc: "Ébauche à ~CHF 220. 3 trim. de dev." },
+  manufacture: { nom: "Manufacture", cout: 2500, qual: 8, rd: 400000, dev: 6, heures: 6, desc: "Mouvement maison à ~CHF 2'500. 6 trim. +6 h/pièce. Ingénieur requis." },
 };
 
 export const STYLES = {
@@ -155,10 +165,10 @@ export const STYLES = {
 // explosait. `req` enchaîne l'apprentissage des alliages.
 export const MATERIAUX = {
   acier: { nom: "Acier", cout: 0, idealMult: 1, req: null, rdHeures: 0, rd: 0, dev: 0, acquisDepart: true },
-  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, req: null, rdHeures: 80, rd: 30000, dev: 1 },
-  titane: { nom: "Titane", cout: 320, idealMult: 1.5, req: "bronze", rdHeures: 160, rd: 120000, dev: 2 },
-  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, req: "titane", rdHeures: 200, rd: 200000, dev: 2 },
-  or: { nom: "Or", cout: 2500, idealMult: 2.6, req: "titane", rdHeures: 240, rd: 350000, dev: 3 },
+  bronze: { nom: "Bronze", cout: 60, idealMult: 1.15, req: null, rdHeures: 80, rd: 30000, dev: 1, experts: 1 },
+  titane: { nom: "Titane", cout: 320, idealMult: 1.5, req: "bronze", rdHeures: 160, rd: 120000, dev: 2, experts: 2 },
+  ceramique: { nom: "Céramique", cout: 420, idealMult: 1.7, req: "titane", rdHeures: 200, rd: 200000, dev: 2, experts: 3 },
+  or: { nom: "Or", cout: 2500, idealMult: 2.6, req: "titane", rdHeures: 240, rd: 350000, dev: 3, experts: 4 },
 };
 
 // Nombre maximum de complications sur une même montre.
@@ -218,7 +228,10 @@ export const COMPLICATIONS = {
     ],
   },
   tourbillon: {
+    // Prérequis métier : quatre ingénieurs à l'établi et un directeur
+    // technique en poste. C'est la pièce qui ne se fait pas seul.
     nom: "Tourbillon", req: "reserve", ingenieur: true, manufacture: true,
+    ingenieursRequis: 4, directeurRequis: "technique",
     niveaux: [
       { nom: "Tourbillon une cage", heures: 12, rdHeures: 300, rd: 600000, dev: 5, qual: 2, prixMult: 2.6 },
       { nom: "Tourbillon volant", heures: 14, rdHeures: 380, rd: 900000, dev: 5, qual: 2, prixMult: 3.2 },
@@ -234,12 +247,62 @@ export const FINITION = { heures: 1, cout: 80, qual: 1, prixMult: 1.2 };
 // ce n'est plus un prix imposé. `pool` = taille du marché avant saturation.
 // Playtest : les pools d'origine plafonnaient le quartz vers 1'500 pièces par
 // trimestre. Élargis pour qu'une marque de volume puisse exister.
+//
+// Les pools du haut de gamme avaient été resserrés pour compenser sa
+// supériorité — compensation levée depuis que les heures par pièce portent
+// l'écart : le haut de gamme est désormais bridé par le temps d'atelier, pas
+// par un marché artificiellement rétréci. Une seule cause, un seul frein.
+// `heures` = temps d'atelier par pièce, porté par la gamme et non par le
+// mouvement. Échelle arbitrée sur le réel horloger, pas sur l'équilibrage : un
+// quartz d'entrée de gamme s'assemble en minutes, une pièce de haute horlogerie
+// finie main demande des dizaines d'heures. C'est le sujet même du jeu.
 export const SEGMENTS = {
-  grandpublic: { nom: "Grand public", ideal: 280, base: 3800, pool: 800000, qualMin: 0, notoMin: 0, desc: "Gros volumes, très sensible au prix." },
-  lifestyle: { nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, qualMin: 2, notoMin: 10, desc: "Achète l'image. Notoriété indispensable." },
-  connaisseurs: { nom: "Connaisseurs", ideal: 3500, base: 750, pool: 90000, qualMin: 5, notoMin: 5, desc: "Qualité et crédibilité exigées." },
-  bling: { nom: "Bling-bling", ideal: 9000, base: 280, pool: 30000, qualMin: 4, notoMin: 35, desc: "Prix élevés, mais il faut être connu." },
+  grandpublic: {
+    nom: "Grand public", ideal: 280, base: 3800, pool: 800000, heures: 1, qualMin: 0, notoMin: 0,
+    desc: "Gros volumes, très sensible au prix.",
+    metier: "Mouvement posé, boîtier fermé, contrôle de marche au banc. Une pièce par heure et par personne.",
+  },
+  lifestyle: {
+    nom: "Lifestyle", ideal: 700, base: 2300, pool: 320000, heures: 2, qualMin: 2, notoMin: 10,
+    desc: "Achète l'image. Notoriété indispensable.",
+    metier: "Boîtier brossé puis poli, bracelet ajusté à la main, double contrôle avant emballage.",
+  },
+  connaisseurs: {
+    nom: "Connaisseurs", ideal: 3500, base: 2100, pool: 90000, heures: 12, qualMin: 5, notoMin: 5,
+    desc: "Qualité et crédibilité exigées. Marché étroit.",
+    metier: "Anglage des ponts à la lime, côtes de Genève, réglage en cinq positions sur plusieurs jours. Ça ne s'automatise pas.",
+  },
+  bling: {
+    nom: "Bling-bling", ideal: 9000, base: 800, pool: 30000, heures: 30, qualMin: 4, notoMin: 35,
+    desc: "Marché minuscule, il faut être connu.",
+    metier: "Sertissage pierre à pierre, polissage miroir des flancs, démontage et remontage complets après essais. Une pièce mobilise un horloger pendant près d'une semaine.",
+  },
 };
+
+// ---- Rendements des jauges ----------------------------------------------
+// Les jauges d'image agissent en rendements décroissants : un exposant < 1
+// rend les premiers points très payants et les derniers presque décoratifs.
+//
+// Pourquoi concave plutôt qu'un poids global plus faible : la beta a montré que
+// les jauges devenaient accessoires au-delà d'un certain niveau, mais elles
+// doivent rester le déverrouillage des marges en début de partie. Aplatir le
+// haut de la courbe tame la stratégie « tout dans l'image » sans dévaloriser
+// les premiers investissements — au contraire, il les renforce.
+// Élasticité au-delà du prix acceptable. En dessous, la demande reste linéaire ;
+// au-dessus, elle est écrasée par une puissance.
+// Beta : « il suffit de marger comme un porc » — vendre 35% au-dessus ne coûtait
+// presque rien en volume. Posée à 2,6, puis détendue à 1,6 : une fois les heures
+// par gamme en place, le haut de gamme était puni deux fois (par le temps
+// d'atelier et par le prix). Mesuré : l'écart entre stratégies passe de 48× à
+// 31× en relâchant ce seul curseur.
+export const ELASTICITE_PRIX =
+  typeof process !== "undefined" && process.env && process.env.BARILLET_ELASTICITE
+    ? Number(process.env.BARILLET_ELASTICITE)
+    : 1.6;
+
+export const CONCAVITE_NOTORIETE = 0.55;
+export const CONCAVITE_CREDIBILITE = 0.55;
+export const CONCAVITE_DESIRABILITE = 0.55;
 
 // La saturation d'un segment se résorbe : elle mesure les ventes récentes, pas
 // le cumul de toute la partie (sinon le marché se ferme définitivement).
@@ -249,6 +312,9 @@ export const SATURATION_DECROISSANCE = 0.75;
 // Chaque canal a 3 paliers. `portee` multiplie le volume accessible, `marge` est
 // la part du prix qui revient à la marque : les détaillants agréés ouvrent le
 // volume mais prennent leur commission.
+// Le ticket d'entrée des premiers paliers a été relevé après S3 : se faire
+// distribuer prend du temps et de l'argent, et c'est ce qui étire la rampe des
+// premières années sans toucher au plafond de fin de partie.
 export const CANAUX = {
   direct: {
     nom: "Vente directe", icon: "🤝", marge: 1.0,
@@ -263,7 +329,7 @@ export const CANAUX = {
     nom: "E-commerce", icon: "💻", marge: 0.92,
     desc: "Votre boutique en ligne. Frais de paiement et logistique.",
     paliers: [
-      { nom: "Site vitrine", portee: 0.6, cout: 25000, fixes: 3000, heures: 60 },
+      { nom: "Site vitrine", portee: 0.6, cout: 35000, fixes: 3000, heures: 60 },
       { nom: "Boutique en ligne", portee: 1.2, cout: 80000, fixes: 8000, heures: 60 },
       { nom: "Plateforme internationale", portee: 2.0, cout: 250000, fixes: 20000, heures: 80 },
     ],
@@ -272,7 +338,7 @@ export const CANAUX = {
     nom: "Foires et salons", icon: "🎪", marge: 0.95, bonusCred: 1,
     desc: "Stands et salons. Coûte cher en fixe, entretient la crédibilité.",
     paliers: [
-      { nom: "Salons régionaux", portee: 0.4, cout: 20000, fixes: 8000, heures: 80 },
+      { nom: "Salons régionaux", portee: 0.4, cout: 30000, fixes: 8000, heures: 80 },
       { nom: "Circuit européen", portee: 0.8, cout: 60000, fixes: 18000, heures: 80 },
       { nom: "Salons mondiaux", portee: 1.4, cout: 150000, fixes: 40000, heures: 100 },
     ],
@@ -281,7 +347,7 @@ export const CANAUX = {
     nom: "Détaillants agréés", icon: "🏬", marge: 0.55, reqCred: 6,
     desc: "Le volume, mais 45% du prix part chez le revendeur.",
     paliers: [
-      { nom: "Quelques revendeurs", portee: 1.5, cout: 15000, fixes: 4000, heures: 80 },
+      { nom: "Quelques revendeurs", portee: 1.5, cout: 30000, fixes: 4000, heures: 80 },
       { nom: "Réseau national", portee: 3.0, cout: 60000, fixes: 10000, heures: 80 },
       { nom: "Réseau mondial", portee: 5.0, cout: 200000, fixes: 25000, heures: 100 },
     ],
@@ -303,27 +369,188 @@ export const CANAUX_VIDE = { direct: 1, ecommerce: 0, foires: 0, detaillants: 0,
 // Impôt sur le bénéfice annuel, prélevé au bilan de fin d'année.
 export const IMPOT_TAUX = 0.18;
 
+/**
+ * Politique salariale. Une décision de plus, gratuite en heures, qui donne du
+ * sens aux employés : payer mal coûte moins cher et se paie autrement — en
+ * grèves, en départs et en savoir-faire qui s'en va.
+ */
+/**
+ * Les directeurs — le troisième acte.
+ *
+ * Un directeur ne multiplie rien : il **exonère**. Le fondateur garde ses 360
+ * heures pour toujours, mais les actions de la catégorie déléguée ne lui en
+ * coûtent presque plus. C'est ce qui débloque la croissance tardive sans
+ * toucher au budget d'heures.
+ *
+ * Règle intangible : **le produit ne se délègue pas.** R&D, complications,
+ * matériaux et création de modèles restent aux heures du fondateur, quels que
+ * soient les directeurs. On délègue l'entreprise, jamais l'horlogerie.
+ */
+export const HEURES_DELEGUEES = 5;
+
+export const DIRECTEURS = {
+  production: {
+    nom: "Directeur de production", icon: "🏭", fixes: 34000,
+    exonere: ["atelier", "embauche"],
+    desc: "Agrandissements et embauches à 5 h. Débloque la manufacture et l'embauche en lot.",
+  },
+  rh: {
+    nom: "Directrice des ressources humaines", icon: "👥", fixes: 26000,
+    exonere: ["embauche", "licenciement"],
+    desc: "Recrutement jusqu'à dix personnes en une fois, embauches à 5 h, risque social divisé par deux.",
+  },
+  dsi: {
+    nom: "Directeur des systèmes d'information", icon: "🖥", fixes: 28000,
+    exonere: ["canal"],
+    desc: "Actions de canal à 5 h. Débloque le palier e-commerce mondial, inaccessible autrement.",
+  },
+  commercial: {
+    nom: "Directeur commercial", icon: "🤝", fixes: 30000,
+    exonere: ["canal", "soldes", "distribution"],
+    desc: "Développement de réseau et négociations à 5 h, portée des canaux +15%.",
+  },
+  marketing: {
+    nom: "Directrice marketing", icon: "📣", fixes: 28000,
+    exonere: ["marketing", "choc", "presse", "edition"],
+    desc: "Campagnes, presse et éditions limitées à 5 h.",
+  },
+  financier: {
+    nom: "Directeur financier", icon: "💼", fixes: 25000,
+    exonere: ["emprunt"],
+    desc: "Emprunts à 5 h et à taux réduit, impôt allégé de 4 points.",
+  },
+  // Le septième rôle, créé pour la haute horlogerie. Il exonère la recherche —
+  // complications et matériaux — mais **pas la création de modèle** : la règle
+  // intangible tient, le produit se conçoit aux heures du fondateur.
+  technique: {
+    nom: "Directeur technique", icon: "⚙", fixes: 30000,
+    exonere: ["recherche"],
+    desc: "Recherches de complication et de matériau à 5 h. Seul à pouvoir mener un tourbillon. " +
+      "La création de modèle reste à vos heures.",
+  },
+};
+
+/**
+ * Prérequis du n-ième directeur : la structure doit précéder l'encadrement.
+ *
+ * Le Top 50 n'ouvre pas la délégation — l'y enfermer punirait deux fois une
+ * maison qui stagne, en lui retirant justement l'outil qui la débloquerait.
+ * Il l'accélère : une fois dans les cinquante, les seuils croissants tombent
+ * et le comité se complète au rythme où on peut le payer.
+ */
+export const DIRECTEUR_REQ = (n, top10 = false) => ({
+  employes: 20 + (top10 ? 0 : n * 15),
+  cred: 40 + (top10 ? 0 : n * 5),
+});
+
+/**
+ * Le prérequis propre à chaque rôle. Sans lui, le tirage proposait un DSI et un
+ * directeur de production dans les mêmes conditions, alors qu'ils ne dirigent
+ * pas la même chose : on subissait l'ordre au lieu de le construire. Ici, un
+ * directeur ne se présente que quand la maison a de quoi l'occuper.
+ */
+export const DIRECTEUR_CONDITION = {
+  production: {
+    texte: "deux agrandissements d'atelier",
+    ok: (g) => g.ateliers >= 2,
+  },
+  rh: {
+    texte: "un chef d'atelier en poste",
+    ok: (g) => g.employes.chef >= 1,
+  },
+  dsi: {
+    texte: "la vente en ligne ouverte",
+    ok: (g) => (g.canaux.ecommerce || 0) >= 1,
+  },
+  commercial: {
+    texte: "deux canaux ouverts en plus du direct",
+    ok: (g) => Object.entries(g.canaux).filter(([id, n]) => n > 0 && id !== "direct").length >= 2,
+  },
+  marketing: {
+    texte: "45 de notoriété",
+    ok: (g) => g.noto >= 45,
+  },
+  financier: {
+    texte: "une dette de plus de CHF 300'000, ou un exercice à 2 millions",
+    ok: (g) => g.dette > 300000 || g.revenusAnnee >= 2000000,
+  },
+  technique: {
+    texte: "deux ingénieurs employés et 50 de savoir-faire",
+    ok: (g) => g.employes.ingenieur >= 2 && g.savoir >= 50,
+  },
+};
+
+export const SALAIRES = {
+  serree: {
+    nom: "Serrée", icon: "🪫", mult: 0.85, risque: 2, savoirAn: -1, efficacite: 0,
+    desc: "Masse salariale −15%. Risque de grève et de départ doublé, savoir-faire −1 par an.",
+  },
+  standard: {
+    nom: "Standard", icon: "⚖", mult: 1, risque: 1, savoirAn: 0, efficacite: 0,
+    desc: "Les salaires de la branche. Rien de plus, rien de moins.",
+  },
+  genereuse: {
+    nom: "Généreuse", icon: "🔋", mult: 1.2, risque: 0.5, savoirAn: 1, efficacite: 0.05,
+    desc: "Masse salariale +20%. Risque de départ divisé par deux, savoir-faire +1 par an, équipe +5% d'efficacité.",
+  },
+};
+
 // ---- Atelier et coûts fixes ---------------------------------------------
 // L'atelier est un plafond d'heures : embaucher sans agrandir ne sert à rien.
 //
-// Retour de beta : agrandir poste par poste était fastidieux — « on doit mettre
-// directement un bureau pour 4 personnes plutôt qu'une seule ». Une extension
-// ouvre donc quatre postes d'un coup, à un prix unitaire dégressif (85'000 le
-// poste contre 120'000 avant — on construit une halle, pas un établi de plus).
-// En contrepartie l'atelier de départ accueille déjà le fondateur et un
-// compagnon : la première embauche sert tout de suite, et l'extension n'arrive
-// qu'au moment de passer à l'échelle.
+// Deux paliers, parce qu'un seul enfermait les stratégies de volume. Mesure :
+// un volumiste dégage ~25'000 par trimestre et paie ~74'000 de frais fixes ; il
+// n'atteignait jamais les 350'000 nécessaires pour s'offrir la grande
+// extension, restait bloqué à un employé pendant cinquante ans et mourait avec
+// une demande de 3'800 pièces qu'il ne pouvait pas servir.
 //
-// Le prix a été calé par simulation : à 340'000, l'extension devenait un mur
-// infranchissable pour les départs modestes et personne ne dépassait 670'000 de
-// CA sur cinquante ans. À 200'000 la marche reste haute mais se franchit.
-export const POSTES_PAR_EXTENSION = 4;
+// Le petit palier permet de croître par petits pas ; le grand reste plus
+// avantageux au poste (50'000 contre 60'000, et 3'500 de fixes contre 5'000) :
+// s'offrir la grande halle reste la bonne affaire quand on en a les moyens.
+export const ATELIERS = {
+  petit: { nom: "Un poste de travail", postes: 1, heures: 450, cout: 60000, fixes: 5000, heuresAction: 30 },
+  grand: { nom: "Une halle de quatre postes", postes: 4, heures: 1800, cout: 200000, fixes: 14000, heuresAction: 60 },
+  // La manufacture ne s'achète pas, elle se construit : quatre trimestres
+  // entre le chèque et le premier établi. C'est un pari sur la demande qu'on
+  // aura dans un an, pas un achat.
+  // Un étage se prend d'un bloc : à trente postes, on cesse de cliquer halle
+  // par halle pendant dix trimestres.
+  etage: {
+    nom: "Un étage complet", postes: 30, heures: 13500, cout: 1300000, fixes: 92000,
+    heuresAction: 60,
+  },
+  manufacture: {
+    nom: "Une manufacture", postes: 50, heures: 22500, cout: 6000000, fixes: 190000,
+    heuresAction: 60, delai: 4, reqDirecteur: "production",
+  },
+};
+
+// L'atelier de départ accueille le fondateur et un compagnon.
 export const CAPACITE_DEPART = 810;
-export const ATELIER_COUT = 200000;
-export const ATELIER_HEURES = 1800;
-export const ATELIER_FIXES = 14000;
+
 export const FIXES_BASE = 12000;
 
 // ---- Crédibilité (rééquilibrage S2) -------------------------------------
 export const CRED_SAVOIR_SEUIL = 60; // savoir-faire ≥ 60 → +1 crédibilité par an
 export const CRED_ANCIENNETE_ANS = 5; // +1 crédibilité tous les 5 ans d'existence
+
+/**
+ * Effet de catalogue (lot final S5, § 3).
+ *
+ * Deux modèles visant la même gamme additionnaient leur demande : huit
+ * références valaient huit fois deux, ce qui poussait à empiler sans fin. Une
+ * maison qui multiplie les déclinaisons dilue son identité — trois pénalités
+ * économiques le traduisent, sans jamais poser de limite dure au nombre de
+ * références.
+ */
+export const CATALOGUE_SANS_MALUS = 6; // au-delà, la désirabilité se dilue
+export const ENTRETIEN_REF_CHF = 4000; // par référence active et par trimestre
+export const ENTRETIEN_REF_H = 15; // heures d'atelier, par référence et par trimestre
+
+/**
+ * Concavité de la largeur de gamme dans une même famille. À 1 les modèles
+ * s'additionneraient comme avant ; à 0 le second ne rapporterait rien du tout,
+ * ce qui reviendrait à interdire les déclinaisons. Entre les deux, une gamme
+ * profonde capte davantage qu'un modèle unique, mais de moins en moins.
+ */
+export const CONCAVITE_GAMME = 0.6;

@@ -4,18 +4,20 @@ import Jauge from "./Jauge.jsx";
 import BarreStatut from "./BarreStatut.jsx";
 import {
   MATERIAUX, MOUVEMENTS, SEGMENTS, STYLES, COMPLICATIONS, EMPLOYES, FINITION, CANAUX,
-  ATELIER_COUT, ATELIER_HEURES, ATELIER_FIXES, POSTES_PAR_EXTENSION,
+  ATELIERS,
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
-  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF,
+  HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES, DIRECTEURS, DIRECTEUR_CONDITION,
+  HEURES_DELEGUEES,
 } from "../data/config.js";
-import { OPPORTUNITES } from "../data/evenements.js";
+import { PROPOSITIONS } from "../data/evenements.js";
 import {
   canauxOuvrables, chargeHeures, complicationsDispo, complicationsRecherchables,
   complicationsVerrouillees, coutFacelift, coutRD, coutUnitaire, dureeDev, encadrement,
   fmtArgent, fmtH, fmtNb, fmtPct, fraicheur, gainChoc, gainMarketing, heuresEmployes,
   heuresModele, heuresParPiece, heuresProductionDispo, heuresRD, indemnite, margeMoyenne,
   materiauxRecherchables, nbEmployes, nbProduction, nomComplications, num, paletteComplication,
-  porteeTotale, qualiteNouveau, tresorerie,
+  porteeTotale, qualiteNouveau, tresorerie, conseilFinancable, detailFixes, coutsFixes,
+  MARGE_CONSEIL_TRIMESTRES, aDirecteur, aIngenieur, coutHeures, directeurRecrutable, directeursDe, masseDirection,
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
@@ -26,7 +28,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const [showJournal, setShowJournal] = useState(false);
   const [confirmeAbandon, setConfirmeAbandon] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
-  const [panneau, setPanneau] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
+  const [panneau, setPanneau] = useState(null);
+  const [toutMontrer, setToutMontrer] = useState(false);
+  const [retirer, setRetirer] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
     compls: [], finition: false, nom: nomDeModele(),
@@ -45,6 +49,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   }, [tour]);
 
   const marquer = (cle) => setFaites((f) => ({ ...f, [cle]: (f[cle] || 0) + 1 }));
+  // Identifiants normalisés (« atelier-petit » → « atelier ») pour le récit.
+  const actionsPrises = () => [...new Set(Object.keys(faites).map((k) => k.split("-")[0]))];
   const fait = (cle) =>
     faites[cle] ? (
       <span style={S.green}> ✓ fait{faites[cle] > 1 ? " ×" + faites[cle] : ""}</span>
@@ -56,18 +62,28 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
     marquer(cle);
   };
 
-  const opp = g.opportunite ? OPPORTUNITES.find((o) => o.id === g.opportunite) : null;
+  const opp = g.opportunite ? PROPOSITIONS.find((o) => o.id === g.opportunite) : null;
   const actifs = g.modeles.filter((m) => m.statut === "actif");
   const charge = chargeHeures(g.modeles);
   const dispoProd = heuresProductionDispo(g);
   const mainOeuvreEquipe = heuresEmployes(g.employes);
-  const enc = encadrement(g.employes);
+  const enc = encadrement(g.employes, g.salaires);
   const heuresPerdues = Math.max(0, g.heures + mainOeuvreEquipe * enc.efficacite - g.capacite);
   const postesLibres = Math.max(0, g.capacite - g.heures - mainOeuvreEquipe * enc.efficacite);
   const gainEmbauche = Math.round(Math.min(HEURES_EMPLOYE * enc.efficacite, postesLibres));
   const coutU = (m) => coutUnitaire(m, { pays, savoir: g.savoir, employes: g.employes });
 
   const ok = (heures, cash = 0) => g.heures >= heures && (cash <= 0 || g.cash >= cash);
+  /**
+   * Style d'une action. Ce qu'on ne peut plus s'offrir ce trimestre disparaît
+   * par défaut : avec vingt actions, une liste où tout reste affiché devient
+   * un menu à rallonge qu'on ne lit plus. Le bouton « tout montrer » les
+   * ramène, pour qu'on puisse quand même voir ce qui existe.
+   */
+  const act = (heures, cash = 0, aussi = true) => {
+    const dispo = ok(heures, cash) && aussi;
+    return { ...S.action(dispo), ...(!dispo && !toutMontrer ? { display: "none" } : {}) };
+  };
   const heuresRDModele = heuresRD(COUTS_H.rd, g.employes);
   const recherchables = [...complicationsRecherchables(g, profil), ...materiauxRecherchables(g)];
   const verrouillees = complicationsVerrouillees(g);
@@ -78,11 +94,17 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const marge = margeMoyenne(g.canaux);
   const tres = tresorerie(g);
   const libres = dispoProd - charge;
+  const fixes = coutsFixes({ ...g, salaires: g.salaires, directeurs: g.directeurs, modeles: g.modeles });
+  // Un conseil ne pousse à une dépense que si le joueur garde de quoi tenir.
+  const peut = (montant) => conseilFinancable(g, montant);
+  const [voirFixes, setVoirFixes] = useState(false);
+  const sansProduction = actifs.filter((m) => num(m.prod) <= 0);
 
   // Aperçu du coût de fabrication pendant la conception : c'est ce qui doit
   // guider le joueur, pas un prix suggéré.
   const apercu = {
-    mvt: nm.mvt, materiau: nm.mat, finition: nm.finition,
+    // `seg` est indispensable : c'est la gamme qui porte les heures par pièce.
+    mvt: nm.mvt, seg: nm.seg, materiau: nm.mat, finition: nm.finition,
     compls: nm.compls.map((id) => ({ id, niveau: g.complications[id] || 1 })),
   };
   const coutApercu = coutUnitaire(apercu, { pays, savoir: g.savoir, employes: g.employes });
@@ -166,8 +188,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             </span>
             <br />
             <span style={S.steel}>
-              {enc.chefs} chef{enc.chefs > 1 ? "s" : ""} pour {nbProduction(g.employes)} personnes en production
-              (1 pour {ENCADREMENT_PAR_CHEF}). L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures, soit{" "}
+              {enc.chefs} chef{enc.chefs > 1 ? "s" : ""} pour {nbProduction(g.employes)} personnes en production.
+              Vous en encadrez {enc.sansChef} vous-même, il faut un chef par tranche de {ENCADREMENT_PAR_CHEF}
+              au-delà. L'équipe ne rend que {fmtPct(enc.efficacite)} de ses heures, soit{" "}
               {fmtH(Math.round(mainOeuvreEquipe * (1 - enc.efficacite)))} perdues ce trimestre.
             </span>
           </div>
@@ -202,13 +225,17 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
             <br />− production planifiée {fmtH(charge)} = <span style={libres < 0 ? S.red : S.green}>{fmtH(libres)}</span> libres
           </div>
           <div style={{ ...S.steel, marginTop: 6 }}>
-            Les heures libres partent à l'établi en fin de trimestre : elles font monter le savoir-faire.
-            Attention, une action prise après avoir réglé la production mange les mêmes heures.
+            Ce solde est le temps disponible pour produire : <span style={S.gold}>fixez la quantité sur chaque
+            modèle</span> de votre collection. Ce qui reste part à l'établi en fin de trimestre et fait monter
+            le savoir-faire. Attention, une action prise après avoir réglé la production mange les mêmes heures.
           </div>
           {heuresPerdues > 0 && (
             <div style={{ ...S.steel, color: "#D06050", marginTop: 6 }}>
-              ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées. Agrandissez l'atelier
-              pour qu'elles servent à quelque chose.
+              ⚠ Postes saturés : {fmtH(heuresPerdues)} de main-d'œuvre restent inemployées.{" "}
+              {peut(ATELIERS.petit.cout)
+                ? "Un poste de plus (" + fmtArgent(ATELIERS.petit.cout) + ") les rendrait utiles."
+                : "Le plus petit agrandissement coûte " + fmtArgent(ATELIERS.petit.cout) +
+                  " : hors de portée sans mettre la trésorerie en danger. Se séparer d'un collaborateur allègerait les coûts en attendant."}
             </div>
           )}
 
@@ -244,19 +271,25 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        {/* Une opportunité se saisit, une décision se tranche : le bandeau ne
+            se lit pas pareil, et le refus n'a pas le même poids. */}
         {opp && (
-          <div style={{ ...S.panel, borderColor: "#C9A227" }}>
-            <span style={S.gold}>★ {opp.titre}</span>
+          <div style={{ ...S.panel, borderColor: opp.type === "decision" ? "#4A7C9E" : "#C9A227" }}>
+            <span style={opp.type === "decision" ? S.blue : S.gold}>
+              {opp.type === "decision" ? "◆ " : "★ "}
+              {opp.titre}
+            </span>
             <br />
             <span style={S.steel}>{opp.texte}</span>
             <br />
             <span style={S.steel}>
-              {fmtH(opp.heures)}
+              {opp.heures > 0 ? fmtH(opp.heures) : "aucune heure"}
               {opp.cout > 0 ? " + " + fmtArgent(opp.cout) : ""}
+              {opp.effetRefus ? " · refuser n'est pas neutre" : ""}
             </span>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => actions.opportunite(false)}>
-                Décliner
+                {opp.type === "decision" ? "Refuser" : "Décliner"}
               </button>
               <button
                 style={{ ...S.cta, marginTop: 0, opacity: ok(opp.heures, opp.cout) ? 1 : 0.4 }}
@@ -293,7 +326,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         {g.modeles.map((m, i) => (
           <div key={i} style={{ ...S.panel, opacity: m.statut === "dev" ? 0.75 : 1 }}>
             <div>
-              <span style={S.gold}>{m.nom}</span>{" "}
+              <span style={S.gold}>{m.nom}</span>
+              {m.statut === "actif" && num(m.prod) <= 0 && (
+                <span style={S.red}> ⚠ production non réglée</span>
+              )}{" "}
               <span style={S.steel}>
                 — {MOUVEMENTS[m.mvt].nom} · {nomComplications(m)} · {STYLES[m.style].nom} ·{" "}
                 {MATERIAUX[m.materiau].nom}
@@ -333,11 +369,32 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                       value={m.prod}
                       onChange={(e) => actions.setProd(i, e.target.value === "" ? "" : parseInt(e.target.value) || 0)}
                     />
+                    {/* Combien de pièces de plus une embauche permet-elle ? La
+                        question n'a pas à se résoudre par tâtonnement. */}
+                    <button
+                      style={{ ...S.ghost, marginTop: 4, padding: "2px 6px", fontSize: 11 }}
+                      onClick={() => actions.produireAuMax(i)}
+                    >
+                      MAX
+                    </button>
                   </label>
                   <div style={S.steel}>
                     Coût/pièce
                     <br />
                     <span style={{ color: "#EDE6D6", fontSize: 20 }}>{fmtArgent(coutU(m))}</span>
+                  </div>
+                  {/* Emplacement du sprite : 64×64, à remplir en S5. En attendant,
+                      le cadre tient la place pour que la mise en page ne bouge pas
+                      le jour où les dessins arrivent. */}
+                  <div
+                    style={{
+                      width: 64, height: 64, border: "1px dashed #2A3A2C", borderRadius: 2,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#4A5A4C", fontSize: 10, textAlign: "center", lineHeight: 1.2,
+                    }}
+                    title="Sprite 64×64 — session S5"
+                  >
+                    sprite<br />64×64
                   </div>
                   <div style={S.steel}>
                     Heures
@@ -355,6 +412,22 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                     <span style={{ color: fraicheur(m.age) < 0.6 ? "#D06050" : "#EDE6D6", fontSize: 20 }}>
                       {Math.round(fraicheur(m.age) * 100)}%
                     </span>
+                    {/* Retirer une référence : proposé quand elle a fait son
+                        temps, pour ne pas accumuler dix lignes fatiguées. */}
+                    {fraicheur(m.age) < 0.6 && (
+                      <>
+                        <br />
+                        <button
+                          style={{ ...S.ghost, marginTop: 4, padding: "2px 6px", fontSize: 11 }}
+                          onClick={() => {
+                            if (retirer === i) actions.retirerModele(i);
+                            else setRetirer(i);
+                          }}
+                        >
+                          {retirer === i ? "CONFIRMER LE RETRAIT" : "RETIRER DU CATALOGUE"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div style={{ ...S.steel, marginTop: 6 }}>
@@ -376,10 +449,18 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         ))}
 
         <div style={S.h2}>ACTIONS — {fmtH(g.heures)} disponibles</div>
+        <button
+          style={{ ...S.ghost, marginTop: 0, marginBottom: 8 }}
+          onClick={() => setToutMontrer(!toutMontrer)}
+        >
+          {toutMontrer
+            ? "Masquer ce que je ne peux pas faire ce trimestre"
+            : "Tout montrer, y compris ce qui est hors budget"}
+        </button>
 
         <div style={S.h3}>PRODUIT</div>
         {panneau !== "rd" && (
-          <button style={S.action(ok(heuresRDModele))} onClick={() => ok(heuresRDModele) && setPanneau("rd")}>
+          <button style={act(heuresRDModele)} onClick={() => ok(heuresRDModele) && setPanneau("rd")}>
             ⌚ Nouvelle R&D <span style={S.steel}>({fmtH(heuresRDModele)} + coût, 1 à 6 trim.)</span>{fait("rd")}
           </button>
         )}
@@ -401,7 +482,10 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               </button>
             </div>
             {Object.entries(MOUVEMENTS).map(([k, mv]) => {
-              const bloque = k === "manufacture" && profil !== "ingenieur";
+              // Un ingénieur embauché débloque la manufacture au même titre que le
+              // profil : c'est ce que dit la fiche du poste, et ce que vérifie le
+              // moteur pour les complications.
+              const bloque = k === "manufacture" && !aIngenieur(g, profil);
               return (
                 <button
                   key={k}
@@ -479,25 +563,50 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               </div>
             )}
 
-            <div style={S.h3}>SEGMENT VISÉ</div>
-            {Object.entries(SEGMENTS).map(([k, sg]) => (
-              <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
-                <span style={S.gold}>{sg.nom}</span>{" "}
-                <span style={S.steel}>— {sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
-              </button>
-            ))}
+            <div style={S.h3}>SEGMENT VISÉ — c'est lui qui fixe le temps de fabrication</div>
+            {Object.entries(SEGMENTS).map(([k, sg]) => {
+              const facteur = sg.heures / SEGMENTS.grandpublic.heures;
+              return (
+                <button key={k} style={S.btn(nm.seg === k)} onClick={() => setNm({ ...nm, seg: k })}>
+                  <span style={S.gold}>{sg.nom}</span>{" "}
+                  <span style={{ ...S.gold, fontSize: 21 }}>{sg.heures} h/pièce</span>
+                  {facteur > 1 && <span style={S.red}> ×{facteur} le grand public</span>}
+                  <br />
+                  <span style={S.steel}>{sg.desc} Repère de prix : {fmtArgent(sg.ideal)}.</span>
+                  {/* Les heures se justifient par le travail, pas par la clientèle. */}
+                  <br />
+                  <span style={{ ...S.steel, opacity: 0.85 }}>{sg.metier}</span>
+                </button>
+              );
+            })}
 
             {/* Pas de prix suggéré : on donne le coût, le joueur décide. */}
+            {/* Le temps de fabrication est la vraie contrainte du jeu : il doit
+                sauter aux yeux avant de lancer la R&D. */}
             <div style={{ ...S.panel, borderColor: "#4A6B4E", marginTop: 10 }}>
-              <span style={S.steel}>Cette montre vous coûtera</span>
-              <br />
-              <span style={{ ...S.gold, fontSize: 22 }}>{fmtArgent(coutApercu)}</span>
-              <span style={S.steel}> par pièce · qualité {qualApercu}/10 · {heuresParPiece(apercu)} h/pièce</span>
-              <br />
-              <span style={S.steel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                <span>
+                  <span style={S.steel}>Temps de fabrication</span>
+                  <br />
+                  <span style={{ ...S.gold, fontSize: 26 }}>{heuresParPiece(apercu)} h</span>
+                  <span style={S.steel}> par pièce</span>
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  <span style={S.steel}>Coût de revient</span>
+                  <br />
+                  <span style={{ ...S.gold, fontSize: 22 }}>{fmtArgent(coutApercu)}</span>
+                  <span style={S.steel}> · qualité {qualApercu}/10</span>
+                </span>
+              </div>
+              <div style={{ ...S.steel, marginTop: 8 }}>
+                Avec vos {fmtH(dispoProd)} disponibles ce trimestre, vous pourriez en produire{" "}
+                <span style={S.gold}>{fmtNb(Math.floor(dispoProd / heuresParPiece(apercu)))}</span> — contre{" "}
+                {fmtNb(Math.floor(dispoProd / SEGMENTS.grandpublic.heures))} pour un modèle grand public.
+              </div>
+              <div style={{ ...S.steel, marginTop: 6 }}>
                 Vous fixerez son prix vous-même quand elle sortira d'étude. L'étude de marché chiffre la demande
                 à plusieurs prix.
-              </span>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
@@ -512,18 +621,18 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         <button
-          style={S.action(ok(COUTS_H.facelift) && actifs.length > 0)}
-          onClick={() => actifs.length > 0 && ok(COUTS_H.facelift) && setPicker(picker === "facelift" ? null : "facelift")}
+          style={act(coutHeures("facelift", g), 0, actifs.length > 0)}
+          onClick={() => actifs.length > 0 && ok(coutHeures("facelift", g)) && setPicker(picker === "facelift" ? null : "facelift")}
         >
           ✨ Facelift d'un modèle{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.facelift)} + 75% du coût R&D) — restaure la fraîcheur</span>{fait("facelift")}
+          <span style={S.steel}>({fmtH(coutHeures("facelift", g))} + 75% du coût R&D) — restaure la fraîcheur</span>{fait("facelift")}
         </button>
         <button
-          style={S.action(ok(COUTS_H.edition) && actifs.length > 0)}
-          onClick={() => actifs.length > 0 && ok(COUTS_H.edition) && setPicker(picker === "edition" ? null : "edition")}
+          style={act(coutHeures("edition", g), 0, actifs.length > 0)}
+          onClick={() => actifs.length > 0 && ok(coutHeures("edition", g)) && setPicker(picker === "edition" ? null : "edition")}
         >
           💎 Édition limitée ×50{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.edition)} + prod.) — désirabilité +8, crédibilité −1</span>{fait("edition")}
+          <span style={S.steel}>({fmtH(coutHeures("edition", g))} + prod.) — désirabilité +8, crédibilité −1</span>{fait("edition")}
         </button>
         {picker && (
           <div style={{ ...S.panel, borderColor: "#C9A227" }}>
@@ -565,6 +674,46 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           Plus de portée = plus de volume accessible. Mais chaque canal encaisse sa part : les détaillants
           agréés vendent large et prennent 45%.
         </div>
+        {/* Se retirer d'un canal, comme on se sépare d'un employé : ça allège
+            les coûts fixes et ça coûte de la portée. Le direct ne se ferme pas. */}
+        {Object.entries(g.canaux).filter(([id, n]) => n > 0 && id !== "direct").length > 0 && (
+          <>
+            {panneau !== "fermerCanal" && (
+              <button style={act(coutHeures("canal", g))} onClick={() => setPanneau("fermerCanal")}>
+                🚪 Se retirer d'un canal{" "}
+                <span style={S.steel}>({fmtH(coutHeures("canal", g))}) — allège les coûts fixes, coûte de la portée</span>
+              </button>
+            )}
+            {panneau === "fermerCanal" && (
+              <div style={{ ...S.panel, borderColor: "#D06050" }}>
+                {Object.entries(g.canaux)
+                  .filter(([id, n]) => n > 0 && id !== "direct")
+                  .map(([id, n]) => {
+                    const p = CANAUX[id].paliers[n - 1];
+                    return (
+                      <button
+                        key={id}
+                        style={S.btn(false)}
+                        onClick={() => {
+                          actions.fermerCanal(id);
+                          marquer("canal");
+                          setPanneau(null);
+                        }}
+                      >
+                        {CANAUX[id].icon} <span style={S.gold}>{CANAUX[id].nom}</span>{" "}
+                        <span style={S.steel}>
+                          — quitter « {p.nom} » : portée −{p.portee}, fixes −{fmtArgent(p.fixes)}/trim
+                        </span>
+                      </button>
+                    );
+                  })}
+                <button style={S.ghost} onClick={() => setPanneau(null)}>
+                  Annuler
+                </button>
+              </div>
+            )}
+          </>
+        )}
         {panneau !== "canaux" && canaux.length > 0 && (
           <button style={S.action(true)} onClick={() => setPanneau("canaux")}>
             🏪 Développer la distribution <span style={S.steel}>— ouvrir ou agrandir un canal</span>{fait("canal")}
@@ -606,6 +755,38 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
+        <div style={S.h3}>COÛTS FIXES — {fmtArgent(fixes)}/trimestre</div>
+        <button style={S.action(true)} onClick={() => setVoirFixes(!voirFixes)}>
+          🧾 {voirFixes ? "Masquer le détail" : "D'où viennent mes coûts fixes ?"}{" "}
+          <span style={S.steel}>— ce qui se paie chaque trimestre, quoi qu'il arrive</span>
+        </button>
+        {voirFixes && (
+          <div style={S.panel}>
+            {detailFixes({ ...g, directeurs: g.directeurs, modeles: g.modeles }).map((l, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                <span style={S.steel}>
+                  {l.libelle}
+                  {l.detail ? <span style={{ opacity: 0.7 }}> ({l.detail})</span> : null}
+                </span>
+                <span>{fmtArgent(l.montant)}</span>
+              </div>
+            ))}
+            <div
+              style={{
+                display: "flex", justifyContent: "space-between",
+                borderTop: "1px solid #2A3A2C", marginTop: 6, paddingTop: 6,
+              }}
+            >
+              <span style={S.gold}>Total par trimestre</span>
+              <span style={S.gold}>{fmtArgent(fixes)}</span>
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Se séparer d'un collaborateur ou fermer un canal fait baisser cette ligne dès le trimestre
+              suivant.
+            </div>
+          </div>
+        )}
+
         <div style={S.h3}>ATELIER & ÉQUIPE</div>
         <div style={{ ...S.panel, ...S.steel }}>
           {nbEmployes(g.employes) === 0
@@ -617,16 +798,160 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           {enc.requis > 0 && (
             <>
               <br />
-              Encadrement : {enc.chefs}/{enc.requis} chef{enc.requis > 1 ? "s" : ""} d'atelier (1 pour{" "}
-              {ENCADREMENT_PAR_CHEF} personnes en production) — efficacité {fmtPct(enc.efficacite)}.
+              Encadrement : {enc.chefs}/{enc.requis} chef{enc.requis > 1 ? "s" : ""} d'atelier. Vous encadrez
+              vous-même {enc.sansChef} personnes ; au-delà, un chef pour {ENCADREMENT_PAR_CHEF} — efficacité{" "}
+              {fmtPct(enc.efficacite)}.
             </>
           )}
         </div>
 
+        {/* Le comité de direction. On ne le recrute pas ici — les candidatures
+            arrivent par l'interface de décision — mais on doit voir ce qu'il
+            coûte et ce qu'il exonère. */}
+        {/* Tant qu'aucune candidature n'est arrivée, on ne savait pas que la
+            délégation existait ni ce qu'elle demandait. Le panneau annonce
+            désormais les prérequis et ce qui manque encore. */}
+        {directeursDe(g).length === 0 && nbEmployes(g.employes) >= 4 && (
+          <div style={{ ...S.panel, marginBottom: 8 }}>
+            <div style={S.steel}>DIRECTION — pas encore de candidature</div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Un directeur ne produit rien, mais les actions de son domaine ne vous coûtent plus que{" "}
+              {HEURES_DELEGUEES} h. Il faut d'abord{" "}
+              <span style={nbEmployes(g.employes) >= 20 ? S.green : S.gold}>
+                20 employés ({nbEmployes(g.employes)})
+              </span>{" "}
+              et{" "}
+              <span style={g.cred >= 40 ? S.green : S.gold}>40 de crédibilité ({Math.round(g.cred)})</span>{" "}
+              — puis quinze employés et cinq points de plus par directeur suivant, sauf une fois passée
+              dans les dix premières mondiales.
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              Chacun a de plus sa propre condition, faute de quoi il n'aurait rien à diriger :
+              {Object.entries(DIRECTEUR_CONDITION).map(([k, c]) => (
+                <div key={k} style={{ marginTop: 2 }}>
+                  {DIRECTEURS[k].icon}{" "}
+                  <span style={c.ok(g) ? S.green : S.steel}>
+                    {DIRECTEURS[k].nom} — {c.texte}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recruter un directeur est une action, pas une chance : diluée parmi
+            quarante propositions tirées au sort, elle ne se présentait jamais. */}
+        {Object.keys(DIRECTEURS).some((k) => {
+          const d = directeurRecrutable(g, k);
+          return d && d.ok;
+        }) && (
+          <>
+            {panneau !== "direction" && (
+              <button style={act(40)} onClick={() => setPanneau("direction")}>
+                🎩 Recruter un directeur{" "}
+                <span style={S.steel}>({fmtH(40)}) — ses actions ne vous coûteront plus que {HEURES_DELEGUEES} h</span>
+              </button>
+            )}
+            {panneau === "direction" && (
+              <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
+                {Object.keys(DIRECTEURS).map((k) => {
+                  const d = directeurRecrutable(g, k);
+                  if (!d) return null;
+                  return (
+                    <button
+                      key={k}
+                      style={{ ...S.btn(false), opacity: d.ok ? 1 : 0.4 }}
+                      disabled={!d.ok}
+                      onClick={() => {
+                        actions.recruterDirecteur(k);
+                        marquer("direction");
+                        setPanneau(null);
+                      }}
+                    >
+                      {d.icon} <span style={S.gold}>{d.nom}</span>{" "}
+                      <span style={S.steel}>
+                        — {fmtArgent(d.fixes)}/trim · {d.desc}
+                        {!d.ok && " · manque : " + [
+                          nbEmployes(g.employes) < d.req.employes ? d.req.employes + " employés" : null,
+                          g.cred < d.req.cred ? d.req.cred + " de crédibilité" : null,
+                          !d.condition.ok(g) ? d.condition.texte : null,
+                        ].filter(Boolean).join(", ")}
+                      </span>
+                    </button>
+                  );
+                })}
+                <button style={S.ghost} onClick={() => setPanneau(null)}>
+                  Annuler
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {directeursDe(g).length > 0 && (
+          <div style={{ ...S.panel, borderColor: "#4A7C9E", marginBottom: 8 }}>
+            <div style={S.blue}>COMITÉ DE DIRECTION — {fmtArgent(masseDirection(g))}/trim.</div>
+            {directeursDe(g).map((k) => (
+              <div key={k} style={{ ...S.steel, marginTop: 4 }}>
+                {DIRECTEURS[k].icon} <span style={S.gold}>{DIRECTEURS[k].nom}</span> — {DIRECTEURS[k].desc}
+              </div>
+            ))}
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              La R&D, les complications et les matériaux restent à vos heures : on délègue
+              l'entreprise, jamais l'horlogerie.
+            </div>
+          </div>
+        )}
+        {g.chantier && (
+          <div style={{ ...S.panel, borderColor: "#C9A227", marginBottom: 8 }}>
+            <span style={S.gold}>🏭 Manufacture en construction</span>
+            <br />
+            <span style={S.steel}>
+              Livraison dans {g.chantier.restant} trimestre{g.chantier.restant > 1 ? "s" : ""} —{" "}
+              {fmtH(g.chantier.heures)} de capacité, {fmtArgent(g.chantier.fixes)} de charges par trimestre.
+            </span>
+          </div>
+        )}
+
+        {/* La politique salariale : gratuite en heures, elle se décide, elle ne
+            se dépense pas. Elle n'apparaît qu'une fois qu'il y a une équipe. */}
+        {nbEmployes(g.employes) > 0 && (
+          <div style={{ ...S.panel, marginBottom: 8 }}>
+            <div style={S.steel}>POLITIQUE SALARIALE</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+              {Object.entries(SALAIRES).map(([k, p]) => (
+                <button
+                  key={k}
+                  style={{ ...S.btn(g.salaires === k), flex: "1 1 30%", minWidth: 92 }}
+                  onClick={() => actions.politiqueSalariale(k)}
+                >
+                  {p.icon} {p.nom}
+                </button>
+              ))}
+            </div>
+            <div style={{ ...S.steel, marginTop: 6 }}>
+              {SALAIRES[g.salaires || "standard"].desc}
+            </div>
+          </div>
+        )}
+
+        {nbEmployes(g.employes) >= 3 && (
+          <button
+            style={act(coutHeures("embauche", g) * 2)}
+            onClick={jouer("equipe", () => actions.embaucherEquipe())}
+          >
+            👥 Embaucher une équipe complète{" "}
+            <span style={S.steel}>
+              ({fmtH(coutHeures("embauche", g) * 2)}) — {ENCADREMENT_PAR_CHEF} horlogers et le chef qui
+              les encadre, soit {fmtH(ENCADREMENT_PAR_CHEF * HEURES_EMPLOYE)} de production
+            </span>
+            {fait("equipe")}
+          </button>
+        )}
         {panneau !== "embauche" && (
-          <button style={S.action(ok(COUTS_H.embauche))} onClick={() => ok(COUTS_H.embauche) && setPanneau("embauche")}>
+          <button style={act(coutHeures("embauche", g))} onClick={() => ok(coutHeures("embauche", g)) && setPanneau("embauche")}>
             👥 Embaucher{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.embauche)}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>{fait("embauche")}
+            <span style={S.steel}>({fmtH(coutHeures("embauche", g))}) — {fmtH(HEURES_EMPLOYE)} de spécialité par trimestre</span>{fait("embauche")}
           </button>
         )}
         {panneau === "embauche" && (
@@ -639,15 +964,20 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                 </span>
                 <br />
                 <span style={S.steel}>
-                  Une extension ({fmtArgent(ATELIER_COUT)}) ouvre {POSTES_PAR_EXTENSION} postes d'un coup, soit{" "}
-                  {fmtH(ATELIER_HEURES)} : de quoi accueillir plusieurs embauches d'affilée.
+                  Un poste supplémentaire coûte {fmtArgent(ATELIERS.petit.cout)} ({fmtH(ATELIERS.petit.heures)}), une
+                  halle de {ATELIERS.grand.postes} postes {fmtArgent(ATELIERS.grand.cout)} ({fmtH(ATELIERS.grand.heures)}
+                  ) — moins cher au poste.{" "}
+                  {peut(ATELIERS.petit.cout)
+                    ? "Votre trésorerie permet au moins le petit palier."
+                    : "Votre trésorerie ne permet ni l'un ni l'autre sans descendre sous " +
+                      MARGE_CONSEIL_TRIMESTRES + " trimestres de coûts fixes."}
                 </span>
               </div>
             )}
             {Object.entries(EMPLOYES).map(([k, e]) => {
               // Encadrement tel qu'il serait APRÈS cette embauche : le joueur doit
               // voir la conséquence avant de cliquer, pas au rapport suivant.
-              const apres = encadrement({ ...g.employes, [k]: g.employes[k] + 1 });
+              const apres = encadrement({ ...g.employes, [k]: g.employes[k] + 1 }, g.salaires);
               return (
                 <button
                   key={k}
@@ -698,9 +1028,9 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         )}
 
         {nbEmployes(g.employes) > 0 && panneau !== "equipe" && (
-          <button style={S.action(ok(COUTS_H.licenciement))} onClick={() => setPanneau("equipe")}>
+          <button style={act(coutHeures("licenciement", g))} onClick={() => setPanneau("equipe")}>
             👋 Se séparer d'un collaborateur{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.licenciement)} + indemnité) — allège les coûts fixes</span>{fait("licenciement")}
+            <span style={S.steel}>({fmtH(coutHeures("licenciement", g))} + indemnité) — allège les coûts fixes</span>{fait("licenciement")}
           </button>
         )}
         {panneau === "equipe" && (
@@ -710,8 +1040,8 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               .map(([k, n]) => (
                 <button
                   key={k}
-                  style={{ ...S.btn(false), opacity: ok(COUTS_H.licenciement) ? 1 : 0.45 }}
-                  disabled={!ok(COUTS_H.licenciement)}
+                  style={{ ...S.btn(false), opacity: ok(coutHeures("licenciement", g)) ? 1 : 0.45 }}
+                  disabled={!ok(coutHeures("licenciement", g))}
                   onClick={() => {
                     actions.licencier(k);
                     marquer("licenciement");
@@ -745,7 +1075,7 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
               niveau {COMPL_NIVEAU_REQUIS} pour ouvrir la suivante de l'arbre.
             </div>
             {recherchables.map((c) => {
-              const h = heuresRD(c.rdHeures, g.employes);
+              const h = heuresRD(c.rdHeures, g.employes, g);
               const jouable = !c.bloque && ok(h, c.rd);
               return (
                 <button
@@ -771,7 +1101,15 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
                     {c.type === "complication"
                       ? " · +" + c.heures + " h/pièce, qualité +" + c.qual + ", prix acceptable ×" + c.prixMult
                       : ""}
-                    {c.bloque ? (c.type === "materiau" ? " · 🧪 expert matériaux requis" : " · ⚙ ingénieur requis") : ""}
+                    {/* Ce qui manque, nommément : un blocage muet envoie le
+                        joueur chercher dans le lore ce qu'il lui faut. */}
+                    {c.bloque && c.manque && c.manque.length
+                      ? " · manque : " + (Array.isArray(c.manque) ? c.manque.join(", ") : c.manque)
+                      : c.bloque
+                        ? c.type === "materiau"
+                          ? " · 🧪 expert matériaux requis"
+                          : " · ⚙ ingénieur requis"
+                        : ""}
                     {c.manufacture ? " · manufacture requise" : ""}
                   </span>
                 </button>
@@ -788,55 +1126,95 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </div>
         )}
 
-        <button style={S.action(ok(COUTS_H.atelier, ATELIER_COUT))} onClick={jouer("atelier", () => actions.action("atelier"))}>
-          🏭 Agrandir l'atelier{" "}
-          <span style={S.steel}>
-            ({fmtH(COUTS_H.atelier)}, {fmtArgent(ATELIER_COUT)}) — {POSTES_PAR_EXTENSION} postes de plus, soit +
-            {fmtH(ATELIER_HEURES)}/trim · fixes +{fmtArgent(ATELIER_FIXES)}/trim
-          </span>{fait("atelier")}
-        </button>
+        {Object.entries(ATELIERS)
+          // La manufacture n'apparaît qu'avec un directeur de production, et
+          // pas tant qu'un chantier est en cours.
+          .filter(([, a]) => !a.reqDirecteur || (aDirecteur(g, a.reqDirecteur) && !g.chantier))
+          .map(([cle, a]) => {
+            const h = aDirecteur(g, "production") ? HEURES_DELEGUEES : a.heuresAction;
+            return (
+              <button
+                key={cle}
+                style={act(h, a.cout)}
+                onClick={jouer("atelier-" + cle, () => actions.agrandirAtelier(cle))}
+              >
+                🏭 {a.nom}{" "}
+                <span style={S.steel}>
+                  ({fmtH(h)}, {fmtArgent(a.cout)}) — +{fmtH(a.heures)}/trim · fixes +
+                  {fmtArgent(a.fixes)}/trim · {fmtArgent(Math.round(a.cout / a.postes))} le poste
+                  {a.delai ? " · " + a.delai + " trimestres de chantier" : ""}
+                </span>
+                {fait("atelier-" + cle)}
+              </button>
+            );
+          })}
 
         <div style={S.h3}>IMAGE</div>
-        <button style={S.action(ok(COUTS_H.marketing, COUTS_CHF.marketing))} onClick={jouer("marketing", () => actions.action("marketing"))}>
+        <button style={act(coutHeures("marketing", g), COUTS_CHF.marketing)} onClick={jouer("marketing", () => actions.action("marketing"))}>
           📣 Marketing{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.marketing)}, {fmtArgent(COUTS_CHF.marketing)}) — notoriété +{gainMarketing(g, pays)}</span>{fait("marketing")}
+          <span style={S.steel}>({fmtH(coutHeures("marketing", g))}, {fmtArgent(COUTS_CHF.marketing)}) — notoriété +{gainMarketing(g, pays)}</span>{fait("marketing")}
         </button>
-        <button style={S.action(ok(COUTS_H.choc, COUTS_CHF.choc))} onClick={jouer("choc", () => actions.action("choc"))}>
+        <button style={act(coutHeures("choc", g), COUTS_CHF.choc)} onClick={jouer("choc", () => actions.action("choc"))}>
           💥 Campagne choc{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.choc)}, {fmtArgent(COUTS_CHF.choc)}) — notoriété +{gainChoc(g, pays)}, crédibilité −2, désirabilité −1
+            ({fmtH(coutHeures("choc", g))}, {fmtArgent(COUTS_CHF.choc)}) — notoriété +{gainChoc(g, pays)}, crédibilité −2, désirabilité −1
           </span>{fait("choc")}
         </button>
-        <button style={S.action(ok(COUTS_H.presse))} onClick={jouer("presse", () => actions.action("presse"))}>
-          📰 Relations presse <span style={S.steel}>({fmtH(COUTS_H.presse)}) — crédibilité +2</span>{fait("presse")}
+        <button style={act(coutHeures("presse", g))} onClick={jouer("presse", () => actions.action("presse"))}>
+          📰 Relations presse <span style={S.steel}>({fmtH(coutHeures("presse", g))}) — crédibilité +2</span>{fait("presse")}
         </button>
-        <button style={S.action(ok(COUTS_H.etude, COUTS_CHF.etude))} onClick={jouer("etude", () => actions.action("etude"))}>
+        <button style={act(coutHeures("etude", g), COUTS_CHF.etude)} onClick={jouer("etude", () => actions.action("etude"))}>
           🔍 Étude de marché{" "}
-          <span style={S.steel}>({fmtH(COUTS_H.etude)}, {fmtArgent(COUTS_CHF.etude)}) — la demande à trois prix différents</span>{fait("etude")}
+          <span style={S.steel}>({fmtH(coutHeures("etude", g))}, {fmtArgent(COUTS_CHF.etude)}) — la demande à trois prix différents</span>{fait("etude")}
         </button>
+        {/* Le résultat s'affiche ici, sous le bouton qui l'a produit. Il partait
+            auparavant dans le fil de messages en haut de page, en un seul bloc :
+            on ne savait pas qu'il s'était passé quelque chose. */}
+        {g.etude && (
+          <div style={{ ...S.panel, borderColor: "#4A7C9E" }}>
+            <span style={S.blue}>
+              Étude de marché — T{g.etude.t} {g.etude.annee}
+            </span>
+            {g.etude.lignes.length === 0 && <div style={S.steel}>Aucun modèle en vente.</div>}
+            {g.etude.lignes.map((l) => (
+              <div key={l.nom} style={{ marginTop: 8 }}>
+                <span style={S.gold}>{l.nom}</span>
+                {l.points.map((p) => (
+                  <div key={p.prix} style={S.steel}>
+                    {fmtArgent(p.prix)} <span style={{ color: "#EDE6D6" }}>→ ~{fmtNb(p.demande)} pièces</span>{" "}
+                    · {fmtArgent(p.ca)} de chiffre
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div style={{ ...S.steel, marginTop: 8 }}>
+              Demande estimée au prochain trimestre, à production suffisante.
+            </div>
+          </div>
+        )}
 
         <div style={S.h3}>COMMERCE</div>
         <button
-          style={S.action(ok(COUTS_H.soldes) && g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
+          style={act(coutHeures("soldes", g), 0, g.modeles.some((m) => m.stock > 0 && m.statut === "actif"))}
           onClick={jouer("soldes", () => actions.action("soldes"))}
         >
-          🏷 Soldes <span style={S.steel}>({fmtH(COUTS_H.soldes)}) — tout le stock à −35%, désirabilité −8</span>{fait("soldes")}
+          🏷 Soldes <span style={S.steel}>({fmtH(coutHeures("soldes", g))}) — tout le stock à −35%, désirabilité −8</span>{fait("soldes")}
         </button>
         {!g.kickstarterFait && (
           <button
-            style={S.action(ok(COUTS_H.kickstarter) && g.modeles.length > 0)}
+            style={act(coutHeures("kickstarter", g), 0, g.modeles.length > 0)}
             onClick={jouer("kickstarter", () => actions.action("kickstarter"))}
           >
             🚀 Kickstarter{" "}
-            <span style={S.steel}>({fmtH(COUTS_H.kickstarter)}, une fois) — cash + notoriété + désirabilité</span>{fait("kickstarter")}
+            <span style={S.steel}>({fmtH(coutHeures("kickstarter", g))}, une fois) — cash + notoriété + désirabilité</span>{fait("kickstarter")}
           </button>
         )}
 
         <div style={S.h3}>FINANCE</div>
-        <button style={S.action(ok(COUTS_H.emprunt))} onClick={jouer("emprunt", () => actions.action("emprunt"))}>
+        <button style={act(coutHeures("emprunt", g))} onClick={jouer("emprunt", () => actions.action("emprunt"))}>
           🏦 Emprunt{" "}
           <span style={S.steel}>
-            ({fmtH(COUTS_H.emprunt)}) — +{fmtArgent(COUTS_CHF.emprunt)}, taux {profil === "financier" ? "4" : "6"}%
+            ({fmtH(coutHeures("emprunt", g))}) — +{fmtArgent(COUTS_CHF.emprunt)}, taux {profil === "financier" ? "4" : "6"}%
           </span>{fait("emprunt")}
         </button>
         {g.dette > 0 && (
@@ -845,15 +1223,32 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </button>
         )}
 
+        {/* Dernier garde-fou avant de clore : un modèle sans production ne
+            fabrique rien, et c'est l'erreur la plus fréquente en beta. */}
+        {sansProduction.length > 0 && (
+          <div style={{ ...S.panel, borderColor: "#D06050" }}>
+            <span style={S.red}>
+              ⚠ {sansProduction.length === 1 ? "Un modèle n'a pas" : sansProduction.length + " modèles n'ont pas"} de
+              production réglée : {sansProduction.map((m) => m.nom).join(", ")}.
+            </span>
+            <br />
+            <span style={S.steel}>
+              {sansProduction.length === 1 ? "Il ne sortira" : "Ils ne sortiront"} aucune pièce ce trimestre.
+              Vous avez {fmtH(libres)} disponibles.
+            </span>
+          </div>
+        )}
+
         {/* Les testeurs ne savaient pas ce qui était immédiat et ce qui attendait
             la fin du trimestre : on le dit sur le bouton qui déclenche le calcul. */}
-        <button style={S.cta} onClick={actions.finTrimestre}>
+        {/* Les actions du trimestre alimentent le récit : on les transmet au moteur. */}
+        <button style={S.cta} onClick={() => actions.finTrimestre(actionsPrises())}>
           FIN DU TRIMESTRE ▸
         </button>
         <div style={{ ...S.steel, textAlign: "center", marginTop: 4 }}>
           Les ventes, les coûts et la production se calculent maintenant.
         </div>
-        <button style={S.ghost} onClick={actions.passerAnnee}>
+        <button style={S.ghost} onClick={() => actions.passerAnnee(actionsPrises())}>
           ▸▸ Passer à la fin de l'année (sans autres actions)
         </button>
 

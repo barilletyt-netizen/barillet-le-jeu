@@ -27,3 +27,26 @@ export function hasard() {
 
 /** Élément au hasard dans un tableau non vide. */
 export const tirer = (arr) => arr[Math.floor(hasard() * arr.length)];
+
+// ---- Flux séparé pour le texte -------------------------------------------
+// La génération du récit et des brèves ne doit JAMAIS puiser dans le même flux
+// que la simulation : ajouter une phrase décalerait tous les tirages suivants
+// et ferait bouger l'équilibrage sans qu'aucune règle n'ait changé. Mesuré :
+// brancher le récit déplaçait l'année d'entrée au Top 50 d'une stratégie.
+
+let etatTexte = 987654321;
+
+export function graineTexte(n) {
+  etatTexte = (n === null || n === undefined ? 987654321 : n >>> 0) || 1;
+}
+
+export function hasardTexte() {
+  etatTexte ^= etatTexte << 13;
+  etatTexte >>>= 0;
+  etatTexte ^= etatTexte >>> 17;
+  etatTexte ^= etatTexte << 5;
+  etatTexte >>>= 0;
+  return etatTexte / 4294967296;
+}
+
+export const tirerTexte = (arr) => arr[Math.floor(hasardTexte() * arr.length)];

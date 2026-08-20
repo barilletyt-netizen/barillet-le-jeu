@@ -1,5 +1,5 @@
 # BARILLET — LE JEU
-## Document de lore et de design — v0.6.2 (août 2026)
+## Document de lore et de design — v0.7 (août 2026)
 
 > Simulation de gestion horlogère, tour par tour trimestriel, pixel art.
 > Inspiration : Coffee Inc 2. Objectif : contenu pour la chaîne Barillet (devlogs + communauté).
@@ -139,8 +139,16 @@ Cinq canaux, trois paliers chacun. Chaque canal a une **portée** (volume access
 
 L'arbitrage central : les AD ouvrent le gros volume mais diluent la marge ; la boutique en propre garde tout mais coûte une fortune en fixe.
 
-### Encadrement (v0.6)
-Au-delà de **5 personnes en production par chef d'atelier**, l'atelier perd en efficacité (jusqu'à 55% seulement des heures rendues). Playtest : « plus on engage de personnel, plus à un moment il va falloir des chefs d'atelier pour gérer tout cela. » On peut aussi **se séparer d'un collaborateur** (indemnité de 2 trimestres de salaire).
+### Encadrement (v0.6, ajusté v0.7)
+Le fondateur encadre lui-même ses **3 premiers employés de production**. Au-delà, il faut **un chef d'atelier pour 5 personnes** supplémentaires, sinon l'atelier tombe à 55% des heures rendues. Playtest : « plus on engage de personnel, plus à un moment il va falloir des chefs d'atelier pour gérer tout cela » — mais faire tomber la pénalité dès le premier horloger rendait le démarrage incompréhensible. Le chef est un palier de croissance, pas un prérequis. On peut aussi **se séparer d'un collaborateur** (indemnité de 2 trimestres de salaire).
+
+### Règle d'écriture des conseils (v0.7)
+Aucun message d'aide ne recommande une dépense si le joueur ne peut pas la payer en gardant **trois trimestres de coûts fixes** d'avance. En dessous, la formulation passe en neutre et informatif, sans impératif. Retour de beta : un testeur est mort en suivant littéralement la chaîne de recommandations du jeu. Un conseil qui tue est un bug.
+
+### Backlog (noté, non implémenté)
+- **Combos et synergies** : boosts provisoires ou consommables déclenchés par des enchaînements d'actions précis (retour testeur). À traiter en S4 avec le déblocage progressif des actions — c'est la même mécanique de récompense de la maîtrise.
+- **Habillage** : référence citée par un testeur, *Game Dev Tycoon*, à verser au moodboard de S5.
+- **Tutoriel « l'horlogerie en quelques pages »** : le jeu suppose acquis un vocabulaire qui ne l'est pas. Un néophyte ne sait pas ce qu'est une ébauche, pourquoi une manufacture coûte cinquante fois plus cher, ce que vaut un anglage, ni pourquoi une complication se paie en heures. Prévoir trois à cinq pages courtes, illustrées, consultables **avant** la partie et **rappelables en jeu** depuis les endroits où le vocabulaire apparaît (choix du mouvement, gamme, complications, finition) — pas un mur de texte au démarrage, qu'on saute. Contenu pressenti : (1) ce qu'il y a dans une montre et qui fait quoi ; (2) quartz, ébauche, manufacture — ce que chacun coûte et ce qu'il rapporte ; (3) les quatre gammes et à qui elles s'adressent ; (4) ce qu'une complication ajoute et ce qu'elle prend ; (5) les trois jauges d'image et pourquoi elles ne se rattrapent pas à l'argent. Sert aussi la chaîne YouTube : ces pages sont un script de vidéo. **Session S5** — remonté, c'est le retour de beta le plus fréquent.
 
 ### Fiscalité (v0.6)
 **Impôt de 18% sur le bénéfice annuel**, prélevé au bilan du T4.
@@ -163,6 +171,141 @@ Le jeu n'affiche **aucun prix par défaut**. À la conception il annonce le **co
 
 ### Déblocage progressif des actions (principe clé)
 Les options ne sont pas toutes disponibles en permanence. Prérequis par jauges, année, complications, taille d'équipe. Exemples : Campagne choc → notoriété ≥ 20 ; Édition limitée → désirabilité ≥ 15 ; Boutique en propre → distribution ≥ 40. Certaines actions n'apparaissent qu'après un événement. *(Non implémenté : sorti du plan révisé, à replacer en S4 ou S6.)*
+
+## 3 bis. Équilibrage — méthode et état (Phase B, en cours)
+
+> ### ⚠ Avertissement : toute mesure antérieure à août 2026 est caduque
+>
+> Jusqu'à cette date, les bots d'équilibrage **fixaient leurs prix avec leur
+> propre formule**, qui ignorait la qualité du modèle, la crédibilité de la
+> marque et les multiplicateurs d'époque. Ils étaient donc aveugles à tout ce
+> qui déplace le prix acceptable — c'est-à-dire à une bonne moitié du modèle
+> économique du jeu.
+>
+> **Conséquence : nos conclusions sur la domination du haut de gamme étaient
+> partiellement des artefacts.** Une fois la tarification corrigée
+> (`prixAcceptable()` devient la source unique, partagée par le moteur et les
+> bots), le Margeur perd 60 M de chiffre et sept ans d'avance, le Prestigieux
+> 36 M. Les deux stratégies qu'on croyait dominantes l'étaient en partie parce
+> qu'on les mesurait mal.
+>
+> Ne pas rouvrir un débat d'équilibrage en citant un chiffre d'avant cette
+> correction. Les seuls repères valables sont ceux produits après.
+>
+> ### Repère de jeu expert (août 2026)
+>
+> Un joueur qui connaît les mécaniques et joue vite atteint **le rang 30 avec
+> 300 M de trésorerie en 2023**, soit huit ans de partie — désirabilité 99,
+> savoir-faire 100. Les bots, eux, n'entrent au Top 50 qu'entre 2030 et 2047.
+>
+> L'écart expert/bot est donc de l'ordre de **quinze à vingt ans**, pas du
+> facteur deux qu'on supposait. Deux conséquences pour S6 : les critères
+> mesurés sur les bots sont un plancher très bas, et le début de partie est
+> probablement trop rapide pour qui sait quoi faire. À vérifier avec des
+> joueurs qui découvrent, pas avec celui qui a écrit le jeu.
+>
+> C'est la quatrième fois du projet que la distinction « on mesure le bot » /
+> « on mesure le jeu » a compté. Les trois précédentes : des bots morts de
+> notoriété nulle, un verdict vert par vacuité, un harnais qui achetait des
+> ateliers qu'il ne pouvait pas payer.
+
+### Méthode
+Quatre bots stratèges (`npm run bots`) jouent 2015-2065 sur dix graines reproductibles : **le Margeur** (prix 1,35× le prix acceptable), **le Volumiste** (0,8×, portée maximale), **le Prestigieux** (jauges d'abord, 1,1×), **l'Équilibré**. Sortie par bot : année d'entrée au Top 50, faillites, CA et rang médians. Verdict automatique sur les critères.
+
+**Critères de validation** : (a) la meilleure stratégie entre au Top 50 entre 2050 et 2065 sur ≥ 3 graines — les humains font environ deux fois mieux que les bots, c'est le couloir voulu ; (b) aucune stratégie avant 2040 ; (c) écart de CA médian < 3× entre la meilleure et la pire stratégie viable ; (d) le Volumiste peut faire faillite sur quelques graines, pas 10/10 ; (e) l'Équilibré finit dans le couloir médian.
+
+**Deux pièges méthodologiques rencontrés, à ne pas refaire :**
+- Des bots naïfs qui ne dépensent rien en image meurent tous : la demande dépend de la notoriété, donc on mesure alors la bêtise des bots, pas l'équilibrage. Tout bot doit entretenir un plancher de jauges, reprendre ses prix et faire ses facelifts.
+- Le verdict automatique passait au vert par vacuité : quand personne n'atteint le Top 50, « aucune stratégie ne domine » est trivialement vrai. Un critère de gagnabilité est indispensable.
+
+### Le temps de fabrication porte la gamme (refonte v0.8)
+
+Échelle arbitrée sur le réel horloger, pas sur l'équilibrage — c'est le sujet du jeu, autant qu'il soit crédible :
+
+**Les heures se justifient par le travail, pas par la clientèle** — retour de test : « il faudrait le justifier au-delà de : c'est pour telle population ». Chaque gamme affiche en jeu le geste qui prend le temps.
+
+| Gamme | Heures par pièce | Ce qu'on y fait |
+|---|---|---|
+| Grand public | 1 h | Mouvement posé, boîtier fermé, contrôle de marche au banc |
+| Lifestyle | 2 h | Boîtier brossé puis poli, bracelet ajusté à la main, double contrôle |
+| Connaisseurs | 12 h | Anglage des ponts à la lime, côtes de Genève, réglage en cinq positions |
+| Bling-bling | 30 h | Sertissage pierre à pierre, polissage miroir, démontage et remontage après essais |
+
+Le mouvement maison ajoute 6 h, les complications et la finition s'ajoutent par-dessus. Un quartz s'assemble en une heure, un tourbillon manufacture finition maison en approche cinquante.
+
+**Ce que ça règle.** La marge par heure d'atelier — la ressource rare — passait de 199 CHF en grand public à 3 571 en bling, un facteur 18 : monter en gamme était strictement supérieur. Avec les heures portées par la gamme, l'écart tombe à **1,8×**. Le haut de gamme reste légèrement plus rentable à l'heure, ce qui est juste : c'est un métier de marge. Mais il ne peut plus produire en volume.
+
+**Conséquence voulue** : une gamme haute demande beaucoup plus de monde. C'est le sens du mot manufacture.
+
+### Réglages posés
+
+| Curseur | Valeur | Raison |
+|---|---|---|
+| Heures par gamme | 1 / 2 / 12 / 30 h | Réel horloger. Ramène la marge par heure de 18× à 1,8× |
+| Atelier, petit palier | 1 poste, 60 000 CHF, +450 h, 5 000/trim | Sans lui, une stratégie de volume n'atteint jamais la halle et meurt : mesuré 10 faillites sur 10 |
+| Atelier, grande halle | 4 postes, 200 000 CHF, +1 800 h, 14 000/trim | Moins cher au poste : s'offrir la halle reste la bonne affaire |
+| Élasticité prix | 1,6 au-dessus du prix acceptable | Posée à 2,6, détendue une fois les heures en place : le haut de gamme était puni deux fois. Mesuré : écart entre stratégies 48× → 31× |
+| Rendements des jauges | concaves, exposant 0,55 | Les premiers points de notoriété valent plus que les derniers |
+| Demande de base, haut de gamme | connaisseurs 750 → 2 100, bling 280 → 800 | Le haut de gamme était dix fois moins demandé à l'unité ; écart de CA 15× → 5,9× |
+| Pools haut de gamme | rendus à 90 000 / 30 000 | Compensation levée : le frein est le temps d'atelier, plus un marché rétréci artificiellement |
+| Seuil Top 50 | 60 M en 2015, +3,0 %/an | Calé aux bots (voir ci-dessous) |
+| Gain de notoriété | (4 − noto/22) au lieu de (5 − noto/20) | Se faire un nom prend des années : étire la rampe des deux premières décennies |
+| Premiers paliers de distribution | e-commerce 35 k, salons 30 k, détaillants 30 k | Même intention : le ticket d'entrée de la distribution retarde le décollage sans toucher au plafond |
+
+### État de validation
+
+| Critère | État |
+|---|---|
+| (b) aucune stratégie au Top 50 avant 2040 | ✅ |
+| (c) écart de CA < 3× entre stratégies viables | ✅ **2,1×** (contre 75× au départ) |
+| (d) le Volumiste n'est pas condamné | ✅ 0 faillite sur 10 (contre 10/10) |
+| (e) l'Équilibré dans le couloir médian | ✅ 2ᵉ sur 4 |
+| (a) la meilleure stratégie entre au Top 50 entre 2050 et 2065 | ❌ **aucune n'entre** |
+
+**Pourquoi (a) résiste, et ce n'est pas une question de seuil.** Les quatre bots atteignent leur plafond vers 2035-2040 puis restent plats trente ans (Volumiste : 98 M en 2035, 130 M en 2065). Face à une courbe plate, aucun seuil exponentiel ne peut créer de couloir : mesuré, à 2,8 %/an une stratégie entre dès 2036, à 3,0 %/an plus personne n'entre. Il n'existe pas de valeur intermédiaire.
+
+**Où en est la rampe après le freinage du début (v0.9.1).** Le Volumiste passe désormais par 11 M en 2020, 28 M en 2025, 59 M en 2030, 97 M en 2035, et culmine au **rang 55** vers 2035-2040 — au pied du Top 50 sans y entrer. Un joueur humain, qui fait environ deux fois mieux qu'un bot, entre donc dans le classement ; le bot n'y arrive pas tout à fait. C'est le couloir recherché, atteint par le bas plutôt que par le calendrier.
+
+**Ce qui reste ouvert** : l'entrée se jouerait vers 2035-2040 plutôt que 2050-2065, et la courbe redescend ensuite parce que le seuil monte plus vite que la marque. Deux pistes si l'on veut vraiment déplacer la fenêtre —
+1. *Ralentir le début* pour que le plafond soit atteint vers 2055 plutôt que 2035 (cohérent avec l'intention « une à deux années avant le décollage », mais le début a déjà été durci deux fois) ;
+2. *Faire croître le marché lui-même* (pools indexés sur la croissance), pour que le plafond monte avec le temps et qu'il faille surpasser le marché, pas seulement le rejoindre.
+
+## 3 bis. Les directeurs — le troisième acte *(livré S4)*
+
+Diagnostic à l'origine : après 2050, les bots tournaient à 99% de capacité
+d'atelier avec 3,66 milliards en caisse et 19% du marché consommé. Ni l'argent
+ni les clients ne manquaient : il manquait un moyen de convertir l'un en
+l'autre. Le goulot final était le budget d'heures du fondateur — agrandir coûte
+60 h, embaucher 40 h, et il n'en a que 360.
+
+**Principe : un directeur ne multiplie rien, il exonère.** Les actions de sa
+catégorie tombent à 5 h. Les 360 heures du fondateur ne changent jamais.
+
+| rôle | salaire/trim. | exonère | et débloque |
+|---|---|---|---|
+| Directeur de production | 34'000 | agrandissements, embauches | la manufacture |
+| DRH | 26'000 | embauches, licenciements | risque social ÷ 2 |
+| DSI | 28'000 | actions de canal | palier e-commerce mondial |
+| Directeur commercial | 30'000 | canaux, soldes, distribution | portée +15% |
+| Directrice marketing | 28'000 | campagnes, presse, éditions | — |
+| Directeur financier | 25'000 | emprunts | impôt −4 points |
+
+Prérequis du premier : 10 employés et 40 de crédibilité. Chaque directeur
+supplémentaire exige +5 employés et +5 de crédibilité. Recrutement par
+l'interface de décision, un seul par rôle.
+
+**Règle intangible : le produit ne se délègue pas.** R&D, complications,
+matériaux et création de modèles restent aux heures du fondateur, quels que
+soient les directeurs. On délègue l'entreprise, jamais l'horlogerie.
+
+**La manufacture** — 50 postes, 22'500 h par trimestre, 6 M de francs et
+**quatre trimestres de chantier** avant le premier établi. Réservée au
+directeur de production. Le joueur engage la somme sur une demande qu'il aura
+dans un an : c'est un pari, pas un achat.
+
+*Mesure après implémentation : les quatre stratégies atteignent le Top 50 (deux
+auparavant), et l'occupation de l'atelier retombe de 99% à 12-21%. Le plafond
+de fin de partie s'est déplacé de la capacité vers la demande.*
 
 ## 4. Production & organisation
 (inchangé v0.3 : postes clés nommés avec stats + effectifs standard ; louer → construire ; Vallée de Joux/Neuchâtel = vivier, Paris = difficile ; départements Marketing/Finance/IT ; distribution directe/détaillants/boutiques/e-commerce ; fournisseurs avec stats, track record, coût, faillite possible ; verticalisation = accomplissement ultime, pas de simulation de label)
@@ -203,46 +346,71 @@ Mécanique : reviews = bonus/malus, jamais fatal. Presse achetable (voyages, mon
 ### Contrefaçon, marché gris
 (inchangé : contrefaçon liée à la notoriété ; marché gris simulé, rareté = stratégie légitime)
 
-## 7. Aléas (~20, tirés de l'histoire horlogère et mondiale)
-1. Fournisseur en faillite (racheté par un groupe — écho ETA)
-2. Fraude d'un employé (détournement)
-3. Fournisseur en retard (production ÷2)
-4. Envolée du CHF (coûts +12%)
-5. Célébrité porte votre montre (écho Paul Newman)
-6. Contrefaçons massives saisies aux douanes
-7. Article élogieux dans la presse spécialisée
-8. Cambriolage de l'atelier (écho braquages de manufactures)
-9. Démission d'un horloger clé (débauché)
-10. Buzz TikTok inattendu
-11. Récession locale
-12. Un collectionneur commande une série
-13. Rappel qualité (défaut de mouvement) — coût + crédibilité
-14. Invitation à une vente caritative type « Only Watch » — pièce unique, prestige
-15. Votre montre bat un record aux enchères (si désirabilité haute) — désirabilité ++
-16. Grève dans l'atelier (si employés > 5 et salaires bas)
-17. Vol d'un prototype avant un salon
-18. Nouveau droit de douane sur votre marché principal
-19. Incendie d'atelier (assurance partielle)
-20. Un journaliste enquête sur la presse achetée (si utilisée) — scandale rétroactif
-21. Pénurie d'acier / de composants
-22. Un concurrent copie votre best-seller (fraîcheur −)
+## 7. Aléas et effets d'époque *(livré S4)*
 
-## 8. Couche narrative (priorité anti-austérité — S3)
+Le catalogue compte **55 aléas** (10 d'origine, 14 du lore, 31 nouveaux) et
+**56 événements** couvrant chaque année de 2015 à 2065. Le détail des textes et
+des effets est dans `docs/barillet-contenu-v1.md`, `-v2-extension.md` et
+`-v3-chronologie.md` ; l'implémentation est dans `src/data/evenements.js`.
+
+**Deux règles de tirage** gouvernent le catalogue, sans lesquelles soixante
+entrées se comportent comme dix : une **mémoire courte** (poids ÷4 pendant 12
+trimestres, ÷2 pendant 12 de plus) et une **fenêtre d'époque** (`debut`,
+`croissance`, `maturite`, `toujours`). Fréquences : 45% pour les aléas, 50%
+pour les opportunités.
+
+**Les effets s'empilent** (`src/engine/effets.js`) : chaque événement ou aléa
+porte des modificateurs déclaratifs — demande par gamme, par mouvement ou
+croisée, coûts, matériaux, mouvements, charges fixes, salaires, capacité,
+portée, prix acceptable, désirabilité et son plafond, pools, notoriété, impôt,
+intérêts. 33 événements ont un effet permanent. `npm run chrono` vérifie la
+couverture et affiche les multiplicateurs cumulés en 2035, 2050 et 2065.
+
+**Politique salariale** : serrée (−15% de masse salariale, risque social ×2,
+savoir-faire −1/an), standard, généreuse (+20%, risque ÷2, savoir-faire +1/an,
+équipe +5% d'efficacité). Gratuite en heures. Elle commande la grève et les
+départs simultanés.
+
+**Compteur de presse achetée** : chaque voyage de presse et chaque collab
+l'incrémente ; l'enquête tombe avec 5% de probabilité par complaisance et par
+trimestre, coûte 14 de crédibilité et remet le compteur à zéro. C'est ce qui
+fait que ces deux opportunités cessent de promettre un risque qui n'existait
+pas.
+
+## 8. Couche narrative (S3 — livrée)
 
 - **Récit trimestriel** : 1–2 paragraphes générés par gabarits, qui racontent le trimestre en intégrant (a) les actions prises par le joueur, (b) l'aléa/événement, (c) le résultat commercial, (d) une brève du monde. Ton : chronique horlogère, sérieux avec clins d'œil.
 - **Nouvelles des concurrents** : chaque trimestre, 1–2 brèves du monde (« Rolodex ouvre une boutique à Shanghai », « Ublot signe un footballeur », « Ferrand-Roux en difficulté — rachat possible »).
 - **Page d'introduction** au lancement d'une partie : le pitch (créer une marque pérenne, viser le Top 50), les règles de base, le contexte 2015.
 
-## 9. Fins de partie
-1. **Victoire 1 : Top 50** du Stanley Morgan
-2. **Victoire 2 : Top 10**
-3. **Rachat** (accepté ou forcé par dilution) — fin moyenne, épilogue narratif
-4. **Faillite** — défaite
-5. **La Succession** — à la retraite (fin des 50 ans), léguer l'entreprise à l'un de ses enfants avec un mot : « fais mieux que moi ». Épilogue selon l'état de la marque. (Idée Julien)
-6. **La Marque Culte** — rester volontairement minuscule (< 500 pièces/an) avec désirabilité ≥ 90 pendant 10 ans : la marque devient légendaire sans jamais grandir. Victoire alternative.
-7. **L'Empire** — racheter 3+ marques en difficulté et finir en groupe : le chassé devient chasseur. Victoire alternative.
-8. **La Montre du Siècle** — créer une pièce ultime (tourbillon manufacture, qualité 10, désirabilité max) qui entre au musée : le nom passe à la postérité même si la marque reste moyenne. Victoire d'artisan.
-9. **Le Scandale** — presse achetée révélée + fraude cumulées : ruine réputationnelle, la marque survit mais le fondateur est banni de l'industrie. Défaite narrative distincte de la faillite.
+## 9. Fins de partie *(conditions du lot final S5 — font foi)*
+
+Voir `docs/barillet-lot-final-S5.md` § 5. Les conditions ci-dessous remplacent
+toute version antérieure de ce document.
+
+Ordre de priorité en cas de cumul : **Scandale > Empire > Montre du Siècle >
+Marque Culte > Succession.**
+
+| fin | condition | quand |
+|---|---|---|
+| **Faillite** | trésorerie < −50'000 CHF | à chaque trimestre |
+| **Rachat** | accepter l'offre de `consolidation` (2045) | décision |
+| **Le Scandale** | complaisances ≥ 6 **et** enquête ≥ 2 fois — **ou** crédibilité sous 10 après avoir dépassé 50 | à chaque trimestre |
+| **L'Empire** | 3 indépendants rachetés, directeur de production, rang ≤ 100, ≥ 200 M en caisse | 2065 |
+| **La Montre du Siècle** | un modèle tourbillon manufacture, qualité ≥ 17, un palier 3, savoir-faire ≥ 80 à sa création, **et** entré au musée | 2065 |
+| **La Marque Culte** | catalogue jamais au-dessus de 5 références **et** désirabilité ≥ 90 dix exercices d'affilée | 2065 |
+| **La Succession** | arriver en 2065 vivant et indépendant | 2065 |
+
+**La qualité n'est pas plafonnée, et c'est un choix.** Un modèle à trois
+complications, mouvement manufacture, or et finition maison atteint 17 sur une
+échelle affichée sur 10. Le calcul ne borne rien, et la Montre du Siècle repose
+sur ce dépassement. Décision du game designer : ne pas corriger. Quiconque
+toucherait à `qualiteNouveau()` doit savoir qu'il rendrait cette fin
+inatteignable.
+
+**L'écran de fin révèle les cinq destins à chaque partie** : celui qu'on a
+obtenu en clair, les quatre autres en indices sans le moindre chiffre. C'est le
+principal levier de rejouabilité du jeu.
 
 ## 10. Direction artistique (moodboard fourni par Julien, 5 références)
 - **Style : flat pixel art à gros contour sombre**, formes lisibles, fond uni clair ou carte colorée
@@ -274,8 +442,8 @@ Simulation sérieuse avec clins d'œil. L'humour vit dans les noms, les événem
 - **S1 — portage ✅** : repo `barillet-le-jeu`, projet Vite + React, self-made à 10'000, capacité en heures, sauvegarde localStorage, déploiement GitHub Pages.
 - **S2 — moteur ✅** : système d'heures (fondateur + employés spécialisés), complications, rééquilibrage crédibilité, horizon → 2065.
 - **S2.5 — retours du premier smoke test ✅** : prix libre, canaux de distribution, recherche des matériaux, complications cumulables, encadrement, licenciements, impôts, cohérence du classement, rééquilibrage des volumes.
-- **S3 — narratif** : récit trimestriel, brèves concurrents, classement vivant, page d'intro.
-- **S4 — rythme** : objectifs quinquennaux, événements 2026–2065, aléas complets, les 20 YouTubeurs.
+- **S3 — narratif ✅** : récit trimestriel, brèves concurrents, classement vivant, page d'introduction.
+- **S4 — rythme** *(partiellement livré)* : chronologie complète 2015–2065 (56 événements, une année ne peut plus être vide), catalogue d'aléas porté à 55, règles de tirage (mémoire courte + fenêtre d'époque), compteur de presse achetée et enquête, politique salariale, familles de journal « classement » et « concurrence ». Restent : les 21 opportunités du lot v1/v2, les 12 aléas à choix, les objectifs quinquennaux et les 20 YouTubeurs.
 - **S5 — assets** : sprites par couches, avatars, personnage animé, menu animé, intégration audio.
 - **S6 — polish & beta** : équilibrage complet (une partie 2015–2065 testée), écrans de fin, build itch.io + GitHub Pages.
 

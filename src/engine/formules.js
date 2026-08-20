@@ -1,9 +1,13 @@
 import {
   MATERIAUX, MOUVEMENTS, PAYS, SEGMENTS, STYLES, COMPLICATIONS, FINITION, CANAUX,
-  EMPLOYES, HEURES_EMPLOYE, ATELIER_FIXES, FIXES_BASE, COMPL_NIVEAU_REQUIS,
-  ENCADREMENT_PAR_CHEF, ENCADREMENT_PLANCHER, INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
+  EMPLOYES, HEURES_EMPLOYE, FIXES_BASE, COMPL_NIVEAU_REQUIS, SALAIRES,
+  DIRECTEURS, DIRECTEUR_REQ, DIRECTEUR_CONDITION, HEURES_DELEGUEES, COUTS_H,
+  ENCADREMENT_PAR_CHEF, ENCADREMENT_SANS_CHEF, ENCADREMENT_PLANCHER,
+  INDEMNITE_TRIMESTRES, FACELIFT_PART_RD,
+  CONCAVITE_NOTORIETE, CONCAVITE_CREDIBILITE, CONCAVITE_DESIRABILITE, ELASTICITE_PRIX,
+  CONCAVITE_GAMME, ENTRETIEN_REF_CHF, ENTRETIEN_REF_H, CATALOGUE_SANS_MALUS,
 } from "../data/config.js";
-import { multEvenements } from "../data/evenements.js";
+import { effetsActifs, effetsNeutres, multDemande } from "./effets.js";
 import { devise, enDevise } from "./devise.js";
 
 // fr-CH sépare les milliers par une espace fine ou insécable selon le moteur :
@@ -52,8 +56,14 @@ const produit = (arr, f) => arr.reduce((s, x) => s * f(x), 1);
 // ---- Heures d'atelier ---------------------------------------------------
 // quartz 1 h/pièce, ébauche 3 h, manufacture 10 h, plus complications et finition.
 
+/**
+ * Heures d'atelier par pièce. La gamme visée fixe le standard de finition
+ * (1 h en grand public, 30 h en haute horlogerie) ; le mouvement maison, les
+ * complications et la finition s'ajoutent par-dessus.
+ */
 export function heuresParPiece(m) {
   return (
+    SEGMENTS[m.seg].heures +
     MOUVEMENTS[m.mvt].heures +
     somme(paliersDe(m), (p) => p.heures) +
     (m.finition ? FINITION.heures : 0)
@@ -83,22 +93,41 @@ export const nbProduction = (employes) =>
  * des chefs d'atelier. Sans eux, l'atelier tourne mal — c'est le frein qui
  * remplace « on embauche et ça roule tout seul ».
  */
-export function encadrement(employes) {
+export function encadrement(employes, salaires = "standard") {
   const prod = nbProduction(employes);
-  const requis = Math.ceil(prod / ENCADREMENT_PAR_CHEF);
   const chefs = employes.chef || 0;
-  if (requis === 0) return { requis: 0, chefs, efficacite: 1, manque: 0 };
+  // Les ENCADREMENT_SANS_CHEF premiers sont encadrés par le fondateur lui-même.
+  const aEncadrer = Math.max(0, prod - ENCADREMENT_SANS_CHEF);
+  const requis = Math.ceil(aEncadrer / ENCADREMENT_PAR_CHEF);
+  const bonus = (SALAIRES[salaires] || SALAIRES.standard).efficacite;
+  if (requis === 0) {
+    return { requis: 0, chefs, manque: 0, efficacite: 1 + bonus, prod, sansChef: ENCADREMENT_SANS_CHEF };
+  }
   const couverture = Math.min(1, chefs / requis);
   return {
-    requis, chefs, manque: Math.max(0, requis - chefs),
-    efficacite: ENCADREMENT_PLANCHER + (1 - ENCADREMENT_PLANCHER) * couverture,
+    requis, chefs, prod, sansChef: ENCADREMENT_SANS_CHEF,
+    manque: Math.max(0, requis - chefs),
+    efficacite: ENCADREMENT_PLANCHER + (1 - ENCADREMENT_PLANCHER) * couverture + bonus,
   };
 }
 
 // Heures réellement productibles : main-d'œuvre encadrée, plafonnée par les postes.
 export function heuresProductionDispo(g) {
-  const eff = encadrement(g.employes).efficacite;
-  return Math.floor(Math.min(g.heures + heuresEmployes(g.employes) * eff, g.capacite));
+  const effEnc = encadrement(g.employes, g.salaires).efficacite;
+  return Math.floor(Math.min(g.heures + heuresEmployes(g.employes) * effEnc, capaciteEffective(g)));
+}
+
+/**
+ * Capacité d'atelier après les événements. Une hausse du temps de fabrication
+ * (crise des matières, rationnement électrique) se traduit ici plutôt que dans
+ * les heures par pièce : même résultat, sans faire passer l'accumulateur dans
+ * les dix fonctions qui comptent des heures.
+ */
+export function capaciteEffective(g, eff = null) {
+  const e = eff || g.effets || effetsActifs(g);
+  // Le catalogue se paie aussi en heures : stock à gérer, pièces détachées,
+  // références à tenir à jour. Une gamme large mange l'atelier.
+  return Math.max(0, Math.floor(g.capacite * e.capacite) - heuresCatalogue(g));
 }
 
 // ---- Canaux de distribution ---------------------------------------------
@@ -153,14 +182,15 @@ export function canauxOuvrables(g) {
 
 // ---- Coûts --------------------------------------------------------------
 
-export function coutUnitaire(m, { pays, savoir, employes, mult = 1 }) {
+export function coutUnitaire(m, { pays, savoir, employes, mult = 1, eff = null }) {
+  const e = eff || effetsNeutres();
   const remiseMatiere = employes && employes.materiaux > 0 ? 0.8 : 1;
   const base =
-    MOUVEMENTS[m.mvt].cout + 60 +
-    MATERIAUX[m.materiau].cout * remiseMatiere +
+    MOUVEMENTS[m.mvt].cout * (e.coutMouvement[m.mvt] || 1) + 60 +
+    MATERIAUX[m.materiau].cout * remiseMatiere * (e.coutMateriau[m.materiau] || 1) +
     somme(paliersDe(m), (p) => p.heures) * 25 + // main-d'œuvre de complication
     (m.finition ? FINITION.cout : 0);
-  return Math.round(base * PAYS[pays].coutMult * (1 - Math.min(0.15, savoir / 600)) * mult);
+  return Math.round(base * PAYS[pays].coutMult * (1 - Math.min(0.15, savoir / 600)) * mult * e.couts);
 }
 
 export function coutRD(mvtKey, profil) {
@@ -176,7 +206,9 @@ export function dureeDev(mvtKey, profil, employes) {
   return Math.max(1, d);
 }
 
-export function heuresRD(base, employes) {
+export function heuresRD(base, employes, g = null) {
+  // Le directeur technique délègue la recherche — jamais la création de modèle.
+  if (g && aDirecteur(g, "technique")) return HEURES_DELEGUEES;
   if (employes && employes.ingenieur > 0) return Math.max(30, Math.round(base * 0.6));
   return base;
 }
@@ -195,8 +227,106 @@ export function qualiteNouveau(mvtKey, { pays, profil, savoir, compls = [], fini
 export const masseSalariale = (employes) =>
   Object.entries(employes).reduce((s, [k, n]) => s + n * EMPLOYES[k].fixes, 0);
 
-export function coutsFixes({ employes, ateliers, canaux }) {
-  return FIXES_BASE + masseSalariale(employes) + ateliers * ATELIER_FIXES + fixesCanaux(canaux);
+// ---- Directeurs ----------------------------------------------------------
+
+export const directeursDe = (g) =>
+  Object.keys(DIRECTEURS).filter((k) => g.directeurs && g.directeurs[k]);
+
+export const aDirecteur = (g, role) => !!(g.directeurs && g.directeurs[role]);
+
+/** Salaires des directeurs, hors masse salariale ordinaire. */
+export const masseDirection = (g) =>
+  directeursDe(g).reduce((s, k) => s + DIRECTEURS[k].fixes, 0);
+
+/**
+ * Coût en heures d'une action, une fois la délégation prise en compte. Le
+ * produit n'y figure jamais : la R&D, les complications et les matériaux
+ * restent au fondateur quoi qu'il arrive.
+ */
+export function coutHeures(action, g) {
+  const base = COUTS_H[action];
+  if (base == null) return 0;
+  const delegue = directeursDe(g).some((k) => DIRECTEURS[k].exonere.includes(action));
+  return delegue ? Math.min(base, HEURES_DELEGUEES) : base;
+}
+
+/** Le prochain directeur recrutable, avec ses prérequis. */
+export function directeurRecrutable(g, role) {
+  if (aDirecteur(g, role)) return null;
+  const top10 = (g.rangs || []).some((r) => r <= 10);
+  const req = DIRECTEUR_REQ(directeursDe(g).length, top10);
+  const condition = DIRECTEUR_CONDITION[role];
+  return {
+    role, ...DIRECTEURS[role], req, condition,
+    ok:
+      nbEmployes(g.employes) >= req.employes &&
+      g.cred >= req.cred &&
+      condition.ok(g),
+  };
+}
+
+export function coutsFixes({ employes, ateliersFixes = 0, canaux, eff = null, salaires = "standard", directeurs = null, modeles = null }) {
+  const e = eff || effetsNeutres();
+  const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
+  const direction = masseDirection({ directeurs });
+  const base =
+    FIXES_BASE + (masseSalariale(employes) + direction) * e.salaires * politique +
+    ateliersFixes + fixesCanaux(canaux) + (modeles ? nbReferences({ modeles }) * ENTRETIEN_REF_CHF : 0);
+  return Math.round(base * e.fixesMult + e.fixesAjout);
+}
+
+/**
+ * Décomposition des coûts fixes, poste par poste. Sans elle, « couper des
+ * coûts » reste une intention : le joueur ne sait pas où appuyer.
+ */
+export function detailFixes({ employes, ateliers, ateliersFixes = 0, canaux, salaires = "standard", directeurs = null, modeles = null }) {
+  const politique = (SALAIRES[salaires] || SALAIRES.standard).mult;
+  const lignes = [{ libelle: "Structure de base", montant: FIXES_BASE }];
+  for (const [k, n] of Object.entries(employes)) {
+    if (n > 0) {
+      lignes.push({
+        libelle: EMPLOYES[k].nom + (n > 1 ? " ×" + n : "") + (politique !== 1 ? " (" + SALAIRES[salaires].nom.toLowerCase() + ")" : ""),
+        montant: Math.round(n * EMPLOYES[k].fixes * politique),
+        detail: n > 1 ? fmtArgent(EMPLOYES[k].fixes) + " chacun" : null,
+      });
+    }
+  }
+  for (const k of directeursDe({ directeurs })) {
+    lignes.push({ libelle: DIRECTEURS[k].nom, montant: Math.round(DIRECTEURS[k].fixes * politique) });
+  }
+  if (ateliersFixes > 0) {
+    lignes.push({
+      libelle: "Agrandissements d'atelier" + (ateliers > 1 ? " ×" + ateliers : ""),
+      montant: ateliersFixes,
+    });
+  }
+  for (const [id, n] of Object.entries(canaux)) {
+    const p = paliersCanal(id, n);
+    if (p && p.fixes > 0) lignes.push({ libelle: CANAUX[id].nom + " — " + p.nom, montant: p.fixes });
+  }
+  const refs = modeles ? nbReferences({ modeles }) : 0;
+  if (refs > 0) {
+    lignes.push({
+      libelle: "Entretien du catalogue (" + refs + " référence" + (refs > 1 ? "s" : "") + ")",
+      montant: refs * ENTRETIEN_REF_CHF,
+      detail: fmtArgent(ENTRETIEN_REF_CHF) + " chacune",
+    });
+  }
+  return lignes;
+}
+
+// ---- Conseils ------------------------------------------------------------
+
+/** Trésorerie d'avance qu'un conseil de dépense doit laisser au joueur. */
+export const MARGE_CONSEIL_TRIMESTRES = 3;
+
+/**
+ * Un conseil ne doit jamais pousser à une dépense qui met le joueur en danger.
+ * Retour de beta : un testeur est mort en suivant littéralement la chaîne de
+ * recommandations. En dessous de ce seuil, l'UI passe en formulation neutre.
+ */
+export function conseilFinancable(g, montant) {
+  return g.cash - montant >= coutsFixes(g) * MARGE_CONSEIL_TRIMESTRES;
 }
 
 export const indemnite = (type) => EMPLOYES[type].fixes * INDEMNITE_TRIMESTRES;
@@ -253,7 +383,20 @@ export function complicationsRecherchables(g, profil) {
         type: "complication", id: k, famille: c.nom, niveau: prochain, acquis,
         ...c.niveaux[prochain - 1],
         ingenieur: !!c.ingenieur, manufacture: !!c.manufacture,
-        bloque: !!c.ingenieur && !aIngenieur(g, profil),
+        ingenieursRequis: c.ingenieursRequis || 0,
+        directeurRequis: c.directeurRequis || null,
+        bloque:
+          (!!c.ingenieur && !aIngenieur(g, profil)) ||
+          (c.ingenieursRequis && g.employes.ingenieur < c.ingenieursRequis) ||
+          (c.directeurRequis && !aDirecteur(g, c.directeurRequis)),
+        manque: [
+          c.ingenieursRequis && g.employes.ingenieur < c.ingenieursRequis
+            ? c.ingenieursRequis + " ingénieurs employés (" + g.employes.ingenieur + ")"
+            : null,
+          c.directeurRequis && !aDirecteur(g, c.directeurRequis)
+            ? DIRECTEURS[c.directeurRequis].nom.toLowerCase() + " en poste"
+            : null,
+        ].filter(Boolean),
       };
     })
     .filter(Boolean);
@@ -287,18 +430,95 @@ export function materiauxRecherchables(g) {
     .map(([k, mat]) => ({
       type: "materiau", id: k, famille: mat.nom, nom: mat.nom,
       rdHeures: mat.rdHeures, rd: mat.rd, dev: mat.dev,
-      bloque: g.employes.materiaux === 0,
+      experts: mat.experts || 1,
+      bloque: g.employes.materiaux < (mat.experts || 1),
+      manque:
+        g.employes.materiaux < (mat.experts || 1)
+          ? (mat.experts || 1) + " experts matériaux employés (" + g.employes.materiaux + ")"
+          : null,
     }));
 }
 
 // ---- Image --------------------------------------------------------------
 // Playtest : la notoriété montait trop vite, la demande suivait sans effort.
-export const gainMarketing = (g, pays) => Math.max(1, Math.round((5 - g.noto / 20) * PAYS[pays].mktMult));
+// Ralenti d'un cran de plus post-S3 : se faire un nom prend des années, et
+// c'est ce qui étire la rampe des deux premières décennies.
+export const gainMarketing = (g, pays) =>
+  Math.max(1, Math.round((4 - g.noto / 22) * PAYS[pays].mktMult * (g.effets || effetsActifs(g)).gainNoto));
 export const gainChoc = (g, pays) => Math.max(3, Math.round((9 - g.noto / 14) * PAYS[pays].mktMult));
 
 // ---- Demande ------------------------------------------------------------
 
 export const fraicheur = (age) => Math.max(0.35, 1 - 0.045 * Math.max(0, age - 4));
+
+/**
+ * Rendement d'une jauge, en rendements décroissants. Renvoie 0 à 0 et 1 à 100,
+ * mais monte beaucoup plus vite au début : les vingt premiers points de
+ * notoriété valent plus que les vingt derniers.
+ */
+export const rendement = (valeur, concavite) => Math.pow(clamp(valeur, 0, 100) / 100, concavite);
+
+/**
+ * Le prix « acceptable » d'un modèle : ce que le marché est prêt à payer avant
+ * que l'élasticité ne morde. Il monte avec le matériau, les complications, la
+ * finition, la qualité et la crédibilité — et suit les événements d'époque.
+ *
+ * Exporté parce que les bots doivent tarifer là-dessus : tant qu'ils
+ * recalculaient leur propre repère, ils étaient aveugles à tout ce qui déplace
+ * le prix acceptable, et l'équilibrage jauges/prix se mesurait sur un angle
+ * mort.
+ */
+export function prixAcceptable(m, g, eff = null) {
+  const e = eff || g.effets || effetsActifs(g);
+  return (
+    SEGMENTS[m.seg].ideal *
+    MATERIAUX[m.materiau].idealMult *
+    produit(paliersDe(m), (p) => p.prixMult) *
+    (m.finition ? FINITION.prixMult : 1) *
+    (0.55 + m.qual / 14 + 0.33 * rendement(g.cred, CONCAVITE_CREDIBILITE)) *
+    e.prixAcceptable
+  );
+}
+
+/**
+ * Attrait relatif d'un modèle dans sa gamme : ce qui lui fait gagner ou perdre
+ * des clients face à ses propres voisins de catalogue. Qualité, fraîcheur,
+ * style, et le prix rapporté à ce que la gamme accepte.
+ */
+export function attraitModele(m, g, eff = null) {
+  const ideal = prixAcceptable(m, g, eff);
+  const prixN = Math.max(50, num(m.prix) || ideal);
+  return Math.max(
+    0.05,
+    (m.qual / 10) * fraicheur(m.age) * STYLES[m.style].mult[m.seg] * Math.min(1.4, ideal / prixN)
+  );
+}
+
+/** Les références actives d'une même gamme, celles avec qui il faut partager. */
+export const voisinsDeGamme = (m, g) =>
+  (g.modeles || []).filter((x) => x.statut === "actif" && x.seg === m.seg);
+
+/**
+ * Part de la gamme qui revient à ce modèle. Deux références visant la même
+ * clientèle ne s'additionnent plus : elles se partagent le marché au prorata
+ * de leur attrait. Une gamme profonde capte tout de même davantage qu'un
+ * modèle seul — mais de moins en moins, d'où la concavité.
+ */
+export function partDeGamme(m, g, eff = null) {
+  const voisins = voisinsDeGamme(m, g);
+  if (voisins.length <= 1) return 1;
+  const attraits = voisins.map((x) => attraitModele(x, g, eff));
+  const total = attraits.reduce((s, a) => s + a, 0);
+  const part = attraitModele(m, g, eff) / total;
+  return part * Math.pow(voisins.length, CONCAVITE_GAMME);
+}
+
+/** Ce que coûte un catalogue, par trimestre : stock, pièces, références. */
+export const nbReferences = (g) => (g.modeles || []).filter((m) => m.statut === "actif").length;
+export const entretienCatalogue = (g) => nbReferences(g) * ENTRETIEN_REF_CHF;
+export const heuresCatalogue = (g) => nbReferences(g) * ENTRETIEN_REF_H;
+/** Références au-delà desquelles la rareté perçue commence à se diluer. */
+export const excesCatalogue = (g) => Math.max(0, nbReferences(g) - CATALOGUE_SANS_MALUS);
 
 /**
  * Source unique de vérité pour la demande. L'étude de marché et la simulation
@@ -307,32 +527,42 @@ export const fraicheur = (age) => Math.max(0.35, 1 - 0.045 * Math.max(0, age - 4
  */
 export function demandeBase(m, g, multExterne = 1, prixTest = null) {
   const seg = SEGMENTS[m.seg];
+  // L'appelant peut fournir l'accumulateur déjà calculé (la simulation le fait
+  // une fois par trimestre) plutôt que de le refaire pour chaque modèle.
+  const eff = g.effets || effetsActifs(g);
   const prixBrut = num(prixTest !== null ? prixTest : m.prix);
   // Sans prix affiché, rien ne se vend : le joueur doit trancher.
   if (prixBrut <= 0) return 0;
   const prixN = Math.max(50, prixBrut);
   if (m.qual < seg.qualMin || g.noto < seg.notoMin) return 0;
 
-  // Le prix « acceptable » monte avec le matériau, les complications et la finition.
-  const idealAdj =
-    seg.ideal *
-    MATERIAUX[m.materiau].idealMult *
-    produit(paliersDe(m), (p) => p.prixMult) *
-    (m.finition ? FINITION.prixMult : 1) *
-    (0.55 + m.qual / 14 + g.cred / 300);
+  const idealAdj = prixAcceptable(m, g, eff);
 
-  const priceFit = clamp(1.45 - prixN / idealAdj, 0.05, 1.1);
-  const desMult = m.seg === "connaisseurs" || m.seg === "bling" ? 0.45 + g.des / 90 : 0.85 + g.des / 300;
+  // Adhérence au prix : linéaire tant qu'on reste sous le prix acceptable,
+  // écrasée par une puissance au-dessus. Vendre trop cher se paie très vite.
+  const ratio = prixN / idealAdj;
+  const priceFit =
+    clamp(1.45 - ratio, 0.02, 1.1) * (ratio > 1 ? Math.pow(1 / ratio, ELASTICITE_PRIX) : 1);
+  // Le plafond de désirabilité et son efficacité sont eux aussi des leviers
+  // d'époque : le traité sur le marché secondaire plafonne, la génération
+  // d'après-krach rend la rareté plus payante.
+  const desirabilite =
+    rendement(Math.min(g.des, eff.desPlafond), CONCAVITE_DESIRABILITE) * eff.desEffet;
+  const desMult =
+    m.seg === "connaisseurs" || m.seg === "bling" ? 0.45 + 1.11 * desirabilite : 0.85 + 0.33 * desirabilite;
   // Saturation calculée sur les ventes récentes : le marché se referme si on
   // l'inonde, mais il respire dès qu'on lève le pied.
-  const satMult = seg.pool / (seg.pool + (g.saturation[m.seg] || 0));
+  const pool = seg.pool * eff.pool;
+  const satMult = pool / (pool + (g.saturation[m.seg] || 0));
   const styleMult = STYLES[m.style].mult[m.seg];
 
   return (
     seg.base *
-    Math.pow(g.noto / 100, 0.85) *
-    priceFit * porteeTotale(g.canaux) * desMult * satMult * fraicheur(m.age) * styleMult *
-    multEvenements(g.annee, g.t, m.seg, m.mvt) *
+    rendement(g.noto, CONCAVITE_NOTORIETE) *
+    priceFit * porteeTotale(g.canaux) * eff.portee * (aDirecteur(g, "commercial") ? 1.15 : 1) *
+    desMult * satMult * fraicheur(m.age) * styleMult *
+    partDeGamme(m, g, eff) *
+    multDemande(g, m.seg, m.mvt, eff) *
     multExterne
   );
 }
