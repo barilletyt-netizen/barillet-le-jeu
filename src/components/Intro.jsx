@@ -1,6 +1,7 @@
 import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN, HEURES_FONDATEUR } from "../data/config.js";
 import { ETIQUETTE } from "../version.js";
+import LiensBarillet from "./LiensBarillet.jsx";
 
 export default function Intro({ sauvegardeExiste, saveMsg, onNouvelle, onCharger }) {
   return (
@@ -25,6 +26,11 @@ export default function Intro({ sauvegardeExiste, saveMsg, onNouvelle, onCharger
           </button>
         )}
         {saveMsg && <div style={{ ...S.steel, marginTop: 10 }}>{saveMsg}</div>}
+
+        {/* La chaîne, Instagram et la newsletter : visibles que le jeu soit
+            ouvert ou fermé. Ils ne figuraient jusqu'ici que sur la page de
+            fermeture, donc uniquement quand on ne pouvait pas jouer. */}
+        <LiensBarillet />
         {/* Étiquette de build : à citer dans tout retour de test. */}
         <div style={{ ...S.steel, marginTop: 26, fontSize: 14, opacity: 0.7 }}>{ETIQUETTE}</div>
       </div>

@@ -1,5 +1,6 @@
 import { S } from "../styles.js";
 import { LIENS } from "../data/config.js";
+import LiensBarillet from "./LiensBarillet.jsx";
 import { ETIQUETTE } from "../version.js";
 
 /**
@@ -50,6 +51,9 @@ export default function BetaFermee() {
             vidéo et dans la newsletter.
           </span>
         </div>
+
+        {/* Les mêmes liens qu'à l'accueil : une seule liste à tenir à jour. */}
+        <LiensBarillet />
 
         <div style={{ ...S.steel, marginTop: 26, fontSize: 14, opacity: 0.7 }}>{ETIQUETTE}</div>
       </div>
