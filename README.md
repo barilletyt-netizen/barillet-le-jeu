@@ -1,5 +1,8 @@
 # Barillet — le jeu
 
+> **Beta vague 2 ouverte** (v0.10.0). Sauvegarde `barillet-save-v10` : les
+> parties de la vague 1 ne se rechargent pas, l'état a trop changé.
+
 Simulation de gestion horlogère, tour par tour trimestriel. Vous fondez une marque en 2015
 et vous avez cinquante ans pour entrer au « Stanley Morgan Top 50 ».
 

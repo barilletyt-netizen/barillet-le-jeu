@@ -1,7 +1,7 @@
 {
   "name": "barillet-le-jeu",
   "private": true,
-  "version": "0.9.2",
+  "version": "0.10.0",
   "type": "module",
   "description": "Barillet — le jeu. Simulation de gestion horlogère, tour par tour trimestriel.",
   "scripts": {
