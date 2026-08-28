@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Le commit de la toute première version jouable — le portage du prototype
+# sous Vite, session 1. Ne pas le faire avancer : c'est une archive.
+env:
+  MUSEE_COMMIT: abf08bd
+
 permissions:
   contents: read
   pages: write
@@ -20,12 +25,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
       - run: npm run build
+
+      # Le musée : la toute première version jouable, figée au commit du
+      # portage sous Vite. Elle sert à illustrer les devlogs — montrer d'où
+      # l'on part rend visible le chemin parcouru. Servie sous /musee/, elle
+      # ne partage rien avec le jeu courant, pas même les sauvegardes.
+      - name: Construire la version d'archive
+        run: |
+          git fetch --depth=1 origin ${{ env.MUSEE_COMMIT }}
+          git worktree add /tmp/musee ${{ env.MUSEE_COMMIT }}
+          cd /tmp/musee
+          npm ci
+          npx vite build --base=/barillet-le-jeu/musee/
+          cd -
+          mkdir -p dist/musee
+          cp -r /tmp/musee/dist/* dist/musee/
+          node scripts/bandeau-musee.mjs dist/musee/index.html
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

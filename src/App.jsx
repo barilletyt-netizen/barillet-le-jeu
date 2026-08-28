@@ -18,6 +18,7 @@ import { trimestreIndex } from "./engine/effets.js";
 import { evaluerFin, scandaleAtteint } from "./engine/fins.js";
 import { passageAnnee, choisirObjectif, periodeQuiOuvre } from "./engine/mentor.js";
 import { LETTRES } from "./data/olivier.js";
+import { initMesure, compter } from "./engine/mesure.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
@@ -56,6 +57,9 @@ export default function App() {
   const ctx = { pays, profil };
 
   useEffect(() => setSauvegardeExiste(existeSauvegarde()), []);
+  // La mesure ne se charge que si une clé est configurée : sans elle, aucune
+  // requête ne quitte le navigateur.
+  useEffect(() => initMesure(), []);
 
   useEffect(() => {
     if (!saveMsg) return;
@@ -99,6 +103,8 @@ export default function App() {
   function demarrer() {
     // L'économie reste en CHF ; seule la devise d'affichage suit le pays.
     setDevise(pays);
+    // Une partie lancée : c'est l'événement qui compte, plus qu'une visite.
+    compter("partie-lancee", "Partie lancée");
     const etat = etatInitial({ pays, profil, origine, marque });
     // Olivier écrit dès 2015 : la première lettre ouvre la partie.
     etat.objectif = choisirObjectif(periodeQuiOuvre(ANNEE_DEBUT), etat);

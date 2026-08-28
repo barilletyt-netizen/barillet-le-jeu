@@ -2,6 +2,7 @@ import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN, HEURES_FONDATEUR } from "../data/config.js";
 import { ETIQUETTE } from "../version.js";
 import LiensBarillet from "./LiensBarillet.jsx";
+import BoutonRetour from "./BoutonRetour.jsx";
 
 export default function Intro({ sauvegardeExiste, saveMsg, onNouvelle, onCharger }) {
   return (
@@ -31,6 +32,9 @@ export default function Intro({ sauvegardeExiste, saveMsg, onNouvelle, onCharger
             ouvert ou fermé. Ils ne figuraient jusqu'ici que sur la page de
             fermeture, donc uniquement quand on ne pouvait pas jouer. */}
         <LiensBarillet />
+        <div style={{ marginTop: 12 }}>
+          <BoutonRetour libelle="Un retour sur le jeu ?" />
+        </div>
         {/* Étiquette de build : à citer dans tout retour de test. */}
         <div style={{ ...S.steel, marginTop: 26, fontSize: 14, opacity: 0.7 }}>{ETIQUETTE}</div>
       </div>
