@@ -38,9 +38,11 @@ jobs:
       # portage sous Vite. Elle sert à illustrer les devlogs — montrer d'où
       # l'on part rend visible le chemin parcouru. Servie sous /musee/, elle
       # ne partage rien avec le jeu courant, pas même les sauvegardes.
+      # Non bloquant : un musée cassé ne doit jamais empêcher le jeu d'être
+      # déployé. On perd l'archive, pas la version courante.
       - name: Construire la version d'archive
+        continue-on-error: true
         run: |
-          git fetch --depth=1 origin ${{ env.MUSEE_COMMIT }}
           git worktree add /tmp/musee ${{ env.MUSEE_COMMIT }}
           cd /tmp/musee
           npm ci
