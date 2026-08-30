@@ -31,7 +31,7 @@ export const LIENS = {
  * atteinte, rang, trésorerie — pour qu'un retour soit rattachable à un build
  * et à une situation, sans rien demander au testeur.
  */
-export const FORMULAIRE_RETOUR = null;
+export const FORMULAIRE_RETOUR = "https://tally.so/r/QKQ1LX";
 
 /**
  * Sollicitation automatique après N trimestres joués. Le game designer a
