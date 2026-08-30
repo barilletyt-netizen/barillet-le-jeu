@@ -24,6 +24,31 @@ export const LIENS = {
   discord: null,
 };
 
+/**
+ * Le formulaire de retour des testeurs. Tant qu'il vaut null, le bouton
+ * n'apparaît pas : mieux vaut pas de bouton qu'un bouton qui ne mène nulle
+ * part. Le contexte de partie est ajouté en paramètres d'URL — version, année
+ * atteinte, rang, trésorerie — pour qu'un retour soit rattachable à un build
+ * et à une situation, sans rien demander au testeur.
+ */
+export const FORMULAIRE_RETOUR = null;
+
+/**
+ * Sollicitation automatique après N trimestres joués. Le game designer a
+ * retenu le formulaire seul, sans relance : on laisse la mécanique en place et
+ * désactivée plutôt que de la réécrire plus tard. Mettre un nombre pour
+ * l'activer — 10 était la valeur envisagée.
+ */
+export const RELANCE_RETOUR_APRES = null;
+
+/**
+ * Mesure d'audience. `null` tant que le compte n'existe pas : aucun script
+ * n'est chargé, donc aucune requête vers un tiers. GoatCounter ne pose pas de
+ * cookie et ne collecte pas de donnée personnelle — pas de bandeau de
+ * consentement à afficher.
+ */
+export const GOATCOUNTER = "barilletyt"; // barilletyt.goatcounter.com
+
 /** Ce qu'on affiche, dans l'ordre, et sous quel nom. */
 export const LIENS_PUBLICS = [
   { cle: "youtube", icone: "▶", nom: "La chaîne" },

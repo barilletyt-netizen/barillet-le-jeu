@@ -7,7 +7,7 @@ import {
   ATELIERS,
   COUTS_CHF, COUTS_H, HEURES_FONDATEUR,
   HEURES_EMPLOYE, COMPL_NIVEAU_REQUIS, COMPLICATIONS_MAX, ENCADREMENT_PAR_CHEF, SALAIRES, DIRECTEURS, DIRECTEUR_CONDITION,
-  HEURES_DELEGUEES,
+  HEURES_DELEGUEES, RELANCE_RETOUR_APRES,
 } from "../data/config.js";
 import { PROPOSITIONS } from "../data/evenements.js";
 import {
@@ -21,6 +21,7 @@ import {
 } from "../engine/formules.js";
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
+import BoutonRetour, { lienRetour } from "./BoutonRetour.jsx";
 
 export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const { pays, profil } = ctx;
@@ -30,7 +31,17 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
   const [panneau, setPanneau] = useState(null);
   const [toutMontrer, setToutMontrer] = useState(false);
-  const [retirer, setRetirer] = useState(null); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
+  const [retirer, setRetirer] = useState(null);
+  const [relanceVue, setRelanceVue] = useState(false);
+  // Sollicitation unique après N trimestres joués. Désactivée tant que
+  // RELANCE_RETOUR_APRES vaut null — le game designer a retenu le formulaire
+  // seul. Mettre un nombre suffit à l'allumer.
+  const trimestresJoues = (g.annee - 2015) * 4 + g.t - 1;
+  const relance =
+    RELANCE_RETOUR_APRES != null &&
+    !relanceVue &&
+    trimestresJoues >= RELANCE_RETOUR_APRES &&
+    lienRetour(g); // "rd" | "recherche" | "embauche" | "equipe" | "canaux"
   const [nm, setNm] = useState({
     mvt: "ebauche", seg: "lifestyle", style: "sport", mat: "acier",
     compls: [], finition: false, nom: nomDeModele(),
@@ -1283,6 +1294,29 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
           </button>
         )}
         {saveMsg && <div style={{ ...S.steel, textAlign: "center", marginTop: 6 }}>{saveMsg}</div>}
+
+        {relance && (
+          <div style={{ ...S.panel, borderColor: "#4A7C9E", marginTop: 10 }}>
+            <span style={S.blue}>Vous jouez depuis {trimestresJoues} trimestres.</span>
+            <br />
+            <span style={S.steel}>
+              Deux minutes de retour valent mieux que dix parties silencieuses. Ça ne vous sera pas
+              redemandé.
+            </span>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button style={{ ...S.ghost, marginTop: 0 }} onClick={() => setRelanceVue(true)}>
+                Plus tard
+              </button>
+              <BoutonRetour g={g} style={{ marginTop: 0 }} libelle="Donner mon avis" />
+            </div>
+          </div>
+        )}
+
+        {/* Le retour part avec la version, l'année et le rang déjà remplis :
+            un testeur qui doit les retrouver lui-même ne le fait pas. */}
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          <BoutonRetour g={g} />
+        </div>
         <div style={{ ...S.steel, textAlign: "center", marginTop: 14, fontSize: 14, opacity: 0.6 }}>
           {ETIQUETTE}
         </div>
