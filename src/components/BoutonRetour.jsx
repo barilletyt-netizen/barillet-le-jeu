@@ -1,4 +1,5 @@
 import { S } from "../styles.js";
+import { MODE_CAPTURE } from "../capture/mode.js";
 import { FORMULAIRE_RETOUR } from "../data/config.js";
 import { VERSION, BUILD } from "../version.js";
 
@@ -13,7 +14,7 @@ import { VERSION, BUILD } from "../version.js";
  * Sans URL de formulaire configurée, le bouton n'apparaît pas.
  */
 export function lienRetour(g) {
-  if (!FORMULAIRE_RETOUR) return null;
+  if (!FORMULAIRE_RETOUR || MODE_CAPTURE) return null;
   const p = new URLSearchParams({ version: VERSION, build: BUILD });
   if (g) {
     p.set("annee", String(g.annee));

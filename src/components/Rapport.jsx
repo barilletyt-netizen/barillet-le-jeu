@@ -7,7 +7,9 @@ import Lettre from "./Lettre.jsx";
 export default function Rapport({ r, lettre, reactionMentor, objectif, onContinuer }) {
   // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
   // au milieu de la page précédente et il faut remonter à la main.
-  useEffect(() => window.scrollTo(0, 0), []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Le journal a la priorité : on n'affiche le rappel que s'il n'en a pas parlé.
   const dejaDit = (source) => (r.journal ? r.journal.sources.includes(source) : false);

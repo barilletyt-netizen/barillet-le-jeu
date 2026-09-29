@@ -1,6 +1,7 @@
 import { S } from "../styles.js";
 import { ANNEE_DEBUT, ANNEE_FIN, HEURES_FONDATEUR } from "../data/config.js";
 import { ETIQUETTE } from "../version.js";
+import { MODE_CAPTURE } from "../capture/mode.js";
 import LiensBarillet from "./LiensBarillet.jsx";
 import BoutonRetour from "./BoutonRetour.jsx";
 
@@ -36,7 +37,9 @@ export default function Intro({ sauvegardeExiste, saveMsg, onNouvelle, onCharger
           <BoutonRetour libelle="Un retour sur le jeu ?" />
         </div>
         {/* Étiquette de build : à citer dans tout retour de test. */}
-        <div style={{ ...S.steel, marginTop: 26, fontSize: 14, opacity: 0.7 }}>{ETIQUETTE}</div>
+        {!MODE_CAPTURE && (
+          <div style={{ ...S.steel, marginTop: 26, fontSize: 14, opacity: 0.7 }}>{ETIQUETTE}</div>
+        )}
       </div>
     </div>
   );

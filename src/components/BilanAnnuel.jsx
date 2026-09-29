@@ -7,7 +7,9 @@ import { fmtArgent, fmtM } from "../engine/formules.js";
 export default function BilanAnnuel({ b, marque, journal, monde, onContinuer }) {
   // Un trimestre qui passe doit se lire depuis le début : sans ça on arrive
   // au milieu de la page précédente et il faut remonter à la main.
-  useEffect(() => window.scrollTo(0, 0), []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const v = voisinsVivants(monde, b.rang, b.annee);
   const geants = monde.geants;

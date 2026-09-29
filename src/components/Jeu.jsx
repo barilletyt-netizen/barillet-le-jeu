@@ -22,14 +22,17 @@ import {
 import { nomDeModele } from "../data/noms.js";
 import { ETIQUETTE } from "../version.js";
 import BoutonRetour, { lienRetour } from "./BoutonRetour.jsx";
+import { MODE_CAPTURE } from "../capture/mode.js";
 
-export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
+export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions, panneauInitial = null }) {
   const { pays, profil } = ctx;
 
   const [showJournal, setShowJournal] = useState(false);
   const [confirmeAbandon, setConfirmeAbandon] = useState(false);
   const [picker, setPicker] = useState(null); // "facelift" | "edition"
-  const [panneau, setPanneau] = useState(null);
+  // En mode capture, une scène peut ouvrir un panneau d'office (la conception
+  // d'un modèle, par exemple) pour qu'on le filme sans clic hors champ.
+  const [panneau, setPanneau] = useState(panneauInitial);
   const [toutMontrer, setToutMontrer] = useState(false);
   const [retirer, setRetirer] = useState(null);
   const [relanceVue, setRelanceVue] = useState(false);
@@ -1317,9 +1320,12 @@ export default function Jeu({ g, ctx, marque, saveMsg, autosaveAt, actions }) {
         <div style={{ textAlign: "center", marginTop: 14 }}>
           <BoutonRetour g={g} />
         </div>
-        <div style={{ ...S.steel, textAlign: "center", marginTop: 14, fontSize: 14, opacity: 0.6 }}>
-          {ETIQUETTE}
-        </div>
+        {/* Le numéro de version n'a rien à faire dans une vidéo. */}
+        {!MODE_CAPTURE && (
+          <div style={{ ...S.steel, textAlign: "center", marginTop: 14, fontSize: 14, opacity: 0.6 }}>
+            {ETIQUETTE}
+          </div>
+        )}
 
         {showJournal && (
           <div style={{ ...S.panel, marginTop: 10 }}>

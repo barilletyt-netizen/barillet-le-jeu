@@ -1,4 +1,5 @@
 import { S } from "../styles.js";
+import { MODE_CAPTURE } from "../capture/mode.js";
 import { LIENS, LIENS_PUBLICS } from "../data/config.js";
 
 /**
@@ -10,6 +11,7 @@ import { LIENS, LIENS_PUBLICS } from "../data/config.js";
  * s'abonner.
  */
 export default function LiensBarillet({ style }) {
+  if (MODE_CAPTURE) return null;
   const liens = LIENS_PUBLICS.filter((l) => LIENS[l.cle]);
   if (!liens.length) return null;
   return (

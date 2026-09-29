@@ -7,6 +7,7 @@ import Rapport from "./components/Rapport.jsx";
 import BilanAnnuel from "./components/BilanAnnuel.jsx";
 import Fin from "./components/Fin.jsx";
 import BetaFermee from "./components/BetaFermee.jsx";
+import { S } from "./styles.js";
 import {
   BETA_FERMEE,
   ATELIERS,
@@ -19,6 +20,8 @@ import { evaluerFin, scandaleAtteint } from "./engine/fins.js";
 import { passageAnnee, choisirObjectif, periodeQuiOuvre } from "./engine/mentor.js";
 import { LETTRES } from "./data/olivier.js";
 import { initMesure, compter } from "./engine/mesure.js";
+import { MODE_CAPTURE, SCENE_CAPTURE, ZOOM_CAPTURE } from "./capture/mode.js";
+import { construireScene, NOMS_SCENES } from "./capture/scenes.js";
 import { rangPour } from "./data/monde.js";
 import {
   clamp, coutFacelift, coutUnitaire, coutRD, dureeDev, fmtArgent, fmtH, fmtNb,
@@ -38,17 +41,22 @@ export default function App() {
   // aucune écriture dans le localStorage des visiteurs.
   if (BETA_FERMEE) return <BetaFermee />;
 
-  const [phase, setPhase] = useState("intro");
-  const [pays, setPays] = useState(null);
-  const [profil, setProfil] = useState(null);
-  const [origine, setOrigine] = useState(null);
-  // Champ pré-rempli : les champs vides freinaient les testeurs pressés.
-  const [marque, setMarque] = useState(nomDeMarque);
+  // Mode capture : la scène est jouée par le moteur une seule fois, au
+  // montage, puis l'application démarre directement dessus.
+  const [scene] = useState(() => (MODE_CAPTURE ? construireScene(SCENE_CAPTURE) : null));
+  if (scene && scene.ctx && scene.ctx.pays) setDevise(scene.ctx.pays);
 
-  const [g, setG] = useState(null);
-  const [rapport, setRapport] = useState(null);
-  const [bilanAnnuel, setBilanAnnuel] = useState(null);
-  const [finInfo, setFinInfo] = useState(null);
+  const [phase, setPhase] = useState(scene ? scene.phase : "intro");
+  const [pays, setPays] = useState(scene ? scene.ctx.pays : null);
+  const [profil, setProfil] = useState(scene ? scene.ctx.profil : null);
+  const [origine, setOrigine] = useState(scene ? scene.ctx.origine : null);
+  // Champ pré-rempli : les champs vides freinaient les testeurs pressés.
+  const [marque, setMarque] = useState(scene && scene.ctx.marque ? scene.ctx.marque : nomDeMarque);
+
+  const [g, setG] = useState(scene ? scene.g : null);
+  const [rapport, setRapport] = useState(scene ? scene.rapport || null : null);
+  const [bilanAnnuel, setBilanAnnuel] = useState(scene ? scene.bilanAnnuel || null : null);
+  const [finInfo, setFinInfo] = useState(scene ? scene.finInfo || null : null);
   const [saveMsg, setSaveMsg] = useState("");
   const [sauvegardeExiste, setSauvegardeExiste] = useState(false);
   // Horodatage du dernier autosave, pour le témoin de la barre de statut.
@@ -59,7 +67,10 @@ export default function App() {
   useEffect(() => setSauvegardeExiste(existeSauvegarde()), []);
   // La mesure ne se charge que si une clé est configurée : sans elle, aucune
   // requête ne quitte le navigateur.
-  useEffect(() => initMesure(), []);
+  // Filmer ne doit pas gonfler les chiffres de fréquentation.
+  useEffect(() => {
+    if (!MODE_CAPTURE) initMesure();
+  }, []);
 
   useEffect(() => {
     if (!saveMsg) return;
@@ -71,6 +82,8 @@ export default function App() {
 
   // Sauvegarde silencieuse en début de trimestre : on ne perd jamais plus d'un tour.
   function persister(etat, ident = { pays, profil, origine, marque }) {
+    // Tourner une scène ne doit jamais écraser la partie de celui qui filme.
+    if (MODE_CAPTURE) return false;
     const ok = sauvegarderPartie({ g: etat, ...ident });
     if (ok) {
       setSauvegardeExiste(true);
@@ -104,7 +117,7 @@ export default function App() {
     // L'économie reste en CHF ; seule la devise d'affichage suit le pays.
     setDevise(pays);
     // Une partie lancée : c'est l'événement qui compte, plus qu'une visite.
-    compter("partie-lancee", "Partie lancée");
+    if (!MODE_CAPTURE) compter("partie-lancee", "Partie lancée");
     const etat = etatInitial({ pays, profil, origine, marque });
     // Olivier écrit dès 2015 : la première lettre ouvre la partie.
     etat.objectif = choisirObjectif(periodeQuiOuvre(ANNEE_DEBUT), etat);
@@ -819,6 +832,20 @@ export default function App() {
 
   // ---- Rendu --------------------------------------------------------------
 
+  if (MODE_CAPTURE && !scene) {
+    return (
+      <div style={{ ...S.root, padding: 40 }}>
+        <div style={S.h1}>Scène inconnue : « {SCENE_CAPTURE} »</div>
+        <div style={{ ...S.steel, marginTop: 16 }}>Scènes disponibles :</div>
+        {NOMS_SCENES.map((n) => (
+          <div key={n} style={{ marginTop: 6 }}>
+            <a href={"?capture=" + n} style={S.gold}>?capture={n}</a>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (phase === "intro") {
     return (
       <Intro
@@ -848,6 +875,7 @@ export default function App() {
     return (
       <Jeu
         g={g} ctx={ctx} marque={marque} saveMsg={saveMsg} autosaveAt={autosaveAt}
+        panneauInitial={scene ? scene.panneau || null : null}
         actions={{
           action, creerModele, rechercher, embaucher, licencier, ouvrirCanal, agrandirAtelier,
           facelift, edition, opportunite, politiqueSalariale, embaucherEquipe, produireAuMax,
