@@ -62,7 +62,9 @@ function epilogue(f, nom) {
 }
 
 export default function Fin({ f, marque, onRejouer }) {
-  useEffect(() => window.scrollTo(0, 0), []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const nom = marque || "Votre marque";
   const alternative = f.type === "alternative";
   const fin = alternative ? FINS.find((x) => x.id === f.fin) : null;
